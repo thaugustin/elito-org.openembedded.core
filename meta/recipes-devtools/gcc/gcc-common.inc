@@ -10,11 +10,27 @@ inherit autotools gettext
 FILESDIR = "${@os.path.dirname(d.getVar('FILE',1))}/gcc-${PV}"
 
 def get_gcc_fpu_setting(bb, d):
-    if d.getVar('TARGET_FPU', 1) in [ 'soft' ]:
-        return "--with-float=soft"
-    if d.getVar('TARGET_FPU', 1) in [ 'ppc-efd' ]:
-        return "--enable-e500_double"
-    return ""
+    res=[]
+
+    cpu=d.getVar('TARGET_CPU', True)
+    if cpu:
+        res.append('--with-cpu=' + cpu)
+
+    abi=d.getVar('TARGET_ABI', True)
+    if abi:
+        res.append('--with-abi=' + abi)
+
+    fpu=(d.getVar('ARM_FP_ABI', True) or
+         d.getVar('TARGET_FPU', True))
+
+    if fpu == 'hardfp':
+        fpu = 'hard'
+    if fpu in [ 'soft', 'softfp', 'hard' ]:
+        res.append("--with-float=" + fpu)
+    elif fpu in ['ppc-efd']:
+        res.append("--enable-e500-double")
+
+    return ' '.join(res)
 
 def get_gcc_mips_plt_setting(bb, d):
     if d.getVar('TARGET_ARCH', 1) in [ 'mips', 'mipsel' ] and 'mplt' in d.getVar('DISTRO_FEATURES',1).split() :
