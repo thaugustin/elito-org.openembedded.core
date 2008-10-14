@@ -293,7 +293,7 @@ def check_sanity(e):
 
     required_utilities = e.data.getVar('SANITY_REQUIRED_UTILITIES', True)
 
-    if "qemu-native" in assume_provided:
+    if "qemu-native" in assume_provided and not data.getVar("DISABLE_QEMU", e.data, False):
         if not check_app_exists("qemu-arm", e.data):
             messages = messages + "qemu-native was in ASSUME_PROVIDED but the QEMU binaries (qemu-arm) can't be found in PATH"
 
