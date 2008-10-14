@@ -681,7 +681,7 @@ def check_sanity_version_change(status, d):
     if "diffstat-native" not in assume_provided:
         status.addresult('Please use ASSUME_PROVIDED +=, not ASSUME_PROVIDED = in your local.conf\n')
 
-    if "qemu-native" in assume_provided:
+    if "qemu-native" in assume_provided and not d.getVar("DISABLE_QEMU", True):
         if not check_app_exists("qemu-arm", d):
             status.addresult("qemu-native was in ASSUME_PROVIDED but the QEMU binaries (qemu-arm) can't be found in PATH")
 
