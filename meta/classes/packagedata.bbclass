@@ -9,5 +9,7 @@ python read_subpackage_metadata () {
 	for pkg in d.getVar('PACKAGES', 1).split():
 		sdata = oe.packagedata.read_subpkgdata(pkg, d)
 		for key in sdata.keys():
+			if not key.endswith('_' + pkg):
+				continue
 			d.setVar(key, sdata[key])
 }
