@@ -18,6 +18,10 @@ do_configure_prepend() {
 
 inherit autotools pkgconfig
 
+OPKG_LOCKFILE = " --with-opkglockfile=/var/run/opkg.lock"
+OPKG_LOCKFILE_class-native = ""
+OPKG_LOCKFILE_class-nativesdk = ""
+
 target_localstatedir := "${localstatedir}"
 OPKGLIBDIR = "${target_localstatedir}/lib"
 
@@ -26,6 +30,7 @@ SHARED_EXTRA_OECONF = "\
   --disable-gpg \
   --disable-curl \
   --disable-openssl \
+  ${OPKG_LOCKFILE} \
 "
 EXTRA_OECONF_class-target = "${SHARED_EXTRA_OECONF} --disable-ssl-curl --disable-sha256"
 EXTRA_OECONF_class-native = "${SHARED_EXTRA_OECONF}"
