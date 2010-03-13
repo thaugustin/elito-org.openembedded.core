@@ -25,6 +25,10 @@ inherit autotools pkgconfig systemd
 
 SYSTEMD_SERVICE_${PN} = "opkg-configure.service"
 
+OPKG_LOCKFILE = " --with-opkglockfile=/var/run/opkg.lock"
+OPKG_LOCKFILE_class-native = ""
+OPKG_LOCKFILE_class-nativesdk = ""
+
 target_localstatedir := "${localstatedir}"
 OPKGLIBDIR = "${target_localstatedir}/lib"
 
@@ -39,6 +43,7 @@ PACKAGECONFIG[pathfinder] = "--enable-pathfinder,--disable-pathfinder,pathfinder
 
 EXTRA_OECONF = "\
   --with-opkglibdir=${OPKGLIBDIR} \
+  ${OPKG_LOCKFILE} \
 "
 
 # Werror gives all kinds bounds issuses with gcc 4.3.3
