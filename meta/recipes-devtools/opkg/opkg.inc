@@ -26,8 +26,11 @@ EXTRA_OECONF += " --disable-gpg \
                   --disable-curl \
                   --disable-sha256"
 
+OPKG_LOCKFILE = " --with-opkglockfile=/var/run/opkg.lock"
+OPKG_LOCKFILE_virtclass-native = ""
+
 target_localstatedir := "${localstatedir}"
-EXTRA_OECONF += "--with-opkglibdir=${localstatedir}/lib"
+EXTRA_OECONF += "--with-opkglibdir=${localstatedir}/lib ${OPKG_LOCKFILE}"
 EXTRA_OECONF_virtclass-native = "--with-opkglibdir=${target_localstatedir}/lib --disable-gpg --disable-curl --disable-openssl"
 EXTRA_OECONF_virtclass-nativesdk = "--with-opkglibdir=${target_localstatedir}/lib --disable-gpg --disable-curl --disable-openssl"
 
