@@ -26,6 +26,10 @@ inherit autotools pkgconfig systemd
 
 SYSTEMD_SERVICE_${PN} = "opkg-configure.service"
 
+OPKG_LOCKFILE = " --with-opkglockfile=/var/run/opkg.lock"
+OPKG_LOCKFILE_class-native = ""
+OPKG_LOCKFILE_class-nativesdk = ""
+
 target_localstatedir := "${localstatedir}"
 OPKGLIBDIR = "${target_localstatedir}/lib"
 
@@ -38,6 +42,10 @@ PACKAGECONFIG[openssl] = "--enable-openssl,--disable-openssl,openssl"
 PACKAGECONFIG[sha256] = "--enable-sha256,--disable-sha256"
 PACKAGECONFIG[pathfinder] = "--enable-pathfinder,--disable-pathfinder,pathfinder"
 PACKAGECONFIG[libsolv] = "--enable-solver=libsolv,--disable-solver,libsolv"
+
+EXTRA_OECONF += "\
+  ${OPKG_LOCKFILE} \
+ "
 
 do_install_append () {
 	install -d ${D}${sysconfdir}/opkg
