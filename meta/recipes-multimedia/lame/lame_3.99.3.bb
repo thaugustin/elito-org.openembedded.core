@@ -23,6 +23,9 @@ FILES_libmp3lame-dev = "${includedir} ${libdir}/*"
 FILES_${PN}-dev = ""
 
 do_configure() {
+	FRONTEND_LDADD=`pkg-config --libs ncurses`
+	export FRONTEND_LDADD
+
 	# no autoreconf please
 	aclocal
 	autoconf
