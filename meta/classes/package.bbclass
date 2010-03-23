@@ -990,15 +990,16 @@ python populate_packages () {
 				path = os.path.join(root, f)
 				rpath = path[len(inst_root):]
 				pkg_files[pkg].append(rpath)
-				try:
-					s = os.stat(path)
-				except OSError, (err, strerror):
-					if err != errno.ENOENT:
-						raise
+				if os.path.islink(path):
 					target = os.readlink(path)
 					if target[0] != '/':
 						target = os.path.join(root[len(inst_root):], target)
-					dangling_links[pkg].append(os.path.normpath(target))
+
+					rtarget = os.path.join(inst_root, target[1:])
+					try:
+						os.lstat(rtarget)
+					except OSError:
+						dangling_links[pkg].append(os.path.normpath(target))
 
 	for pkg in package_list:
 		rdepends = bb.utils.explode_dep_versions(d.getVar('RDEPENDS_' + pkg, True) or d.getVar('RDEPENDS', True) or "")
