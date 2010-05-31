@@ -11,7 +11,7 @@ fi
 
 # Detect and do nothing for linux-wlan-ng interfaces;
 # which are configured by thier own if-pre-up script.
-if [ -n "$IF_WIRELESS_TYPE" -a "$IF_WIRELESS_TYPE" = "wlan-ng" ]; then
+if [ -z "$IF_WIRELESS_TYPE" -o "$IF_WIRELESS_TYPE" = "wlan-ng" ]; then
   exit 0
 fi
 
