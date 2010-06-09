@@ -1,3 +1,7 @@
+import pipes
+
+sh_quote = pipes.quote
+
 try:
     # Python 2
     import commands as cmdstatus
