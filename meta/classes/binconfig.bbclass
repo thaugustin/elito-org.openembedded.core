@@ -45,7 +45,10 @@ binconfig_package_preprocess () {
 SYSROOT_PREPROCESS_FUNCS += "binconfig_sysroot_preprocess"
 
 binconfig_sysroot_preprocess () {
-	for config in `find ${S} -name '${BINCONFIG_GLOB}'`; do
+	# take *-config from ${D}; Using ${PKGD} is not possible
+	# because it might not be populated yet and copies there will
+	# be altered by the function above.
+	for config in `find ${D} -name '${BINCONFIG_GLOB}'`; do
 		configname=`basename $config`
 		install -d ${SYSROOT_DESTDIR}${bindir_crossscripts}
 		cat $config | sed ${@get_binconfig_mangle(d)} > ${SYSROOT_DESTDIR}${bindir_crossscripts}/$configname
