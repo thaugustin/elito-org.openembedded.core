@@ -131,8 +131,8 @@ python emit_pkghistory() {
 	pkgdest = d.getVar('PKGDEST', True)
 	for pkg in packages.split():
 		pe = getpkgvar(pkg, 'PE') or "0"
-		pv = getpkgvar(pkg, 'PV')
-		pr = getpkgvar(pkg, 'PR')
+		pv = getpkgvar(pkg, 'PKGV')
+		pr = getpkgvar(pkg, 'PKGR')
 		#
 		# Find out what the last version was
 		# Make sure the version did not decrease
