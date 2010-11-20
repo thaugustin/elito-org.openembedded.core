@@ -155,6 +155,7 @@ do_configure() {
 }
 
 do_install() {
+	install -d ${D}${libdir}
         oe_runmake PREFIX=${D} install
 }
 
