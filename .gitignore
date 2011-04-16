@@ -13,5 +13,4 @@ meta-*/
 hob-image-*.bb
 *.swp
 *.orig
-*.rej
 *~
