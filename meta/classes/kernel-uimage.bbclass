@@ -4,7 +4,7 @@ python __anonymous () {
     kerneltype = d.getVar('KERNEL_IMAGETYPE', True)
     if kerneltype == 'uImage':
         depends = d.getVar("DEPENDS", True)
-        depends = "%s u-boot-mkimage-native" % depends
+        depends = "%s virtual/u-boot-mkimage-native" % depends
         d.setVar("DEPENDS", depends)
 
 	# Override KERNEL_IMAGETYPE_FOR_MAKE variable, which is internal
