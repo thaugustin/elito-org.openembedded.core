@@ -15,7 +15,7 @@ python __anonymous () {
     kerneltype = d.getVar('KERNEL_IMAGETYPE', True) or ''
     if kerneltype == 'uImage':
         depends = d.getVar("DEPENDS", True)
-        depends = "%s u-boot-mkimage-native" % depends
+        depends = "%s virtual/u-boot-mkimage-native" % depends
         d.setVar("DEPENDS", depends)
 
     image = d.getVar('INITRAMFS_IMAGE', True)
