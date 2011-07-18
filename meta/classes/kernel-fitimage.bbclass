@@ -4,7 +4,7 @@ python __anonymous () {
     kerneltypes = d.getVar('KERNEL_IMAGETYPES', True) or ""
     if 'fitImage' in kerneltypes.split():
         depends = d.getVar("DEPENDS", True)
-        depends = "%s u-boot-mkimage-native dtc-native" % depends
+        depends = "%s virtual/u-boot-mkimage-native dtc-native" % depends
         d.setVar("DEPENDS", depends)
 
         if d.getVar("UBOOT_ARCH", True) == "x86":
