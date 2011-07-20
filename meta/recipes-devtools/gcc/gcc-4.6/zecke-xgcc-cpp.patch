@@ -12,7 +12,7 @@ Index: gcc-4.6.0/Makefile.in
  	AR="$(AR_FOR_TARGET)"; export AR; \
  	AS="$(COMPILER_AS_FOR_TARGET)"; export AS; \
  	CC="$(CC_FOR_TARGET) $(XGCC_FLAGS_FOR_TARGET) $$TFLAGS"; export CC; \
-+	CPP="$(CC_FOR_TARGET) -E"; export CPP; \
++	CPP="$(CC_FOR_TARGET) $(XGCC_FLAGS_FOR_TARGET) -E"; export CPP; \
  	CFLAGS="$(CFLAGS_FOR_TARGET)"; export CFLAGS; \
  	CONFIG_SHELL="$(SHELL)"; export CONFIG_SHELL; \
  	CPPFLAGS="$(CPPFLAGS_FOR_TARGET)"; export CPPFLAGS; \
@@ -24,7 +24,7 @@ Index: gcc-4.6.0/Makefile.tpl
  	AR="$(AR_FOR_TARGET)"; export AR; \
  	AS="$(COMPILER_AS_FOR_TARGET)"; export AS; \
  	CC="$(CC_FOR_TARGET) $(XGCC_FLAGS_FOR_TARGET) $$TFLAGS"; export CC; \
-+	CPP="$(CC_FOR_TARGET) -E"; export CPP; \
++	CPP="$(CC_FOR_TARGET) $(XGCC_FLAGS_FOR_TARGET) -E"; export CPP; \
  	CFLAGS="$(CFLAGS_FOR_TARGET)"; export CFLAGS; \
  	CONFIG_SHELL="$(SHELL)"; export CONFIG_SHELL; \
  	CPPFLAGS="$(CPPFLAGS_FOR_TARGET)"; export CPPFLAGS; \
