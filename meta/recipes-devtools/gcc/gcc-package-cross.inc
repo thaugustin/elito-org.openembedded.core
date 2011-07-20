@@ -42,7 +42,7 @@ do_install () {
 			# for now, we just move the files to the correct location
 
 			install -d $dest${target_base_libdir}
-			mv $dest${target_exec_prefix}/${TARGET_SYS}/lib*/* $dest${target_base_libdir}
+			mv $dest${target_exec_prefix}/${TARGET_SYS}/lib*/* $dest${target_base_libdir} || :
 			rm -rf $dest${target_exec_prefix}/${TARGET_SYS}
 
 			# Also need to move gcc from /usr/lib/gcc/* to /usr/lib/ else the search paths won't find the crt*.o files
