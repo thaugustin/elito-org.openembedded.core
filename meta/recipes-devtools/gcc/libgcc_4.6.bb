@@ -37,7 +37,7 @@ do_install () {
 	fi
 
 	chown -R root:root ${D}
-	chmod +x ${D}${base_libdir}/libgcc_s.so.*
+	chmod +x ${D}${base_libdir}/libgcc_s.so.* || :
 }
 
 do_package_write_ipk[depends] += "virtual/${MLPREFIX}libc:do_package"
