@@ -12,6 +12,7 @@ SRC_URI = "http://gstreamer.freedesktop.org/src/${BPN}/${BPN}-${PV}.tar.bz2"
 
 GSTREAMER_DEBUG ?= "--disable-debug"
 EXTRA_OECONF = "--disable-valgrind ${GSTREAMER_DEBUG} --disable-examples "
+EXTRA_OECONF += "${@base_contains('DISTRO_FEATURES','x11','','--disable-x', d)}"
 
 acpaths = "-I ${S}/common/m4 -I ${S}/m4"
 
