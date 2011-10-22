@@ -160,6 +160,9 @@ class Image(ImageDepGraph):
         rootfs_extra_space = eval(self.d.getVar('IMAGE_ROOTFS_EXTRA_SPACE', True))
         rootfs_maxsize = self.d.getVar('IMAGE_ROOTFS_MAXSIZE', True)
 
+        rootfs_req_size = int((rootfs_req_size + 1023) / 1024)
+        rootfs_extra_space = int((rootfs_extra_space + 1023) / 1024)
+
         output = subprocess.check_output(['du', '-ks',
                                           self.d.getVar('IMAGE_ROOTFS', True)])
         size_kb = int(output.split()[0])
