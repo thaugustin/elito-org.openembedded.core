@@ -101,6 +101,7 @@ fakeroot rootfs_ipk_do_rootfs () {
 	fi
 	set +x
 	log_check rootfs 	
+	set -x
 }
 
 rootfs_ipk_write_manifest() {
