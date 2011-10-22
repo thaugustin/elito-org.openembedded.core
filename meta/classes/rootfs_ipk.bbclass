@@ -97,6 +97,7 @@ fakeroot rootfs_ipk_do_rootfs () {
 
 	rm -f ${IMAGE_ROOTFS}${OPKGLIBDIR}/opkg/lists/*
 	log_check rootfs
+	set -x
 }
 
 rootfs_ipk_do_rootfs[vardeps] += "delayed_postinsts"
