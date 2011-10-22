@@ -21,9 +21,12 @@ def get_imagecmds(d):
         cmds += localdata.getVar("runimagecmd", True)
     return cmds
 
+_image_rootfs_size_kib = "${@(int('${IMAGE_ROOTFS_SIZE}') + 1023) / 1024}"
+_image_rootfs_extra_space_kib = "${@(int('${IMAGE_ROOTFS_EXTRA_SPACE}') + 1023) / 1024}"
+
 runimagecmd () {
 	# Image generation code for image type ${type}
-	ROOTFS_SIZE=`du -ks ${IMAGE_ROOTFS}|awk '{base_size = ($1 * ${IMAGE_OVERHEAD_FACTOR});  OFMT = "%.0f" ; print ((base_size > ${IMAGE_ROOTFS_SIZE} ? base_size : ${IMAGE_ROOTFS_SIZE}) + ${IMAGE_ROOTFS_EXTRA_SPACE}) }'`
+	ROOTFS_SIZE=`du -ks ${IMAGE_ROOTFS}|awk '{base_size = ($1 * ${IMAGE_OVERHEAD_FACTOR});  OFMT = "%.0f" ; print ((base_size > ${_image_rootfs_size_kib} ? base_size : ${_image_rootfs_size_kib}) + ${_image_rootfs_extra_space_kib}) }'`
 	${cmd}
 	cd ${DEPLOY_DIR_IMAGE}/
 	rm -f ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.${type}
