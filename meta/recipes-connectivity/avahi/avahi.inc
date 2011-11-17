@@ -155,21 +155,7 @@ pkg_postrm_avahi-autoipd () {
 	delgroup avahi-autoipd || true
 }
 
-pkg_postinst_avahi-systemd() {
-	# can't do this offline
-	if [ "x$D" != "x" ]; then
-		exit 1
-	fi
-	
-	systemctl enable avahi-daemon.service
-}
+SYSTEMD_PACKAGES = "${PN}-systemd"
+SYSTEMD_SERVICE_${PN}-systemd = "avahi-daemon.service"
 
-pkg_postrm_avahi-systemd() {
-	# can't do this offline
-	if [ "x$D" != "x" ]; then
-		exit 1
-	fi
-
-	systemctl disable avahi-daemon.service
-}
-
+inherit systemd
