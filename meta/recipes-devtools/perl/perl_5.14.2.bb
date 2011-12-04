@@ -163,7 +163,7 @@ do_configure() {
 			;;
 	esac
         # These are strewn all over the source tree
-        for foo in `grep -I -m1 \/usr\/include\/.*\\.h ${WORKDIR}/* -r | cut -f 1 -d ":"` ; do
+        for foo in `find ${WORKDIR} -type f -print0 | xargs -0 grep -I -m1 \/usr\/include\/.*\\.h | cut -f 1 -d ":"` ; do
             echo Fixing: $foo
             sed -e "s%/usr/include/%${STAGING_INCDIR}/%g" -i $foo
         done
