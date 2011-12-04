@@ -1637,7 +1637,7 @@ python package_depchains() {
 			if d.getVarFlag('RRECOMMENDS_' + pkg, 'nodeprrecs'):
 				continue
 			(base, func) = pkgs[suffix][pkg]
-			if suffix == "-dev":
+			if suffix == "-dev" and not d.getVarFlag('RRECOMMENDS_' + pkg, 'nodevrrecs'):
 				pkg_adddeprrecs(pkg, base, suffix, func, depends, d)
 			if len(pkgs[suffix]) == 1:
 				pkg_addrrecs(pkg, base, suffix, func, rdepends, d)
