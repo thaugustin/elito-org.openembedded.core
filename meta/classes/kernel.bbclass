@@ -427,6 +427,7 @@ python populate_packages_prepend () {
 		files = d.getVar('FILES_%s' % pkg, 1)
 		files = "%s /etc/modutils/%s /etc/modutils/%s.conf /etc/modprobe.d/%s.conf" % (files, basename, basename, basename)
 		d.setVar('FILES_%s' % pkg, files)
+		d.setVarFlag('RRECOMMENDS_%s' % pkg, 'nodevrrecs', True)
 
 		if vals.has_key("description"):
 			old_desc = d.getVar('DESCRIPTION_' + pkg, 1) or ""
