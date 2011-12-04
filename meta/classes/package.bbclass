@@ -1941,7 +1941,7 @@ python package_depchains() {
             if d.getVarFlag('RRECOMMENDS_' + pkg, 'nodeprrecs', True):
                 continue
             (base, func) = pkgs[suffix][pkg]
-            if suffix == "-dev":
+            if suffix == "-dev" and not d.getVarFlag('RRECOMMENDS_' + pkg, 'nodevrrecs', True):
                 pkg_adddeprrecs(pkg, base, suffix, func, depends, d)
             elif suffix == "-dbg":
                 if not dbgdefaultdeps:
