@@ -357,7 +357,7 @@ python populate_packages_prepend () {
 PACKAGES_DYNAMIC += "^perl-module-.*"
 PACKAGES_DYNAMIC_class-nativesdk += "^nativesdk-perl-module-.*"
 
-RPROVIDES_perl-lib = "perl-lib"
+RPROVIDES_perl-lib = "perl-lib perl-module-config-heavy"
 
 require perl-rdepends_${PV}.inc
 require perl-ptest.inc
