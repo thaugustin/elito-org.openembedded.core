@@ -8,7 +8,7 @@ PR = "r7"
 
 DEPENDS = "avahi ${GTKDEP}"
 GTKDEP_libc-uclibc = ""
-GTKDEP = "gtk+"
+GTKDEP = "${@base_contains('DISTRO_FEATURES', 'x11', 'gtk+', '', d)}"
 
 RRECOMMENDS_${PN} = "avahi-daemon"
 
@@ -28,7 +28,8 @@ inherit autotools pkgconfig update-rc.d
 
 INITSCRIPT_NAME = "distcc"
 
-EXTRA_OECONF = "--with-gtk"
+EXTRA_OECONF = "${@base_contains('DISTRO_FEATURES', 'x11', \
+  '--with-gtk', '--without-gtk --without-gnome', d)}"
 EXTRA_OECONF_libc-uclibc = "--without-gtk --without-gnome"
 do_install_append() {
     install -d ${D}${sysconfdir}/init.d/
