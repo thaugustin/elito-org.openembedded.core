@@ -26,8 +26,6 @@ X11GLTOOLS = "\
     "
 
 X11TOOLS = "\
-    fstests \
-    gst-player-bin \
     x11perf \
     xrestop \
     xwininfo \
@@ -35,14 +33,27 @@ X11TOOLS = "\
     xvideo-tests \
     "
 
-RDEPENDS_${PN} = "\
-    blktool \
-    tslib-calibrate \
-    tslib-tests \
-    lrzsz \
-    ${KEXECTOOLS} \
+_pkgs_alsa = " \
     alsa-utils-amixer \
     alsa-utils-aplay \
+    "
+
+_pkgs_screen = "\
+    fstests \
+    gst-player-bin \
+    "
+
+_pkgs_touch = "\
+    tslib-calibrate \
+    tslib-tests \
+    "
+
+###
+
+RDEPENDS_${PN} = "\
+    blktool \
+    lrzsz \
+    ${KEXECTOOLS} \
     ltp \
     connman-tools \
     connman-tests \
@@ -50,4 +61,7 @@ RDEPENDS_${PN} = "\
     ${@bb.utils.contains('DISTRO_FEATURES', 'x11', "${X11TOOLS}", "", d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'x11 opengl', "${X11GLTOOLS}", "", d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', '3g', "${3GTOOLS}", "", d)} \
+    ${@bb.utils.contains('MACHINE_FEATURES', 'touchscreen', '${_pkgs_touch}', '', d)} \
+    ${@bb.utils.contains('MACHINE_FEATURES', 'screen', '${_pkgs_screen}', '', d)} \
+    ${@bb.utils.contains('MACHINE_FEATURES', 'alsa', '${_pkgs_alsa}', '', d)} \
     "
