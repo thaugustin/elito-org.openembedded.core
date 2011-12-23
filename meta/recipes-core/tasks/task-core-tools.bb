@@ -39,11 +39,11 @@ RDEPENDS_task-core-tools-debug = "\
 
 RDEPENDS_task-core-tools-profile = "\
     oprofile \
-    oprofileui-server \
+    ${@base_contains('DISTRO_FEATURES', 'x11', 'oprofileui-server', '', d)} \
     powertop \
     latencytop \
     lttng-control \
-    lttng-viewer"
+    ${@base_contains('DISTRO_FEATURES', 'x11', 'lttng-viewer', '', d)}"
 
 RRECOMMENDS_task-core-tools-profile = "\
     perf \
@@ -64,7 +64,7 @@ SYSTEMTAP_libc-uclibc = ""
 # which means we can not use syscall() to call it. So we ignore
 # it for x86_64/uclibc
 
-LTTNGUST = "lttng-ust"
+LTTNGUST = "${@base_contains('DISTRO_FEATURES', 'x11', 'lttng-ust', '', d)}"
 LTTNGUST_libc-uclibc = ""
 
 #    exmap-console
@@ -79,18 +79,8 @@ RDEPENDS_task-core-tools-profile_append_qemux86-64 = " ${LTTNGUST} ${SYSTEMTAP}"
 RDEPENDS_task-core-tools-profile_append_qemuppc = " ${LTTNGUST} ${SYSTEMTAP}"
 RDEPENDS_task-core-tools-profile_append_qemuarm = " ${LTTNGUST} ${SYSTEMTAP}"
 
-RDEPENDS_task-core-tools-testapps = "\
-    blktool \
+_pkgs-x11 = "\
     fstests \
-    tslib-calibrate \
-    tslib-tests \
-    lrzsz \
-    ${KEXECTOOLS} \
-    alsa-utils-amixer \
-    alsa-utils-aplay \
-    owl-video \
-    gst-meta-video \
-    gst-meta-audio \
     mesa-demos \
     x11perf \
     xrestop \
@@ -98,5 +88,23 @@ RDEPENDS_task-core-tools-testapps = "\
     xprop \
     xvideo-tests \
     clutter-box2d \
+    gst-meta-video \
+    gst-meta-audio \
+    owl-video \
+"
+
+_pkgs-alsa = " \
+    alsa-utils-amixer \
+    alsa-utils-aplay \
+"
+
+RDEPENDS_task-core-tools-testapps = "\
+    ${@base_contains('DISTRO_FEATURES', 'x11', '${_pkgs-x11}', '', d)} \
+    ${@base_contains('DISTRO_FEATURES', 'alsa', '${_pkgs-alsa}', '', d)} \
+    blktool \
+    tslib-calibrate \
+    tslib-tests \
+    lrzsz \
     ltp \
+    ${KEXECTOOLS} \
     "
