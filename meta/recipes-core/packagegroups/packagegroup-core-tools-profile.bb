@@ -49,7 +49,7 @@ SYSTEMTAP_aarch64 = ""
 # which means we can not use syscall() to call it. So we ignore
 # it for x86_64/uclibc
 
-LTTNGUST = "lttng-ust"
+LTTNGUST = "${@bb.utils.contains('MACHINE_FEATURES', 'screen', 'lttng-ust', '', d)}"
 LTTNGUST_libc-uclibc = ""
 LTTNGUST_libc-musl = ""
 
