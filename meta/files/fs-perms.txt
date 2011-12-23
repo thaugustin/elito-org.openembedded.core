@@ -52,7 +52,7 @@ ${localstatedir}/tmp	link	volatile/tmp
 
 # Special permissions from base-files
 # Set 1777
-/tmp				01777	root	root	false - - -
+/tmp			link	${localstatedir}/tmp
 ${localstatedir}/volatile/tmp	01777	root	root	false - - -
 
 # Set 2775
