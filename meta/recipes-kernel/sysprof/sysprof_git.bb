@@ -2,7 +2,7 @@ DESCRIPTION = "sysprof - System-wide Performance Profiler for Linux"
 LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://COPYING;md5=94d55d512a9ba36caa9b7df079bae19f"
 
-DEPENDS = "gtk+ libglade"
+DEPENDS = "${@base_contains('DISTRO_FEATURES', 'x11', 'gtk+ libglade', '', d)}"
 
 SRCREV = "cd44ee6644c3641507fb53b8a2a69137f2971219"
 PV = "1.2.0+git${SRCPV}"
