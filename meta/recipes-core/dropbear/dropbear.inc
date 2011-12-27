@@ -25,7 +25,7 @@ SRC_URI = "http://matt.ucc.asn.au/dropbear/releases/dropbear-${PV}.tar.bz2 \
 
 PAM_SRC_URI = "file://0005-dropbear-enable-pam.patch \
                file://0006-dropbear-configuration-file.patch \
-               file://dropbear"
+               file://dropbear.pam"
 
 inherit autotools update-rc.d
 
@@ -66,8 +66,7 @@ do_install() {
 	for i in ${DISTRO_FEATURES};
 	do
 		if [ ${i} = "pam" ];  then
-			install -d ${D}${sysconfdir}/pam.d
-			install -m 0644 ${WORKDIR}/dropbear  ${D}${sysconfdir}/pam.d/
+			install -D -m 0644 ${WORKDIR}/dropbear.pam  ${D}${sysconfdir}/pam.d/dropbear
 		fi
 	done
 
