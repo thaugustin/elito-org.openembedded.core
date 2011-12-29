@@ -38,10 +38,11 @@ module_do_install() {
 
 pkg_postinst_append () {
 	if [ -n "$D" ]; then
-		exit 1
+		${HOST_PREFIX}depmod -a -b $D -F ${STAGING_KERNEL_DIR}/System.map-${KERNEL_VERSION} ${KERNEL_VERSION}
+	else
+		depmod -a
+		update-modules || true
 	fi
-	depmod -a
-	update-modules || true
 }
 
 pkg_postrm_append () {
