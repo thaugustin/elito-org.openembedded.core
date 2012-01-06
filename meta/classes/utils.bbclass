@@ -343,12 +343,6 @@ def base_set_filespath(path, d):
 				filespath.append(os.path.join(p, o))
 	return ":".join(filespath)
 
-def base_construct_filepaths(d):
-	import oe.data
-	return list(os.path.normpath(os.path.join(fp, p))
-                    for fp in oe.data.typed_value('FILESPATHBASE', d)
-                    for p in oe.data.typed_value('FILESPATHPKG', d))
-
 def extend_variants(d, var, extend, delim=':'):
 	"""Return a string of all bb class extend variants for the given extend"""
 	variants = []

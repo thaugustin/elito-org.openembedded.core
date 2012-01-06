@@ -69,14 +69,7 @@ BASEDEPENDS = "${@base_dep_prepend(d)}"
 
 DEPENDS_prepend="${BASEDEPENDS} "
 
-FILESPATHBASE = "${FILE_DIRNAME}"
-FILESPATHBASE[type] = "list"
-FILESPATHBASE[separator] = ":"
-FILESPATHPKG = "${PF}:${P}:${PN}:${BP}:${BPN}:files:."
-FILESPATHPKG[type] = "list"
-FILESPATHPKG[separator] = ":"
-
-FILESPATH = "${@base_set_filespath(base_construct_filepaths(d), d)}"
+FILESPATH = "${@base_set_filespath([ "${FILE_DIRNAME}/${PF}", "${FILE_DIRNAME}/${P}", "${FILE_DIRNAME}/${PN}", "${FILE_DIRNAME}/${BP}", "${FILE_DIRNAME}/${BPN}", "${FILE_DIRNAME}/files", "${FILE_DIRNAME}" ], d)}"
 # THISDIR only works properly with imediate expansion as it has to run
 # in the context of the location its used (:=)
 THISDIR = "${@os.path.dirname(d.getVar('FILE', True))}"
