@@ -15,6 +15,7 @@ export OE_QMAKE_LDFLAGS="${LDFLAGS}"
 export OE_QMAKE_AR="${AR}"
 export OE_QMAKE_STRIP="echo"
 export OE_QMAKE_RPATH="-Wl,-rpath-link,"
+export QT_CONF_PATH="${WORKDIR}/qt.conf"
 
 # default to qte2 via bb.conf, inherit qt3x11 to configure for qt3x11
 
@@ -35,7 +36,6 @@ oe_qmake_mkspecs () {
 }
 
 do_generate_qt_config_file() {
-	export QT_CONF_PATH=${WORKDIR}/qt.conf
 	cat > ${WORKDIR}/qt.conf <<EOF
 [Paths]
 Prefix =
