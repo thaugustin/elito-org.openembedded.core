@@ -15,38 +15,61 @@ import git
 
 
 # How to display fields
-pkg_list_fields = ['DEPENDS', 'RDEPENDS', 'RRECOMMENDS', 'PACKAGES', 'FILES', 'FILELIST']
-pkg_numeric_fields = ['PKGSIZE']
+list_fields = ['DEPENDS', 'RDEPENDS', 'RRECOMMENDS', 'PACKAGES', 'FILES', 'FILELIST', 'USER_CLASSES', 'IMAGE_CLASSES', 'IMAGE_FEATURES', 'IMAGE_LINGUAS', 'IMAGE_INSTALL', 'BAD_RECOMMENDATIONS']
+numeric_fields = ['PKGSIZE', 'IMAGESIZE']
 # Fields to monitor
-pkg_monitor_fields = ['RDEPENDS', 'RRECOMMENDS', 'PACKAGES', 'FILELIST', 'PKGSIZE']
+monitor_fields = ['RDEPENDS', 'RRECOMMENDS', 'PACKAGES', 'FILELIST', 'PKGSIZE', 'IMAGESIZE']
 # Percentage change to alert for numeric fields
-pkg_monitor_numeric_threshold = 20
-# Image files to monitor
+monitor_numeric_threshold = 20
+# Image files to monitor (note that image-info.txt is handled separately)
 img_monitor_files = ['installed-package-names.txt', 'files-in-image.txt']
+# Related context fields for reporting (note: PE, PV & PR are always reported for monitored package fields)
+related_fields = {}
+related_fields['RDEPENDS'] = ['DEPENDS']
+related_fields['RRECOMMENDS'] = ['DEPENDS']
+related_fields['FILELIST'] = ['FILES']
+related_fields['PKGSIZE'] = ['FILELIST']
+related_fields['files-in-image.txt'] = ['installed-package-names.txt', 'USER_CLASSES', 'IMAGE_CLASSES', 'ROOTFS_POSTPROCESS_COMMAND', 'IMAGE_POSTPROCESS_COMMAND']
+related_fields['installed-package-names.txt'] = ['IMAGE_FEATURES', 'IMAGE_LINGUAS', 'IMAGE_INSTALL', 'BAD_RECOMMENDATIONS']
 
 
 class ChangeRecord:
-    def __init__(self, path, fieldname, oldvalue, newvalue):
+    def __init__(self, path, fieldname, oldvalue, newvalue, monitored):
         self.path = path
         self.fieldname = fieldname
         self.oldvalue = oldvalue
         self.newvalue = newvalue
+        self.monitored = monitored
+        self.related = []
         self.filechanges = None
 
     def __str__(self):
-        if self.fieldname in pkg_list_fields:
-            aitems = self.oldvalue.split(' ')
-            bitems = self.newvalue.split(' ')
+        return self._str_internal(True)
+
+    def _str_internal(self, pathprefix):
+        if pathprefix:
+            prefix = '%s: ' % self.path
+        else:
+            prefix = ''
+
+        if self.fieldname in list_fields:
+            aitems = self.oldvalue.split()
+            bitems = self.newvalue.split()
             removed = list(set(aitems) - set(bitems))
             added = list(set(bitems) - set(aitems))
-            return '%s: %s:%s%s' % (self.path, self.fieldname, ' removed "%s"' % ' '.join(removed) if removed else '', ' added "%s"' % ' '.join(added) if added else '')
-        elif self.fieldname in pkg_numeric_fields:
-            aval = int(self.oldvalue)
-            bval = int(self.newvalue)
-            percentchg = ((bval - aval) / float(aval)) * 100
-            return '%s: %s changed from %d to %d (%s%d%%)' % (self.path, self.fieldname, aval, bval, '+' if percentchg > 0 else '', percentchg)
+            out = '%s:%s%s' % (self.fieldname, ' removed "%s"' % ' '.join(removed) if removed else '', ' added "%s"' % ' '.join(added) if added else '')
+        elif self.fieldname in numeric_fields:
+            aval = int(self.oldvalue or 0)
+            bval = int(self.newvalue or 0)
+            if aval != 0:
+                percentchg = ((bval - aval) / float(aval)) * 100
+            else:
+                percentchg = 100
+            out = '%s changed from %s to %s (%s%d%%)' % (self.fieldname, self.oldvalue or "''", self.newvalue or "''", '+' if percentchg > 0 else '', percentchg)
         elif self.fieldname in img_monitor_files:
-            out = 'Changes to %s (%s):\n  ' % (self.path, self.fieldname)
+            if pathprefix:
+                prefix = 'Changes to %s ' % self.path
+            out = '(%s):\n  ' % self.fieldname
             if self.filechanges:
                 out += '\n  '.join(['%s' % i for i in self.filechanges])
             else:
@@ -55,10 +78,15 @@ class ChangeRecord:
                 diff = difflib.unified_diff(alines, blines, self.fieldname, self.fieldname, lineterm='')
                 out += '\n  '.join(list(diff))
                 out += '\n  --'
-            return out
         else:
-            return '%s: %s changed from "%s" to "%s"' % (self.path, self.self.fieldname, self.oldvalue, self.newvalue)
+            out = '%s changed from "%s" to "%s"' % (self.fieldname, self.oldvalue, self.newvalue)
 
+        if self.related:
+            for chg in self.related:
+                for line in chg._str_internal(False).splitlines():
+                    out += '\n  * %s' % line
+
+        return '%s%s' % (prefix, out)
 
 class FileChange:
     changetype_add = 'A'
@@ -190,6 +218,30 @@ def compare_lists(alines, blines):
     return filechanges
 
 
+def compare_dict_blobs(path, ablob, bblob, report_all):
+    adict = blob_to_dict(ablob)
+    bdict = blob_to_dict(bblob)
+
+    changes = []
+    keys = list(set(adict.keys()) | set(bdict.keys()))
+    for key in keys:
+        astr = adict.get(key, '')
+        bstr = bdict.get(key, '')
+        if astr != bstr:
+            if (not report_all) and key in numeric_fields:
+                aval = int(astr or 0)
+                bval = int(bstr or 0)
+                if aval != 0:
+                    percentchg = ((bval - aval) / float(aval)) * 100
+                else:
+                    percentchg = 100
+                if percentchg < monitor_numeric_threshold:
+                    continue
+            chg = ChangeRecord(path, key, astr, bstr, key in monitor_fields)
+            changes.append(chg)
+    return changes
+
+
 def process_changes(repopath, revision1, revision2 = 'HEAD', report_all = False):
     repo = git.Repo(repopath)
     assert repo.bare == False
@@ -200,20 +252,7 @@ def process_changes(repopath, revision1, revision2 = 'HEAD', report_all = False)
     for d in diff.iter_change_type('M'):
         path = os.path.dirname(d.a_blob.path)
         if path.startswith('packages/'):
-            adict = blob_to_dict(d.a_blob)
-            bdict = blob_to_dict(d.b_blob)
-
-            for key in adict:
-                if report_all or key in pkg_monitor_fields:
-                    if adict[key] != bdict[key]:
-                        if (not report_all) and key in pkg_numeric_fields:
-                            aval = int(adict[key])
-                            bval = int(bdict[key])
-                            percentchg = ((bval - aval) / float(aval)) * 100
-                            if percentchg < pkg_monitor_numeric_threshold:
-                                continue
-                        chg = ChangeRecord(path, key, adict[key], bdict[key])
-                        changes.append(chg)
+            changes.extend(compare_dict_blobs(path, d.a_blob, d.b_blob, report_all))
         elif path.startswith('images/'):
             filename = os.path.basename(d.a_blob.path)
             if filename in img_monitor_files:
@@ -222,7 +261,7 @@ def process_changes(repopath, revision1, revision2 = 'HEAD', report_all = False)
                     blines = d.b_blob.data_stream.read().splitlines()
                     filechanges = compare_file_lists(alines,blines)
                     if filechanges:
-                        chg = ChangeRecord(path, filename, None, None)
+                        chg = ChangeRecord(path, filename, None, None, True)
                         chg.filechanges = filechanges
                         changes.append(chg)
                 elif filename == 'installed-package-names.txt':
@@ -230,11 +269,27 @@ def process_changes(repopath, revision1, revision2 = 'HEAD', report_all = False)
                     blines = d.b_blob.data_stream.read().splitlines()
                     filechanges = compare_lists(alines,blines)
                     if filechanges:
-                        chg = ChangeRecord(path, filename, None, None)
+                        chg = ChangeRecord(path, filename, None, None, True)
                         chg.filechanges = filechanges
                         changes.append(chg)
                 else:
-                    chg = ChangeRecord(path, filename, d.a_blob.data_stream.read(), d.b_blob.data_stream.read())
+                    chg = ChangeRecord(path, filename, d.a_blob.data_stream.read(), d.b_blob.data_stream.read(), True)
                     changes.append(chg)
+            elif filename == 'image-info.txt':
+                changes.extend(compare_dict_blobs(path, d.a_blob, d.b_blob, report_all))
 
-    return changes
+    # Link related changes
+    for chg in changes:
+        if chg.monitored:
+            for chg2 in changes:
+                # (Check dirname in the case of fields from recipe info files)
+                if chg.path == chg2.path or os.path.dirname(chg.path) == chg2.path:
+                    if chg2.fieldname in related_fields.get(chg.fieldname, []):
+                        chg.related.append(chg2)
+                    elif chg.path.startswith('packages/') and chg2.fieldname in ['PE', 'PV', 'PR']:
+                        chg.related.append(chg2)
+
+    if report_all:
+        return changes
+    else:
+        return [chg for chg in changes if chg.monitored]
