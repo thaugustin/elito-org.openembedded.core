@@ -109,7 +109,7 @@ def package_qa_get_machine_dict():
 
 
 # Currently not being used by default "desktop"
-WARN_QA ?= "ldflags useless-rpaths rpaths unsafe-references-in-binaries unsafe-references-in-scripts"
+WARN_QA ?= "ldflags useless-rpaths rpaths unsafe-references-in-binaries unsafe-references-in-scripts staticdev"
 ERROR_QA ?= "dev-so debug-deps dev-deps debug-files arch la2 pkgconfig la perms"
 
 def package_qa_clean_path(path,d):
@@ -202,6 +202,19 @@ def package_qa_check_dev(path, name, d, elf, messages):
                      (name, package_qa_clean_path(path,d))
             sane = package_qa_handle_error(error_msg, name, d)
 
+
+QAPATHTEST[staticdev] = "package_qa_check_staticdev"
+def package_qa_check_staticdev(path, name, d, elf, messages):
+    """
+    Check for ".a" library in non-staticdev packages
+    There are a number of exceptions to this rule, -pic packages can contain
+    static libraries, the _nonshared.a belong with their -dev packages and
+    libgcc.a, libgcov.a will be skipped in their packages
+    """
+
+    if not name.endswith("-pic") and not name.endswith("-staticdev") and path.endswith(".a") and not path.endswith("_nonshared.a"):
+        messages.append("non -staticdev package contains static .a library: %s path '%s'" % \
+                 (name, package_qa_clean_path(path,d)))
 
 QAPATHTEST[debug-files] = "package_qa_check_dbg"
 def package_qa_check_dbg(path, name, d, elf, messages):
