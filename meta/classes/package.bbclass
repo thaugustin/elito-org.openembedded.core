@@ -690,7 +690,7 @@ python split_and_strip_files () {
 		debuglibdir = "/usr/lib/debug"
 		debugsrcdir = "/usr/src/debug"
 	else:
-		# Original Poky, a.k.a. ".debug", style debug info
+		# Original OE-core, a.k.a. ".debug", style debug info
 		debugappend = ""
 		debugdir = "/.debug"
 		debuglibdir = ""
@@ -1327,8 +1327,8 @@ python package_do_shlibs() {
 
 	needed = {}
 	shlib_provider = {}
-	private_libs = d.getVar('PRIVATE_LIBS', True)
 	for pkg in packages.split():
+		private_libs = d.getVar('PRIVATE_LIBS_' + pkg, True) or d.getVar('PRIVATE_LIBS', True)
 		needs_ldconfig = False
 		bb.debug(2, "calculating shlib provides for %s" % pkg)
 
