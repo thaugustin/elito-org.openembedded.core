@@ -98,12 +98,16 @@ _pkgs-alsa = " \
     alsa-utils-aplay \
 "
 
+_pkgs-head = " \
+    tslib-calibrate \
+    tslib-tests \
+"
+
 RDEPENDS_task-core-tools-testapps = "\
     ${@base_contains('DISTRO_FEATURES', 'x11', '${_pkgs-x11}', '', d)} \
     ${@base_contains('DISTRO_FEATURES', 'alsa', '${_pkgs-alsa}', '', d)} \
+    ${@base_contains('DISTRO_FEATURES', 'headless', '', '${_pkgs-head}', d)} \
     blktool \
-    tslib-calibrate \
-    tslib-tests \
     lrzsz \
     ltp \
     ${KEXECTOOLS} \
