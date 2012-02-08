@@ -27,11 +27,11 @@ RRECOMMENDS_${PN} = "\
 
 PROFILETOOLS = "\
     oprofile \
-    oprofileui-server \
+    ${@base_contains('MACHINE_FEATURES', 'screen', 'oprofileui-server', '', d)} \
     powertop \
     latencytop \
     lttng-control \
-    lttng-viewer"
+    ${@base_contains('MACHINE_FEATURES', 'screen', 'lttng-viewer', '', d)}"
 
 # systemtap needs elfutils which is not fully buildable on uclibc
 # hence we exclude it from uclibc based builds
@@ -45,7 +45,7 @@ SYSTEMTAP_mips = ""
 # which means we can not use syscall() to call it. So we ignore
 # it for x86_64/uclibc
 
-LTTNGUST = "lttng-ust"
+LTTNGUST = "${@base_contains('MACHINE_FEATURES', 'screen', 'lttng-ust', '', d)}"
 LTTNGUST_libc-uclibc = ""
 LTTNGUST_mips = ""
 
