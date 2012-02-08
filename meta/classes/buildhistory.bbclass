@@ -126,6 +126,17 @@ python buildhistory_emit_pkghistory() {
 	def squashspaces(string):
 		return re.sub("\s+", " ", string)
 
+	def sortpkglist(string):
+		pkgiter = re.finditer(r'[a-zA-Z0-9.-]+( \([><=]+ [^ )]+\))?', string, 0)
+		pkglist = [p.group(0) for p in pkgiter]
+		pkglist.sort()
+		return ' '.join(pkglist)
+
+	def sortlist(string):
+		items = string.split(' ')
+		items.sort()
+		return ' '.join(items)
+
 	pn = d.getVar('PN', True)
 	pe = d.getVar('PE', True) or "0"
 	pv = d.getVar('PV', True)
@@ -136,7 +147,7 @@ python buildhistory_emit_pkghistory() {
 	rcpinfo.pe = pe
 	rcpinfo.pv = pv
 	rcpinfo.pr = pr
-	rcpinfo.depends = squashspaces(d.getVar('DEPENDS', True) or "")
+	rcpinfo.depends = sortlist(squashspaces(d.getVar('DEPENDS', True) or ""))
 	rcpinfo.packages = packages
 	write_recipehistory(rcpinfo, d)
 	write_latestlink(None, pe, pv, pr, d)
@@ -164,8 +175,8 @@ python buildhistory_emit_pkghistory() {
 		pkginfo.pe = pe
 		pkginfo.pv = pv
 		pkginfo.pr = pr
-		pkginfo.rdepends = squashspaces(getpkgvar(pkg, 'RDEPENDS') or "")
-		pkginfo.rrecommends = squashspaces(getpkgvar(pkg, 'RRECOMMENDS') or "")
+		pkginfo.rdepends = sortpkglist(squashspaces(getpkgvar(pkg, 'RDEPENDS') or ""))
+		pkginfo.rrecommends = sortpkglist(squashspaces(getpkgvar(pkg, 'RRECOMMENDS') or ""))
 		pkginfo.files = squashspaces(getpkgvar(pkg, 'FILES') or "")
 
 		# Gather information about packaged files
@@ -310,7 +321,7 @@ buildhistory_get_image_installed() {
 buildhistory_get_imageinfo() {
 	# List the files in the image, but exclude date/time etc.
 	# This awk script is somewhat messy, but handles where the size is not printed for device files under pseudo
-	( cd ${IMAGE_ROOTFS} && find . -ls | awk '{ if ( $7 ~ /[0-9]/ ) printf "%s %10-s %10-s %10s %s %s %s\n", $3, $5, $6, $7, $11, $12, $13 ; else printf "%s %10-s %10-s %10s %s %s %s\n", $3, $5, $6, 0, $10, $11, $12 }' > ${BUILDHISTORY_DIR_IMAGE}/files-in-image.txt )
+	( cd ${IMAGE_ROOTFS} && find . -ls | awk '{ if ( $7 ~ /[0-9]/ ) printf "%s %10-s %10-s %10s %s %s %s\n", $3, $5, $6, $7, $11, $12, $13 ; else printf "%s %10-s %10-s %10s %s %s %s\n", $3, $5, $6, 0, $10, $11, $12 }' | sort -k5 > ${BUILDHISTORY_DIR_IMAGE}/files-in-image.txt )
 
 	# Record some machine-readable meta-information about the image
 	echo -n > ${BUILDHISTORY_DIR_IMAGE}/image-info.txt
