@@ -14,24 +14,24 @@ Signed-off-by: Otavio Salvador <otavio@ossystems.com.br>
  configure.ac |    3 ---
  2 files changed, 1 insertions(+), 4 deletions(-)
 
-diff --git a/Makefile.am b/Makefile.am
-index d5a76f9..d42a766 100644
---- a/Makefile.am
-+++ b/Makefile.am
-@@ -144,7 +144,7 @@ noinst_PROGRAMS += tools/wispr tools/supplicant-test \
+Index: git/Makefile.am
+===================================================================
+--- git.orig/Makefile.am
++++ git/Makefile.am
+@@ -145,7 +145,7 @@ noinst_PROGRAMS += tools/wispr tools/sup
  			tools/dbus-test tools/polkit-test \
  			tools/iptables-test tools/tap-test tools/wpad-test \
  			tools/stats-tool tools/private-network-test \
--			tools/alg-test unit/test-session
-+			unit/test-session
+-			tools/alg-test unit/test-session unit/test-ippool
++			unit/test-session unit/test-ippool
  
  tools_wispr_SOURCES = $(gweb_sources) tools/wispr.c
  tools_wispr_LDADD = @GLIB_LIBS@ @GNUTLS_LIBS@ -lresolv
-diff --git a/configure.ac b/configure.ac
-index f63fea8..67bfe85 100644
---- a/configure.ac
-+++ b/configure.ac
-@@ -437,9 +437,6 @@ if (test "${enable_tools}" = "yes"); then
+Index: git/configure.ac
+===================================================================
+--- git.orig/configure.ac
++++ git/configure.ac
+@@ -419,9 +419,6 @@ if (test "${enable_tools}" = "yes"); the
  				AC_MSG_ERROR(GnuTLS library is required))
  	AC_SUBST(GNUTLS_CFLAGS)
  	AC_SUBST(GNUTLS_LIBS)
@@ -41,6 +41,3 @@ index f63fea8..67bfe85 100644
  fi
  AM_CONDITIONAL(TOOLS, test "${enable_tools}" = "yes")
  
--- 
-1.7.7.3
-
