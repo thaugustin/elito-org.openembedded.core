@@ -22,11 +22,11 @@ Index: git/Makefile.am
  			tools/dbus-test tools/polkit-test \
  			tools/iptables-test tools/tap-test tools/wpad-test \
  			tools/stats-tool tools/private-network-test \
--			tools/alg-test unit/test-session unit/test-ippool
-+			unit/test-session unit/test-ippool
+-			tools/alg-test unit/test-session unit/test-ippool \
++			unit/test-session unit/test-ippool \
+ 			unit/test-nat
  
  tools_wispr_SOURCES = $(gweb_sources) tools/wispr.c
- tools_wispr_LDADD = @GLIB_LIBS@ @GNUTLS_LIBS@ -lresolv
 Index: git/configure.ac
 ===================================================================
 --- git.orig/configure.ac
