@@ -12,10 +12,12 @@ import sys
 import os.path
 import difflib
 import git
+import re
 
 
 # How to display fields
-list_fields = ['DEPENDS', 'RDEPENDS', 'RRECOMMENDS', 'PACKAGES', 'FILES', 'FILELIST', 'USER_CLASSES', 'IMAGE_CLASSES', 'IMAGE_FEATURES', 'IMAGE_LINGUAS', 'IMAGE_INSTALL', 'BAD_RECOMMENDATIONS']
+list_fields = ['DEPENDS', 'RDEPENDS', 'RRECOMMENDS', 'FILES', 'FILELIST', 'USER_CLASSES', 'IMAGE_CLASSES', 'IMAGE_FEATURES', 'IMAGE_LINGUAS', 'IMAGE_INSTALL', 'BAD_RECOMMENDATIONS']
+list_order_fields = ['PACKAGES']
 numeric_fields = ['PKGSIZE', 'IMAGESIZE']
 # Fields to monitor
 monitor_fields = ['RDEPENDS', 'RRECOMMENDS', 'PACKAGES', 'FILELIST', 'PKGSIZE', 'IMAGESIZE']
@@ -52,12 +54,24 @@ class ChangeRecord:
         else:
             prefix = ''
 
-        if self.fieldname in list_fields:
-            aitems = self.oldvalue.split()
-            bitems = self.newvalue.split()
+        def pkglist_split(pkgs):
+            pkgit = re.finditer(r'[a-zA-Z0-9.+-]+( \([><=]+ [^ )]+\))?', pkgs, 0)
+            pkglist = [p.group(0) for p in pkgit]
+            return pkglist
+
+        if self.fieldname in list_fields or self.fieldname in list_order_fields:
+            if self.fieldname in ['RDEPENDS', 'RRECOMMENDS']:
+                aitems = pkglist_split(self.oldvalue)
+                bitems = pkglist_split(self.newvalue)
+            else:
+                aitems = self.oldvalue.split()
+                bitems = self.newvalue.split()
             removed = list(set(aitems) - set(bitems))
             added = list(set(bitems) - set(aitems))
-            out = '%s:%s%s' % (self.fieldname, ' removed "%s"' % ' '.join(removed) if removed else '', ' added "%s"' % ' '.join(added) if added else '')
+            if removed or added:
+                out = '%s:%s%s' % (self.fieldname, ' removed "%s"' % ' '.join(removed) if removed else '', ' added "%s"' % ' '.join(added) if added else '')
+            else:
+                out = '%s changed order' % self.fieldname
         elif self.fieldname in numeric_fields:
             aval = int(self.oldvalue or 0)
             bval = int(self.newvalue or 0)
@@ -236,6 +250,13 @@ def compare_dict_blobs(path, ablob, bblob, report_all):
                 else:
                     percentchg = 100
                 if percentchg < monitor_numeric_threshold:
+                    continue
+            elif (not report_all) and key in list_fields:
+                alist = astr.split()
+                alist.sort()
+                blist = bstr.split()
+                blist.sort()
+                if ' '.join(alist) == ' '.join(blist):
                     continue
             chg = ChangeRecord(path, key, astr, bstr, key in monitor_fields)
             changes.append(chg)
