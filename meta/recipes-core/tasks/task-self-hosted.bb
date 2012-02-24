@@ -3,7 +3,7 @@
 #
 
 DESCRIPTION = "Create Basic Image Tasks"
-PR = "r5"
+PR = "r6"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=3f40d7994397109285ec7b81fdeb3b58 \
                     file://${COREBASE}/meta/COPYING.MIT;md5=3da9cfbcb788c80a0384361b4de20420"
@@ -30,12 +30,6 @@ RDEPENDS_task-self-hosted = "\
 RDEPENDS_task-self-hosted-host-tools = "\
     connman \
     connman-plugin-ethernet \
-    parted \
-    e2fsprogs \
-    e2fsprogs-mke2fs \
-    e2fsprogs-tune2fs \
-    e2fsprogs-e2fsck \
-    e2fsprogs-fsck \
     dhcp-client \
     e2fsprogs \
     e2fsprogs-e2fsck \
@@ -59,22 +53,20 @@ RDEPENDS_task-self-hosted-host-tools = "\
 RDEPENDS_task-self-hosted-sdk = "\
     autoconf \
     automake \
-    binutils-symlinks \
     binutils \
-    cpp \
-    cpp-symlinks \
+    binutils-symlinks \
     ccache \
     coreutils \
-    diffutils \
+    cpp \
+    cpp-symlinks \
     distcc \
     eglibc-utils \
     file \
     findutils \
-    gcc \
-    gcc-symlinks \
     g++ \
     g++-symlinks \
-    gettext \
+    gcc \
+    gcc-symlinks \
     intltool \
     ldd \
     less \
@@ -88,19 +80,17 @@ RDEPENDS_task-self-hosted-sdk = "\
     pkgconfig \
     quilt \
     sed \
-    tcl \
     "
 
 RDEPENDS_task-self-hosted-debug = " \
     gdb \
     gdbserver \
-    tcf-agent \
     rsync \
-    strace"
+    strace \
+    tcf-agent"
 
 
 RDEPENDS_task-self-hosted-extended = "\
-    binutils \
     bzip2 \
     chkconfig \
     chrpath \
@@ -111,16 +101,18 @@ RDEPENDS_task-self-hosted-extended = "\
     elfutils \
     expat \
     gamin \
+    gawk \
     gdbm \
-    git \
     gettext \
     gettext-runtime \
+    git \
     grep \
     groff \
-    gawk \
+    gzip \
+    hicolor-icon-theme \
     libaio \
-    libxml2 \
     libusb1 \
+    libxml2 \
     lrzsz \
     lsof \
     lzo \
@@ -134,7 +126,6 @@ RDEPENDS_task-self-hosted-extended = "\
     openssl \
     opkg \
     opkg-utils \
-    parted \
     patch \
     perl \
     perl-dev \
@@ -144,11 +135,13 @@ RDEPENDS_task-self-hosted-extended = "\
     python \
     python-compile \
     python-compiler \
+    python-compression \
     python-core \
     python-curses \
     python-datetime \
     python-distutils \
     python-elementtree \
+    python-email \
     python-fcntl \
     python-logging \
     python-misc \
@@ -156,31 +149,29 @@ RDEPENDS_task-self-hosted-extended = "\
     python-netclient \
     python-netserver \
     python-pickle \
+    python-pkgutil \
     python-re \
     python-rpm \
     python-shell \
     python-sqlite3 \
     python-subprocess \
     python-textutils \
-    python-xmlrpc \
-    python-email \
     python-unixadmin \
-    python-compression \
-    python-pkgutil \
+    python-xmlrpc \
     quota \
     readline \
     rpm \
     setserial \
+    socat \
     subversion \
     sudo \
     sysstat \
     tar \
-    gzip \
     tcl \
     texi2html \
     texinfo \
-    usbutils \
     unzip \
+    usbutils \
     watchdog \
     wget \
     which \
@@ -191,7 +182,7 @@ RDEPENDS_task-self-hosted-extended = "\
 
 
 RDEPENDS_task-self-hosted-graphics = "\
-    python-pygtk \
+    builder \
     libgl \
     libgl-dev \
     libglu \
@@ -199,5 +190,5 @@ RDEPENDS_task-self-hosted-graphics = "\
     libsdl \
     libsdl-dev \
     libx11-dev \
-    builder \
+    python-pygtk \
     "

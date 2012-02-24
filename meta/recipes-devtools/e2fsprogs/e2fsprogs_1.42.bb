@@ -1,9 +1,11 @@
 require e2fsprogs.inc
 
-PR = "r2"
+PR = "r4"
 
 SRC_URI += "file://fallocate.patch \
-            file://acinclude.m4"
+            file://acinclude.m4 \
+            file://remove.ldconfig.call.patch \
+"
 
 SRC_URI[md5sum] = "a3c4ffd7352310ab5e9412965d575610"
 SRC_URI[sha256sum] = "55b46db0cec3e2eb0e5de14494a88b01ff6c0500edf8ca8927cad6da7b5e4a46"
@@ -32,9 +34,11 @@ do_install () {
 
 do_install_append () {
 	# e2initrd_helper and the pkgconfig files belong in libdir
-	install -d ${D}${libdir}
-	mv ${D}${base_libdir}/e2initrd_helper ${D}${libdir}
-	mv ${D}${base_libdir}/pkgconfig ${D}${libdir}
+	if [ ! ${D}${libdir} -ef ${D}${base_libdir} ]; then
+		install -d ${D}${libdir}
+		mv ${D}${base_libdir}/e2initrd_helper ${D}${libdir}
+		mv ${D}${base_libdir}/pkgconfig ${D}${libdir}
+	fi
 }
 
 # blkid used to be part of e2fsprogs but is useful outside, add it
@@ -54,7 +58,7 @@ FILES_e2fsprogs-badblocks = "${base_sbindir}/badblocks"
 FILES_libcomerr = "${base_libdir}/libcom_err.so.*"
 FILES_libss = "${base_libdir}/libss.so.*"
 FILES_libe2p = "${base_libdir}/libe2p.so.*"
-FILES_libext2fs = "${base_libdir}/e2initrd_helper ${libdir}/libext2fs.so.*"
+FILES_libext2fs = "${libdir}/e2initrd_helper ${libdir}/libext2fs.so.*"
 FILES_${PN}-dev += "${datadir}/*/*.awk ${datadir}/*/*.sed ${base_libdir}/*.so"
 
 BBCLASSEXTEND = "native"

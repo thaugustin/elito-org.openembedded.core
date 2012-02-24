@@ -23,6 +23,7 @@ SYSLINUXDIR = "/"
 ISO_BOOTIMG = "isolinux/isolinux.bin"
 ISO_BOOTCAT = "isolinux/boot.cat"
 MKISOFS_OPTIONS = "-no-emul-boot -boot-load-size 4 -boot-info-table"
+APPEND_prepend = " ${SYSLINUX_ROOT} "
 
 syslinux_populate() {
 	DEST=$1
@@ -136,10 +137,6 @@ python build_syslinux_cfg () {
 	except OSError:
 		raise bb.build.funcFailed('Unable to open %s' % (cfile))
 
-	# FIXME - the timeout should be settable
-	# And maybe the default too
-	# Definately the prompt
-
 	cfgfile.write('# Automatically created by OE\n')
 
 	opts = d.getVar('SYSLINUX_OPTS', 1)
@@ -158,7 +155,11 @@ python build_syslinux_cfg () {
 	else:
 		cfgfile.write('TIMEOUT 50\n')
 
-	cfgfile.write('PROMPT 1\n')
+	prompt = d.getVar('SYSLINUX_PROMPT', 1)
+	if prompt:
+		cfgfile.write('PROMPT %s\n' % prompt)
+	else:
+		cfgfile.write('PROMPT 1\n')
 
 	menu = d.getVar('AUTO_SYSLINUXMENU', 1)
 

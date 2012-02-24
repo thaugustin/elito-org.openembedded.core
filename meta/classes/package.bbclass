@@ -251,7 +251,13 @@ def splitfile2(debugsrcdir, d):
     sourcefile = bb.data.expand("${WORKDIR}/debugsources.list", d)
 
     if debugsrcdir:
-       bb.mkdirhier("%s%s" % (dvar, debugsrcdir))
+       nosuchdir = []
+       basepath = dvar
+       for p in debugsrcdir.split("/"):
+           basepath = basepath + "/" + p
+           if not os.path.exists(basepath):
+               nosuchdir.append(basepath)
+       bb.mkdirhier(basepath)
 
        processdebugsrc =  "LC_ALL=C ; sort -z -u '%s' | egrep -v -z '(<internal>|<built-in>)$' | "
        # We need to ignore files that are not actually ours
@@ -267,6 +273,11 @@ def splitfile2(debugsrcdir, d):
               dir = os.path.join(root, d)
               #bb.note("rmdir -p %s" % dir)
               os.system("rmdir -p %s 2>/dev/null" % dir)
+
+       # Also remove debugsrcdir if its empty
+       for p in nosuchdir[::-1]:
+           if os.path.exists(p) and not os.listdir(p):
+               os.rmdir(p)
 
 def runstrip(file, elftype, d):
     # Function to strip a single file, called from split_and_strip_files below
@@ -1055,6 +1066,13 @@ python emit_pkgdata() {
 			f.write('%s: %s\n' % (var, encode(val)))
 		return
 
+	def get_directory_size(dir):
+		if os.listdir(dir):
+			size = int(os.popen('du -sk %s' % dir).readlines()[0].split('\t')[0])
+		else:
+			size = 0
+		return size
+
 	packages = d.getVar('PACKAGES', True)
 	pkgdest = d.getVar('PKGDEST', 1)
 	pkgdatadir = d.getVar('PKGDESTWORK', True)
@@ -1103,6 +1121,7 @@ python emit_pkgdata() {
 		for dfile in (d.getVar('FILERDEPENDSFLIST_' + pkg, True) or "").split():
 			write_if_exists(sf, pkg, 'FILERDEPENDS_' + dfile)
 
+		sf.write('%s_%s: %s\n' % ('PKGSIZE', pkg, get_directory_size(pkgdest + "/%s" % pkg)))
 		sf.close()
 
 
