@@ -13,8 +13,8 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=3bf50002aefd002f49e7bb854063f7e7 \
 BUGTRACKER = "http://bugzilla.gnome.org"
 SECTION = "libs"
 
-DEPENDS = "glib-2.0-native gtk-doc-native zip dbus"
-DEPENDS_virtclass-native = "gtk-doc-native pkgconfig-native gettext-native dbus-native"
+DEPENDS = "glib-2.0-native gtk-doc-native zip"
+DEPENDS_virtclass-native = "gtk-doc-native pkgconfig-native gettext-native"
 DEPENDS_virtclass-nativesdk = "libtool-nativesdk"
 PACKAGES =+ "${PN}-utils "
 
@@ -25,9 +25,9 @@ inherit autotools pkgconfig gettext
 
 S = "${WORKDIR}/glib-${PV}"
 
-EXTRA_OECONF = "--disable-debug --enable-included-printf=no --disable-dtrace"
-EXTRA_OECONF_virtclass-native = "--disable-dtrace --disable-systemtap"
-EXTRA_OECONF_linuxstdbase = "--enable-included-printf=no --disable-dtrace"
+EXTRA_OECONF = "--disable-debug --enable-included-printf=no --disable-dtrace --disable-fam"
+EXTRA_OECONF_virtclass-native = "--disable-dtrace --disable-systemtap --disable-fam"
+EXTRA_OECONF_linuxstdbase = "--enable-included-printf=no --disable-dtrace --disable-fam"
 
 FILES_${PN} = "${libdir}/lib*${SOLIBS} ${sysconfdir}/bash_completion.d ${datadir}/glib-2.0/schemas"
 FILES_${PN}-dev += "${libdir}/glib-2.0/include \

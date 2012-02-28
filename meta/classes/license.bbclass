@@ -106,22 +106,24 @@ license_create_manifest() {
     # Two options here:
     # - Just copy the manifest
     # - Copy the manifest and the license directories
-    # This will make your image a bit larger, however 
-    # if you are concerned about license compliance 
-    # and delivery this should cover all your bases
-
+    # With both options set we see a .5 M increase in core-image-minimal
     if [ -n "${COPY_LIC_MANIFEST}" ]; then
         mkdir -p ${IMAGE_ROOTFS}/usr/share/common-licenses/
         cp ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest ${IMAGE_ROOTFS}/usr/share/common-licenses/license.manifest
         if [ -n "${COPY_LIC_DIRS}" ]; then
             for pkg in ${INSTALLED_PKGS}; do
                 mkdir -p ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}
-                for lic in `ls ${LICENSE_DIRECTORY}/${pkged_pn}`; do
+                for lic in `ls ${LICENSE_DIRECTORY}/${pkg}`; do
                     # Really don't need to copy the generics as they're 
                     # represented in the manifest and in the actual pkg licenses
                     # Doing so would make your image quite a bit larger
-                    if [ ! ${lic} = "generic_*" ]; then
-                        cp ${LICENSE_DIRECTORY}/${pkged_pn}/${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}/${lic}
+                    if [[ "${lic}" != "generic_"* ]]; then
+                        cp ${LICENSE_DIRECTORY}/${pkg}/${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}/${lic}
+                    elif [[ "${lic}" == "generic_"* ]]; then
+                        if [ ! -f ${IMAGE_ROOTFS}/usr/share/common-licenses/${lic} ]; then
+                            cp ${LICENSE_DIRECTORY}/${pkg}/${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/
+                        fi
+                        ln -s ../${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}/${lic}
                     fi
                 done
             done
@@ -140,8 +142,20 @@ python do_populate_lic() {
     import shutil
     import oe.license
 
-    # All the license types for the package
-    license_types = d.getVar('LICENSE', True)
+    pn = d.getVar('PN', True)
+    for package in d.getVar('PACKAGES', True):
+        if d.getVar('LICENSE_' + pn + '-' + package, True):
+            license_types = license_types + ' & ' + \
+                            d.getVar('LICENSE_' + pn + '-' + package, True)
+
+    #If we get here with no license types, then that means we have a recipe 
+    #level license. If so, we grab only those.
+    try:
+        license_types
+    except NameError:        
+        # All the license types at the recipe level
+        license_types = d.getVar('LICENSE', True)
+ 
     # All the license files for the package
     lic_files = d.getVar('LIC_FILES_CHKSUM', True)
     pn = d.getVar('PN', True)
