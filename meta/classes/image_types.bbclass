@@ -25,7 +25,9 @@ def get_imagecmds(d):
             types.append("ext3")
         types.remove("live")
 
-    cmds += "	rm -f ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.*"
+    if d.getVar('IMAGE_LINK_NAME', True):
+        cmds += "	rm -f ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.*"
+
     for type in types:
         ccmd = []
         subimages = []
@@ -58,10 +60,12 @@ runimagecmd () {
 	# Now create the needed compressed versions
 	cd ${DEPLOY_DIR_IMAGE}/
         ${ccmd}
-	# And create the symlinks
-        for type in ${subimages}; do
-		ln -s ${IMAGE_NAME}.rootfs.$type ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.$type
-	done
+        # And create the symlinks
+        if [ -n "${IMAGE_LINK_NAME}" ]; then
+            for type in ${subimages}; do
+                ln -s ${IMAGE_NAME}.rootfs.$type ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.$type
+            done
+        fi
 }
 
 def imagetypes_getdepends(d):
@@ -187,8 +191,8 @@ IMAGE_TYPES = "jffs2 sum.jffs2 cramfs ext2 ext2.gz ext2.bz2 ext3 ext3.gz ext2.lz
 COMPRESSIONTYPES = "gz bz2 lzma xz"
 COMPRESS_CMD_lzma = "lzma -k -f -7 ${IMAGE_NAME}.rootfs.${type}"
 COMPRESS_CMD_gz = "gzip -f -9 -c ${IMAGE_NAME}.rootfs.${type} > ${IMAGE_NAME}.rootfs.${type}.gz"
-COMPRESS_CMD_bz2 = "bzip2 -k ${IMAGE_NAME}.rootfs.${type}"
-COMPRESS_CMD_xz = "xz -k -c ${XZ_COMPRESSION_LEVEL} --check=${XZ_INTEGRITY_CHECK} ${IMAGE_NAME}.rootfs.${type}"
+COMPRESS_CMD_bz2 = "bzip2 -f -k ${IMAGE_NAME}.rootfs.${type}"
+COMPRESS_CMD_xz = "xz -f -k -c ${XZ_COMPRESSION_LEVEL} --check=${XZ_INTEGRITY_CHECK} ${IMAGE_NAME}.rootfs.${type}"
 COMPRESS_DEPENDS_lzma = "xz-native"
 COMPRESS_DEPENDS_gz = ""
 COMPRESS_DEPENDS_bz2 = ""
