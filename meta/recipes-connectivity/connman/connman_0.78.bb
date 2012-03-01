@@ -1,9 +1,9 @@
 require connman.inc
 
-PR = "r7+1"
+PR = "r7+2"
 
 # 0.78 tag
-SRCREV = "ee6107560e96ce8047939edb5fac81d11f29dd11"
+SRCREV = "e8dbd3160116346eae8613c242dd8f4db3ed1781"
 SRC_URI  = "git://git.kernel.org/pub/scm/network/connman/connman.git \
             file://add_xuser_dbus_permission.patch \
             file://ethernet_default.patch \
