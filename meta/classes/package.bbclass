@@ -153,12 +153,7 @@ def do_split_packages(d, root, file_regex, output_pattern, description, postinst
 					the_files.append(aux_files_pattern_verbatim % m.group(1))
 			d.setVar('FILES_' + pkg, " ".join(the_files))
 			if extra_depends != '':
-				the_depends = d.getVar('RDEPENDS_' + pkg, True)
-				if the_depends:
-					the_depends = '%s %s' % (the_depends, extra_depends)
-				else:
-					the_depends = extra_depends
-				d.setVar('RDEPENDS_' + pkg, the_depends)
+				d.appendVar('RDEPENDS_' + pkg, ' ' + extra_depends)
 			d.setVar('DESCRIPTION_' + pkg, description % on)
 			if postinst:
 				d.setVar('pkg_postinst_' + pkg, postinst)
@@ -175,15 +170,14 @@ PACKAGE_DEPENDS += "file-native"
 
 python () {
     if d.getVar('PACKAGES', True) != '':
-        deps = d.getVarFlag('do_package', 'depends') or ""
+        deps = ""
         for dep in (d.getVar('PACKAGE_DEPENDS', True) or "").split():
             deps += " %s:do_populate_sysroot" % dep
-        d.setVarFlag('do_package', 'depends', deps)
+        d.appendVarFlag('do_package', 'depends', deps)
 
-        deps = (d.getVarFlag('do_package', 'deptask') or "").split()
         # shlibs requires any DEPENDS to have already packaged for the *.list files
-        deps.append("do_package")
-        d.setVarFlag('do_package', 'deptask', " ".join(deps))
+        d.appendVarFlag('do_package', 'deptask', " do_package")
+
     elif not bb.data.inherits_class('image', d):
         d.setVar("PACKAGERDEPTASK", "")
 }
@@ -201,10 +195,10 @@ def splitfile(file, debugfile, debugsrcdir, d):
     dvar = d.getVar('PKGD', True)
     pathprefix = "export PATH=%s; " % d.getVar('PATH', True)
     objcopy = d.getVar("OBJCOPY", True)
-    debugedit = bb.data.expand("${STAGING_LIBDIR_NATIVE}/rpm/bin/debugedit", d)
+    debugedit = d.expand("${STAGING_LIBDIR_NATIVE}/rpm/bin/debugedit")
     workdir = d.getVar("WORKDIR", True)
     workparentdir = os.path.dirname(workdir)
-    sourcefile = bb.data.expand("${WORKDIR}/debugsources.list", d)
+    sourcefile = d.expand("${WORKDIR}/debugsources.list")
 
     # We ignore kernel modules, we don't generate debug info files.
     if file.find("/lib/modules/") != -1 and file.endswith(".ko"):
@@ -244,11 +238,11 @@ def splitfile2(debugsrcdir, d):
     pathprefix = "export PATH=%s; " % d.getVar('PATH', True)
     strip = d.getVar("STRIP", True)
     objcopy = d.getVar("OBJCOPY", True)
-    debugedit = bb.data.expand("${STAGING_LIBDIR_NATIVE}/rpm/bin/debugedit", d)
+    debugedit = d.expand("${STAGING_LIBDIR_NATIVE}/rpm/bin/debugedit")
     workdir = d.getVar("WORKDIR", True)
     workparentdir = os.path.dirname(workdir)
     workbasedir = os.path.basename(workdir)
-    sourcefile = bb.data.expand("${WORKDIR}/debugsources.list", d)
+    sourcefile = d.expand("${WORKDIR}/debugsources.list")
 
     if debugsrcdir:
        nosuchdir = []
@@ -630,7 +624,7 @@ python fixup_perms () {
 				if len(lsplit) != 8 and not (len(lsplit) == 3 and lsplit[1].lower() == "link"):
 					bb.error("Fixup perms: %s invalid line: %s" % (conf, line))
 					continue
-				entry = fs_perms_entry(bb.data.expand(line, d))
+				entry = fs_perms_entry(d.expand(line))
 				if entry and entry.path:
 					fs_perms_table[entry.path] = entry
 			f.close()
@@ -1074,13 +1068,13 @@ python emit_pkgdata() {
 		return size
 
 	packages = d.getVar('PACKAGES', True)
-	pkgdest = d.getVar('PKGDEST', 1)
+	pkgdest = d.getVar('PKGDEST', True)
 	pkgdatadir = d.getVar('PKGDESTWORK', True)
 
 	# Take shared lock since we're only reading, not writing
-	lf = bb.utils.lockfile(bb.data.expand("${PACKAGELOCK}", d), True)
+	lf = bb.utils.lockfile(d.expand("${PACKAGELOCK}"), True)
 
-	data_file = pkgdatadir + bb.data.expand("/${PN}" , d)
+	data_file = pkgdatadir + d.expand("/${PN}" )
 	f = open(data_file, 'w')
 	f.write("PACKAGES: %s\n" % packages)
 	f.close()
@@ -1161,7 +1155,7 @@ python package_do_filedeps() {
 	pkgdest = d.getVar('PKGDEST', True)
 	packages = d.getVar('PACKAGES', True)
 
-	rpmdeps = bb.data.expand("${RPMDEPS}", d)
+	rpmdeps = d.expand("${RPMDEPS}")
 	r = re.compile(r'[<>=]+ +[^ ]*')
 
 	# Quick routine to process the results of the rpmdeps call...
@@ -1260,7 +1254,7 @@ python package_do_shlibs() {
 	shlibswork_dir = d.getVar('SHLIBSWORKDIR', True)
 
 	# Take shared lock since we're only reading, not writing
-	lf = bb.utils.lockfile(bb.data.expand("${PACKAGELOCK}", d))
+	lf = bb.utils.lockfile(d.expand("${PACKAGELOCK}"))
 
 	def linux_so(root, path, file):
 		cmd = d.getVar('OBJDUMP', True) + " -p " + pipes.quote(os.path.join(root, file)) + " 2>/dev/null"
@@ -1506,7 +1500,7 @@ python package_do_pkgconfig () {
 						if m:
 							name = m.group(1)
 							val = m.group(2)
-							pd.setVar(name, bb.data.expand(val, pd))
+							pd.setVar(name, pd.expand(val))
 							continue
 						m = field_re.match(l)
 						if m:
@@ -1516,7 +1510,7 @@ python package_do_pkgconfig () {
 								pkgconfig_needed[pkg] += exp.replace(',', ' ').split()
 
 	# Take shared lock since we're only reading, not writing
-	lf = bb.utils.lockfile(bb.data.expand("${PACKAGELOCK}", d))
+	lf = bb.utils.lockfile(d.expand("${PACKAGELOCK}"))
 
 	for pkg in packages.split():
 		pkgs_file = os.path.join(shlibswork_dir, pkg + ".pclist")
@@ -1567,7 +1561,7 @@ python read_shlibdeps () {
 		rdepends = bb.utils.explode_dep_versions(d.getVar('RDEPENDS_' + pkg, False) or d.getVar('RDEPENDS', False) or "")
 
 		for extension in ".shlibdeps", ".pcdeps", ".clilibdeps":
-			depsfile = bb.data.expand("${PKGDEST}/" + pkg + extension, d)
+			depsfile = d.expand("${PKGDEST}/" + pkg + extension)
 			if os.access(depsfile, os.R_OK):
 				fd = file(depsfile)
 				lines = fd.readlines()

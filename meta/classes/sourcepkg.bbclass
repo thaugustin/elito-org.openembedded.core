@@ -6,7 +6,7 @@ DISTRO ?= "openembedded"
 
 def get_src_tree(d):
 
-	workdir = d.getVar('WORKDIR', 1)
+	workdir = d.getVar('WORKDIR', True)
 	if not workdir:
 		bb.error("WORKDIR not defined, unable to find source tree.")
 		return
@@ -17,7 +17,7 @@ def get_src_tree(d):
 		return
 
 	s_tree_raw = s.split('/')[1]
-	s_tree = bb.data.expand(s_tree_raw, d)
+	s_tree = d.expand(s_tree_raw)
 
 	src_tree_path = os.path.join(workdir, s_tree)
 	try:
@@ -55,11 +55,11 @@ sourcepkg_do_archive_bb() {
 
 python sourcepkg_do_dumpdata() {
 
-	workdir = d.getVar('WORKDIR', 1)
-	distro = d.getVar('DISTRO', 1)
+	workdir = d.getVar('WORKDIR', True)
+	distro = d.getVar('DISTRO', True)
 	s_tree = get_src_tree(d)
 	openembeddeddir = os.path.join(workdir, s_tree, distro)
-	dumpfile = os.path.join(openembeddeddir, bb.data.expand("${P}-${PR}.showdata.dump",d))
+	dumpfile = os.path.join(openembeddeddir, d.expand("${P}-${PR}.showdata.dump"))
 	
 	try:
 		os.mkdir(openembeddeddir)
@@ -74,7 +74,7 @@ python sourcepkg_do_dumpdata() {
 	# emit the metadata which isnt valid shell
 	for e in d.keys():
 		if d.getVarFlag(e, 'python'):
-			f.write("\npython %s () {\n%s}\n" % (e, d.getVar(e, 1)))
+			f.write("\npython %s () {\n%s}\n" % (e, d.getVar(e, True)))
 	f.close()
 }
 

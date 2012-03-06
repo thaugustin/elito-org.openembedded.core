@@ -20,8 +20,7 @@ def get_gcc_fpu_setting(bb, d):
     if abi:
         res.append('--with-abi=' + abi)
 
-    fpu=(d.getVar('ARM_FP_ABI', True) or
-         d.getVar('TARGET_FPU', True))
+    fpu=d.getVar('TARGET_FPU', True)
 
     if fpu == 'hardfp':
         fpu = 'hard'
@@ -33,7 +32,7 @@ def get_gcc_fpu_setting(bb, d):
     return ' '.join(res)
 
 def get_gcc_mips_plt_setting(bb, d):
-    if d.getVar('TARGET_ARCH', 1) in [ 'mips', 'mipsel' ] and 'mplt' in d.getVar('DISTRO_FEATURES',1).split() :
+    if d.getVar('TARGET_ARCH', True) in [ 'mips', 'mipsel' ] and 'mplt' in d.getVar('DISTRO_FEATURES',1).split() :
         return "--with-mips-plt"
     return ""
 
@@ -95,7 +94,7 @@ do_clean[lockfiles] = "${SW}.clean.lock"
 
 python workshared_clean () {
 	"""clear the source directory"""
-	dir = bb.data.expand("${SW}", d)
+	dir = d.expand("${SW}")
 	bb.note("Removing " + dir)
 	oe.path.remove(dir)
 

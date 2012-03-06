@@ -27,7 +27,7 @@ SRC_URI = "http://download.gnome.org/sources/gtk+/2.24/gtk+-${PV}.tar.bz2 \
 #        file://combo-arrow-size.patch;striplevel=0
 #            file://configurefix.patch
 
-PR = "r3"
+PR = "r4"
 
 SRC_URI[md5sum] = "0413187f7e596aef00ccd1b54776ff03"
 SRC_URI[sha256sum] = "ac2325a65312922a6722a7c02a389f3f4072d79e13131485cc7b7226e2537043"
@@ -41,15 +41,15 @@ PACKAGES_DYNAMIC += "gtk-immodule-* gtk-printbackend-*"
 python populate_packages_prepend () {
 	import os.path
 
-	prologue = d.getVar("postinst_prologue", 1)
+	prologue = d.getVar("postinst_prologue", True)
 
-	gtk_libdir = bb.data.expand('${libdir}/gtk-2.0/${LIBV}', d)
+	gtk_libdir = d.expand('${libdir}/gtk-2.0/${LIBV}')
 	immodules_root = os.path.join(gtk_libdir, 'immodules')
 	printmodules_root = os.path.join(gtk_libdir, 'printbackends');
 
 	do_split_packages(d, immodules_root, '^im-(.*)\.so$', 'gtk-immodule-%s', 'GTK input module for %s', prologue + 'gtk-query-immodules-2.0 > /etc/gtk-2.0/gtk.immodules')
 	do_split_packages(d, printmodules_root, '^libprintbackend-(.*)\.so$', 'gtk-printbackend-%s', 'GTK printbackend module for %s')
 
-        if (d.getVar('DEBIAN_NAMES', 1)):
+        if (d.getVar('DEBIAN_NAMES', True)):
                 d.setVar('PKG_${PN}', '${MLPREFIX}libgtk-2.0')
 }

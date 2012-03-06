@@ -619,7 +619,7 @@ python write_specfile () {
 
 		localdata.setVar('ROOT', '')
 		localdata.setVar('ROOT_%s' % pkg, root)
-		pkgname = localdata.getVar('PKG_%s' % pkg, 1)
+		pkgname = localdata.getVar('PKG_%s' % pkg, True)
 		if not pkgname:
 			pkgname = pkg
 		localdata.setVar('PKG', pkgname)
@@ -998,9 +998,9 @@ python do_package_rpm () {
 		d.setVar('PACKAGE_ARCH_EXTEND', ml_prefix + package_arch)
 	else:
 		d.setVar('PACKAGE_ARCH_EXTEND', package_arch)
-	pkgwritedir = bb.data.expand('${PKGWRITEDIRRPM}/${PACKAGE_ARCH_EXTEND}', d)
-	pkgarch = bb.data.expand('${PACKAGE_ARCH_EXTEND}${TARGET_VENDOR}-${TARGET_OS}', d)
-	magicfile = bb.data.expand('${STAGING_DIR_NATIVE}${datadir_native}/misc/magic.mgc', d)
+	pkgwritedir = d.expand('${PKGWRITEDIRRPM}/${PACKAGE_ARCH_EXTEND}')
+	pkgarch = d.expand('${PACKAGE_ARCH_EXTEND}${TARGET_VENDOR}-${TARGET_OS}')
+	magicfile = d.expand('${STAGING_DIR_NATIVE}${datadir_native}/misc/magic.mgc')
 	bb.mkdirhier(pkgwritedir)
 	os.chmod(pkgwritedir, 0755)
 
@@ -1025,10 +1025,8 @@ python do_package_rpm () {
 
 python () {
     if d.getVar('PACKAGES', True) != '':
-        deps = (d.getVarFlag('do_package_write_rpm', 'depends') or "").split()
-        deps.append('rpm-native:do_populate_sysroot')
-        deps.append('virtual/fakeroot-native:do_populate_sysroot')
-        d.setVarFlag('do_package_write_rpm', 'depends', " ".join(deps))
+        deps = ' rpm-native:do_populate_sysroot virtual/fakeroot-native:do_populate_sysroot'
+        d.appendVarFlag('do_package_write_rpm', 'depends', deps)
         d.setVarFlag('do_package_write_rpm', 'fakeroot', 1)
         d.setVarFlag('do_package_write_rpm_setscene', 'fakeroot', 1)
 }

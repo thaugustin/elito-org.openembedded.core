@@ -60,8 +60,8 @@ def base_dep_prepend(d):
 	# we need that built is the responsibility of the patch function / class, not
 	# the application.
 	if not d.getVar('INHIBIT_DEFAULT_DEPS'):
-		if (d.getVar('HOST_SYS', 1) !=
-	     	    d.getVar('BUILD_SYS', 1)):
+		if (d.getVar('HOST_SYS', True) !=
+	     	    d.getVar('BUILD_SYS', True)):
 			deps += " virtual/${TARGET_PREFIX}gcc virtual/${TARGET_PREFIX}compilerlibs virtual/libc "
 	return deps
 
@@ -122,7 +122,7 @@ def generate_git_config(e):
                 gitconfig_path = e.data.getVar('GIT_CONFIG', True)
                 proxy_command = "    gitProxy = %s\n" % data.getVar('OE_GIT_PROXY_COMMAND', e.data, True)
 
-                bb.mkdirhier(bb.data.expand("${GIT_CONFIG_PATH}", e.data))
+                bb.mkdirhier(e.data.expand("${GIT_CONFIG_PATH}"))
                 if (os.path.exists(gitconfig_path)):
                         os.remove(gitconfig_path)
 
@@ -203,7 +203,7 @@ def preferred_ml_updates(d):
 
 
 def get_layers_branch_rev(d):
-	layers = (d.getVar("BBLAYERS", 1) or "").split()
+	layers = (d.getVar("BBLAYERS", True) or "").split()
 	layers_branch_rev = ["%-17s = \"%s:%s\"" % (os.path.basename(i), \
 		base_get_metadata_git_branch(i, None).strip(), \
 		base_get_metadata_git_revision(i, None)) \
@@ -233,7 +233,7 @@ python base_eventhandler() {
 	if name.startswith("BuildStarted"):
 		e.data.setVar( 'BB_VERSION', bb.__version__)
 		statusvars = ['BB_VERSION', 'TARGET_ARCH', 'TARGET_OS', 'MACHINE', 'DISTRO', 'DISTRO_VERSION','TUNE_FEATURES', 'TARGET_FPU']
-		statuslines = ["%-17s = \"%s\"" % (i, e.data.getVar(i, 1) or '') for i in statusvars]
+		statuslines = ["%-17s = \"%s\"" % (i, e.data.getVar(i, True) or '') for i in statusvars]
 
 		statuslines += get_layers_branch_rev(e.data)
 		statusmsg = "\nOE Build Configuration:\n%s\n" % '\n'.join(statuslines)
@@ -242,7 +242,7 @@ python base_eventhandler() {
 		needed_vars = [ "TARGET_ARCH", "TARGET_OS" ]
 		pesteruser = []
 		for v in needed_vars:
-			val = e.data.getVar(v, 1)
+			val = e.data.getVar(v, True)
 			if not val or val == 'INVALID':
 				pesteruser.append(v)
 		if pesteruser:
@@ -302,20 +302,19 @@ python () {
     #
     # PACKAGECONFIG ?? = "<default options>"
     # PACKAGECONFIG[foo] = "--enable-foo,--disable-foo,foo_depends,foo_runtime_depends"
-    pkgconfig = (d.getVar('PACKAGECONFIG', True) or "").split()
-    if pkgconfig:
+    pkgconfigflags = d.getVarFlags("PACKAGECONFIG") or {}
+    if pkgconfigflags:
+        pkgconfig = (d.getVar('PACKAGECONFIG', True) or "").split()
         def appendVar(varname, appends):
             if not appends:
                 return
-            varname = bb.data.expand(varname, d)
-            content = d.getVar(varname, False) or ""
-            content = content + " " + " ".join(appends)
-            d.setVar(varname, content)
+            varname = d.expand(varname)
+            d.appendVar(varname, " " + " ".join(appends))
 
         extradeps = []
         extrardeps = []
         extraconf = []
-        for flag, flagval in (d.getVarFlags("PACKAGECONFIG") or {}).items():
+        for flag, flagval in pkgconfigflags.items():
             if flag == "defaultval":
                 continue
             items = flagval.split(",")
@@ -346,7 +345,7 @@ python () {
         pr = pr_prefix.group(0) + str(nval) + pr[prval.end():]
         d.setVar('PR', pr)
 
-    pn = d.getVar('PN', 1)
+    pn = d.getVar('PN', True)
     license = d.getVar('LICENSE', True)
     if license == "INVALID":
         bb.fatal('This recipe does not have the LICENSE field set (%s)' % pn)
@@ -363,89 +362,73 @@ python () {
     if not bb.data.inherits_class('native', d) and not bb.data.inherits_class('cross', d):
         d.setVarFlag('do_configure', 'umask', 022)
         d.setVarFlag('do_compile', 'umask', 022)
-        deps = (d.getVarFlag('do_install', 'depends') or "").split()
-        deps.append('virtual/fakeroot-native:do_populate_sysroot')
-        d.setVarFlag('do_install', 'depends', " ".join(deps))
+        d.appendVarFlag('do_install', 'depends', ' virtual/fakeroot-native:do_populate_sysroot')
         d.setVarFlag('do_install', 'fakeroot', 1)
         d.setVarFlag('do_install', 'umask', 022)
-        deps = (d.getVarFlag('do_package', 'depends') or "").split()
-        deps.append('virtual/fakeroot-native:do_populate_sysroot')
-        d.setVarFlag('do_package', 'depends', " ".join(deps))
+        d.appendVarFlag('do_package', 'depends', ' virtual/fakeroot-native:do_populate_sysroot')
         d.setVarFlag('do_package', 'fakeroot', 1)
         d.setVarFlag('do_package', 'umask', 022)
         d.setVarFlag('do_package_setscene', 'fakeroot', 1)
     source_mirror_fetch = d.getVar('SOURCE_MIRROR_FETCH', 0)
     if not source_mirror_fetch:
-        need_host = d.getVar('COMPATIBLE_HOST', 1)
+        need_host = d.getVar('COMPATIBLE_HOST', True)
         if need_host:
             import re
-            this_host = d.getVar('HOST_SYS', 1)
+            this_host = d.getVar('HOST_SYS', True)
             if not re.match(need_host, this_host):
                 raise bb.parse.SkipPackage("incompatible with host %s (not in COMPATIBLE_HOST)" % this_host)
 
-        need_machine = d.getVar('COMPATIBLE_MACHINE', 1)
+        need_machine = d.getVar('COMPATIBLE_MACHINE', True)
         if need_machine:
             import re
-            this_machine = d.getVar('MACHINE', 1)
+            this_machine = d.getVar('MACHINE', True)
             if this_machine and not re.match(need_machine, this_machine):
-                this_soc_family = d.getVar('SOC_FAMILY', 1)
+                this_soc_family = d.getVar('SOC_FAMILY', True)
                 if (this_soc_family and not re.match(need_machine, this_soc_family)) or not this_soc_family:
                     raise bb.parse.SkipPackage("incompatible with machine %s (not in COMPATIBLE_MACHINE)" % this_machine)
 
 
-        dont_want_license = d.getVar('INCOMPATIBLE_LICENSE', 1)
+        dont_want_license = d.getVar('INCOMPATIBLE_LICENSE', True)
         if dont_want_license and not pn.endswith("-native") and not pn.endswith("-cross") and not pn.endswith("-cross-initial") and not pn.endswith("-cross-intermediate") and not pn.endswith("-crosssdk-intermediate") and not pn.endswith("-crosssdk") and not pn.endswith("-crosssdk-initial"):
-            hosttools_whitelist = (d.getVar('HOSTTOOLS_WHITELIST_%s' % dont_want_license, 1) or "").split()
-            lgplv2_whitelist = (d.getVar('LGPLv2_WHITELIST_%s' % dont_want_license, 1) or "").split()
-            dont_want_whitelist = (d.getVar('WHITELIST_%s' % dont_want_license, 1) or "").split()
+            hosttools_whitelist = (d.getVar('HOSTTOOLS_WHITELIST_%s' % dont_want_license, True) or "").split()
+            lgplv2_whitelist = (d.getVar('LGPLv2_WHITELIST_%s' % dont_want_license, True) or "").split()
+            dont_want_whitelist = (d.getVar('WHITELIST_%s' % dont_want_license, True) or "").split()
             if pn not in hosttools_whitelist and pn not in lgplv2_whitelist and pn not in dont_want_whitelist:
 
-                this_license = d.getVar('LICENSE', 1)
+                this_license = d.getVar('LICENSE', True)
                 if incompatible_license(d,dont_want_license):
                     bb.note("SKIPPING %s because it's %s" % (pn, this_license))
                     raise bb.parse.SkipPackage("incompatible with license %s" % this_license)
 
-    srcuri = d.getVar('SRC_URI', 1)
+    srcuri = d.getVar('SRC_URI', True)
     # Svn packages should DEPEND on subversion-native
     if "svn://" in srcuri:
-        depends = d.getVarFlag('do_fetch', 'depends') or ""
-        depends = depends + " subversion-native:do_populate_sysroot"
-        d.setVarFlag('do_fetch', 'depends', depends)
+        d.appendVarFlag('do_fetch', 'depends', ' subversion-native:do_populate_sysroot')
 
     # Git packages should DEPEND on git-native
     if "git://" in srcuri:
-        depends = d.getVarFlag('do_fetch', 'depends') or ""
-        depends = depends + " git-native:do_populate_sysroot"
-        d.setVarFlag('do_fetch', 'depends', depends)
+        d.appendVarFlag('do_fetch', 'depends', ' git-native:do_populate_sysroot')
 
     # Mercurial packages should DEPEND on mercurial-native
     elif "hg://" in srcuri:
-        depends = d.getVarFlag('do_fetch', 'depends') or ""
-        depends = depends + " mercurial-native:do_populate_sysroot"
-        d.setVarFlag('do_fetch', 'depends', depends)
+        d.appendVarFlag('do_fetch', 'depends', ' mercurial-native:do_populate_sysroot')
 
     # OSC packages should DEPEND on osc-native
     elif "osc://" in srcuri:
-        depends = d.getVarFlag('do_fetch', 'depends') or ""
-        depends = depends + " osc-native:do_populate_sysroot"
-        d.setVarFlag('do_fetch', 'depends', depends)
+        d.appendVarFlag('do_fetch', 'depends', ' osc-native:do_populate_sysroot')
 
     # *.xz should depends on xz-native for unpacking
     # Not endswith because of "*.patch.xz;patch=1". Need bb.decodeurl in future
     if '.xz' in srcuri:
-        depends = d.getVarFlag('do_unpack', 'depends') or ""
-        depends = depends + " xz-native:do_populate_sysroot"
-        d.setVarFlag('do_unpack', 'depends', depends)
+        d.appendVarFlag('do_unpack', 'depends', ' xz-native:do_populate_sysroot')
 
     # unzip-native should already be staged before unpacking ZIP recipes
     if ".zip" in srcuri:
-        depends = d.getVarFlag('do_unpack', 'depends') or ""
-        depends = depends + " unzip-native:do_populate_sysroot"
-        d.setVarFlag('do_unpack', 'depends', depends)
+        d.appendVarFlag('do_unpack', 'depends', ' unzip-native:do_populate_sysroot')
 
     # 'multimachine' handling
-    mach_arch = d.getVar('MACHINE_ARCH', 1)
-    pkg_arch = d.getVar('PACKAGE_ARCH', 1)
+    mach_arch = d.getVar('MACHINE_ARCH', True)
+    pkg_arch = d.getVar('PACKAGE_ARCH', True)
 
     if (pkg_arch == mach_arch):
         # Already machine specific - nothing further to do
@@ -476,9 +459,9 @@ python () {
                         d.setVar('PACKAGE_ARCH', "${MACHINE_ARCH}")
                         return
 
-    packages = d.getVar('PACKAGES', 1).split()
+    packages = d.getVar('PACKAGES', True).split()
     for pkg in packages:
-        pkgarch = d.getVar("PACKAGE_ARCH_%s" % pkg, 1)
+        pkgarch = d.getVar("PACKAGE_ARCH_%s" % pkg, True)
 
         # We could look for != PACKAGE_ARCH here but how to choose
         # if multiple differences are present?

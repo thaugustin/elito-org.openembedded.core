@@ -20,7 +20,7 @@ python do_package_deb_install () {
     pkgfn = d.getVar('PKGFN', True)
     rootfs = d.getVar('IMAGE_ROOTFS', True)
     debdir = d.getVar('DEPLOY_DIR_DEB', True)
-    apt_config = bb.data.expand('${STAGING_ETCDIR_NATIVE}/apt/apt.conf', d)
+    apt_config = d.expand('${STAGING_ETCDIR_NATIVE}/apt/apt.conf')
     stagingbindir = d.getVar('STAGING_BINDIR_NATIVE', True)
     tmpdir = d.getVar('TMPDIR', True)
 
@@ -406,10 +406,8 @@ addtask do_package_write_deb_setscene
 
 python () {
     if d.getVar('PACKAGES', True) != '':
-        deps = (d.getVarFlag('do_package_write_deb', 'depends') or "").split()
-        deps.append('dpkg-native:do_populate_sysroot')
-        deps.append('virtual/fakeroot-native:do_populate_sysroot')
-        d.setVarFlag('do_package_write_deb', 'depends', " ".join(deps))
+        deps = ' dpkg-native:do_populate_sysroot virtual/fakeroot-native:do_populate_sysroot'
+        d.appendVarFlag('do_package_write_deb', 'depends', deps)
         d.setVarFlag('do_package_write_deb', 'fakeroot', "1")
         d.setVarFlag('do_package_write_deb_setscene', 'fakeroot', "1")
 

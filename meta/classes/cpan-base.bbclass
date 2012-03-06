@@ -12,7 +12,7 @@ PERL_OWN_DIR = "${@["", "/perl-native"][(bb.data.inherits_class('native', d))]}"
 # Determine the staged version of perl from the perl configuration file
 def get_perl_version(d):
 	import re
-    	cfg = bb.data.expand('${STAGING_LIBDIR}${PERL_OWN_DIR}/perl/config.sh', d)
+    	cfg = d.expand('${STAGING_LIBDIR}${PERL_OWN_DIR}/perl/config.sh')
 	try:
 		f = open(cfg, 'r')
 	except IOError:
@@ -28,7 +28,7 @@ def get_perl_version(d):
 
 # Determine where the library directories are
 def perl_get_libdirs(d):
-	libdir = d.getVar('libdir', 1)
+	libdir = d.getVar('libdir', True)
 	if is_target(d) == "no":
 		libdir += '/perl-native'
 	libdir += '/perl'
