@@ -11,18 +11,17 @@ KMACHINE_qemumips = "mti-malta32-be"
 KBRANCH = "standard/preempt-rt/base"
 KBRANCH_qemuppc = "standard/preempt-rt/qemu-ppc32"
 
-LINUX_VERSION ?= "3.2.8"
+LINUX_VERSION ?= "3.2.9"
 LINUX_KERNEL_TYPE = "preempt-rt"
 
-SRCREV_machine ?= "6ab03c43328172425a6f632bff694a8da6c99f0e"
-SRCREV_machine_qemuppc ?= "470deb222a704f84f3acf3a013a19d2da399d511"
-SRCREV_meta ?= "4c648bbbc7d2204d1b24f444aebb10f91c4ecae3"
+SRCREV_machine ?= "ae15fb7aaba7d12c48e1a1d30e5b8857d40b9b10"
+SRCREV_machine_qemuppc ?= "963f79376e583ff79c55fd275b79bfc9a3aedd8e"
+SRCREV_meta ?= "8295227f068f78ec3c433529e4012a38773a88c9"
 
-
-PR = "r0"
+PR = "r1"
 PV = "${LINUX_VERSION}+git${SRCPV}"
 
-SRC_URI = "git://git.yoctoproject.org/linux-yocto-3.2.git;protocol=git;nocheckout=1;branch=${KBRANCH},meta;name=machine,meta"
+SRC_URI = "git://git.yoctoproject.org/linux-yocto-3.2.git;protocol=git;bareclone=1;branch=${KBRANCH},meta;name=machine,meta"
 
 # Omit broken machines from COMPATIBLE_MACHINE
 #   qemuppc hangs at boot
