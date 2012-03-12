@@ -1186,6 +1186,8 @@ python package_do_filedeps() {
 
 			if value.startswith("rpmlib("):
 				continue
+			if value == "python":
+				continue
 			if file not in i:
 				i[file] = []
 			i[file].append(value)
