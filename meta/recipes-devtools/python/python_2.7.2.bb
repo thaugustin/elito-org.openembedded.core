@@ -1,7 +1,7 @@
 require python.inc
-DEPENDS = "python-native db gdbm openssl readline sqlite3 zlib"
+DEPENDS = "python-native bzip2 db gdbm openssl readline sqlite3 zlib"
 DEPENDS_sharprom = "python-native db readline zlib gdbm openssl"
-PR = "${INC_PR}.7"
+PR = "${INC_PR}.8"
 
 DISTRO_SRC_URI ?= "file://sitecustomize.py"
 DISTRO_SRC_URI_linuxstdbase = ""
@@ -12,7 +12,6 @@ SRC_URI += "\
   file://05-enable-ctypes-cross-build.patch \
   file://06-ctypes-libffi-fix-configure.patch \
   file://06-avoid_usr_lib_termcap_path_in_linking.patch \
-  file://07-linux3-regen-fix.patch \
   file://99-ignore-optimization-flag.patch \
   ${DISTRO_SRC_URI} \
   file://multilib.patch \
@@ -21,6 +20,7 @@ SRC_URI += "\
   file://setup_py_skip_cross_import_check.patch \
   file://add-md5module-support.patch \
   file://host_include_contamination.patch \
+  file://sys_platform_is_now_always_linux2.patch \
 "
 
 S = "${WORKDIR}/Python-${PV}"
@@ -37,6 +37,17 @@ do_configure_prepend() {
 }
 
 do_compile() {
+        # regenerate platform specific files, because they depend on system headers
+        cd Lib/plat-linux2
+        include=${STAGING_INCDIR} ${STAGING_BINDIR_NATIVE}/python \
+                ${S}/Tools/scripts/h2py.py -i '(u_long)' \
+                ${STAGING_INCDIR}/dlfcn.h \
+                ${STAGING_INCDIR}/linux/cdrom.h \
+                ${STAGING_INCDIR}/netinet/in.h \
+                ${STAGING_INCDIR}/sys/types.h
+        sed -e 's,${STAGING_DIR_HOST},,g' -i *.py
+        cd -
+
 	#
 	# Copy config.h and an appropriate Makefile for distutils.sysconfig,
 	# which laters uses the information out of these to compile extensions

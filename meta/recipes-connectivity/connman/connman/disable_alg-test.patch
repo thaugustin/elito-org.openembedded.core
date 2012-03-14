@@ -1,4 +1,4 @@
-From b9a20c8eb61b600ced284646a1bea588fdd8a5ea Mon Sep 17 00:00:00 2001
+From 3ebba424d56919018733064ad9e0ab8790d2bf1d Mon Sep 17 00:00:00 2001
 From: Otavio Salvador <otavio@ossystems.com.br>
 Date: Fri, 16 Dec 2011 19:31:59 -0200
 Subject: [PATCH] Disable building of alg-test
@@ -14,11 +14,11 @@ Signed-off-by: Otavio Salvador <otavio@ossystems.com.br>
  configure.ac |    3 ---
  2 files changed, 1 insertions(+), 4 deletions(-)
 
-Index: git/Makefile.am
-===================================================================
---- git.orig/Makefile.am
-+++ git/Makefile.am
-@@ -145,7 +145,7 @@ noinst_PROGRAMS += tools/wispr tools/sup
+diff --git a/Makefile.am b/Makefile.am
+index a6509f1..93618a3 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -145,7 +145,7 @@ noinst_PROGRAMS += tools/wispr tools/supplicant-test \
  			tools/dbus-test tools/polkit-test \
  			tools/iptables-test tools/tap-test tools/wpad-test \
  			tools/stats-tool tools/private-network-test \
@@ -27,11 +27,11 @@ Index: git/Makefile.am
  			unit/test-nat
  
  tools_wispr_SOURCES = $(gweb_sources) tools/wispr.c
-Index: git/configure.ac
-===================================================================
---- git.orig/configure.ac
-+++ git/configure.ac
-@@ -419,9 +419,6 @@ if (test "${enable_tools}" = "yes"); the
+diff --git a/configure.ac b/configure.ac
+index 3dca02e..3b2da4d 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -419,9 +419,6 @@ if (test "${enable_tools}" = "yes"); then
  				AC_MSG_ERROR(GnuTLS library is required))
  	AC_SUBST(GNUTLS_CFLAGS)
  	AC_SUBST(GNUTLS_LIBS)
@@ -41,3 +41,6 @@ Index: git/configure.ac
  fi
  AM_CONDITIONAL(TOOLS, test "${enable_tools}" = "yes")
  
+-- 
+1.7.9.1
+

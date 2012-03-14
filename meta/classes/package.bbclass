@@ -116,7 +116,7 @@ def do_split_packages(d, root, file_regex, output_pattern, description, postinst
 			mainpkg = mainpkg.replace('-dev', '')
 		extra_depends = mainpkg
 
-	for o in objs:
+	for o in sorted(objs):
 		import re, stat
 		if match_path:
 			m = re.match(file_regex, o)
@@ -234,17 +234,17 @@ def splitfile2(debugsrcdir, d):
 
     import commands, stat
 
-    dvar = d.getVar('PKGD', True)
-    pathprefix = "export PATH=%s; " % d.getVar('PATH', True)
-    strip = d.getVar("STRIP", True)
-    objcopy = d.getVar("OBJCOPY", True)
-    debugedit = d.expand("${STAGING_LIBDIR_NATIVE}/rpm/bin/debugedit")
-    workdir = d.getVar("WORKDIR", True)
-    workparentdir = os.path.dirname(workdir)
-    workbasedir = os.path.basename(workdir)
     sourcefile = d.expand("${WORKDIR}/debugsources.list")
+    if debugsrcdir and os.path.isfile(sourcefile):
+       dvar = d.getVar('PKGD', True)
+       pathprefix = "export PATH=%s; " % d.getVar('PATH', True)
+       strip = d.getVar("STRIP", True)
+       objcopy = d.getVar("OBJCOPY", True)
+       debugedit = d.expand("${STAGING_LIBDIR_NATIVE}/rpm/bin/debugedit")
+       workdir = d.getVar("WORKDIR", True)
+       workparentdir = os.path.dirname(workdir)
+       workbasedir = os.path.basename(workdir)
 
-    if debugsrcdir:
        nosuchdir = []
        basepath = dvar
        for p in debugsrcdir.split("/"):
@@ -415,7 +415,7 @@ python package_do_split_locales() {
 	summary = d.getVar('SUMMARY', True) or pn
 	description = d.getVar('DESCRIPTION', True) or "" 
         locale_section = d.getVar('LOCALE_SECTION', True)
-	for l in locales:
+	for l in sorted(locales):
 		ln = legitimize_package_name(l)
 		pkg = pn + '-locale-' + ln
 		packages.append(pkg)
