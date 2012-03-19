@@ -8,10 +8,10 @@ DEPENDS += "xz-native"
 KMACHINE = "yocto/standard/base"
 KBRANCH = "${KMACHINE}"
 
-LINUX_VERSION ?= "3.0.23"
+LINUX_VERSION ?= "3.0.24"
 
-SRCREV_machine ?= "8fd24b3570ab995848e4123ef13bac64e2c924be"
-SRCREV_meta ?= "e559129b4a6f39f68b75141096b2d516cf7a7f35"
+SRCREV_machine ?= "da7c40006b08916ff3a3db104def82aaf9ac2716"
+SRCREV_meta ?= "a4ac64fe873f08ef718e2849b88914725dc99c1c"
 
 PR = "r3"
 PV = "${LINUX_VERSION}+git${SRCPV}"
