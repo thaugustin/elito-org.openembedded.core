@@ -3,7 +3,7 @@
 #
 
 DESCRIPTION = "Create Basic Image Tasks"
-PR = "r6"
+PR = "r7"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=3f40d7994397109285ec7b81fdeb3b58 \
                     file://${COREBASE}/meta/COPYING.MIT;md5=3da9cfbcb788c80a0384361b4de20420"
@@ -46,6 +46,7 @@ RDEPENDS_task-self-hosted-host-tools = "\
     kernel-module-iptable-filter \
     mc \
     parted \
+    pseudo \
     screen \
     "
 
@@ -123,6 +124,8 @@ RDEPENDS_task-self-hosted-extended = "\
     mtools \
     ncurses \
     neon \
+    nfs-utils \
+    nfs-utils-client \
     openssl \
     opkg \
     opkg-utils \

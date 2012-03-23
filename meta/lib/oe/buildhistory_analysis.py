@@ -13,6 +13,7 @@ import os.path
 import difflib
 import git
 import re
+import bb.utils
 
 
 # How to display fields
@@ -48,28 +49,37 @@ class ChangeRecord:
     def __str__(self):
         return self._str_internal(True)
 
-    def _str_internal(self, pathprefix):
-        if pathprefix:
+    def _str_internal(self, outer):
+        if outer:
             prefix = '%s: ' % self.path
         else:
             prefix = ''
 
-        def pkglist_split(pkgs):
-            pkgit = re.finditer(r'[a-zA-Z0-9.+-]+( \([><=]+ [^ )]+\))?', pkgs, 0)
-            pkglist = [p.group(0) for p in pkgit]
+        def pkglist_combine(depver):
+            pkglist = []
+            for k,v in depver.iteritems():
+                if v:
+                    pkglist.append("%s (%s)" % (k,v))
+                else:
+                    pkglist.append(k)
             return pkglist
 
         if self.fieldname in list_fields or self.fieldname in list_order_fields:
             if self.fieldname in ['RDEPENDS', 'RRECOMMENDS']:
-                aitems = pkglist_split(self.oldvalue)
-                bitems = pkglist_split(self.newvalue)
+                (depvera, depverb) = compare_pkg_lists(self.oldvalue, self.newvalue)
+                aitems = pkglist_combine(depvera)
+                bitems = pkglist_combine(depverb)
             else:
                 aitems = self.oldvalue.split()
                 bitems = self.newvalue.split()
             removed = list(set(aitems) - set(bitems))
             added = list(set(bitems) - set(aitems))
+
             if removed or added:
-                out = '%s:%s%s' % (self.fieldname, ' removed "%s"' % ' '.join(removed) if removed else '', ' added "%s"' % ' '.join(added) if added else '')
+                if removed and not bitems:
+                    out = '%s: removed all items "%s"' % (self.fieldname, ' '.join(removed))
+                else:
+                    out = '%s:%s%s' % (self.fieldname, ' removed "%s"' % ' '.join(removed) if removed else '', ' added "%s"' % ' '.join(added) if added else '')
             else:
                 out = '%s changed order' % self.fieldname
         elif self.fieldname in numeric_fields:
@@ -81,7 +91,7 @@ class ChangeRecord:
                 percentchg = 100
             out = '%s changed from %s to %s (%s%d%%)' % (self.fieldname, self.oldvalue or "''", self.newvalue or "''", '+' if percentchg > 0 else '', percentchg)
         elif self.fieldname in img_monitor_files:
-            if pathprefix:
+            if outer:
                 prefix = 'Changes to %s ' % self.path
             out = '(%s):\n  ' % self.fieldname
             if self.filechanges:
@@ -97,6 +107,8 @@ class ChangeRecord:
 
         if self.related:
             for chg in self.related:
+                if not outer and chg.fieldname in ['PE', 'PV', 'PR']:
+                    continue
                 for line in chg._str_internal(False).splitlines():
                     out += '\n  * %s' % line
 
@@ -232,6 +244,45 @@ def compare_lists(alines, blines):
     return filechanges
 
 
+def split_version(s):
+    """Split a version string into its constituent parts (PE, PV, PR)
+    FIXME: this is a duplicate of a new function in bitbake/lib/bb/utils -
+    we should switch to that once we can bump the minimum bitbake version
+    """
+    s = s.strip(" <>=")
+    e = 0
+    if s.count(':'):
+        e = int(s.split(":")[0])
+        s = s.split(":")[1]
+    r = ""
+    if s.count('-'):
+        r = s.rsplit("-", 1)[1]
+        s = s.rsplit("-", 1)[0]
+    v = s
+    return (e, v, r)
+
+
+def compare_pkg_lists(astr, bstr):
+    depvera = bb.utils.explode_dep_versions(astr)
+    depverb = bb.utils.explode_dep_versions(bstr)
+
+    # Strip out changes where the version has increased
+    remove = []
+    for k in depvera:
+        if k in depverb:
+            dva = depvera[k]
+            dvb = depverb[k]
+            if dva != dvb:
+                if bb.utils.vercmp(split_version(dva), split_version(dvb)) < 0:
+                    remove.append(k)
+
+    for k in remove:
+        depvera.pop(k)
+        depverb.pop(k)
+
+    return (depvera, depverb)
+
+
 def compare_dict_blobs(path, ablob, bblob, report_all):
     adict = blob_to_dict(ablob)
     bdict = blob_to_dict(bblob)
@@ -252,6 +303,12 @@ def compare_dict_blobs(path, ablob, bblob, report_all):
                 if percentchg < monitor_numeric_threshold:
                     continue
             elif (not report_all) and key in list_fields:
+                if key == "FILELIST" and path.endswith("-dbg") and bstr.strip() != '':
+                    continue
+                if key in ['RDEPENDS', 'RRECOMMENDS']:
+                    (depvera, depverb) = compare_pkg_lists(astr, bstr)
+                    if depvera == depverb:
+                        continue
                 alist = astr.split()
                 alist.sort()
                 blist = bstr.split()
