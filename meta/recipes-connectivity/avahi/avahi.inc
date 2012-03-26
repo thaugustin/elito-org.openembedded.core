@@ -154,8 +154,3 @@ pkg_postrm_avahi-autoipd () {
 	deluser avahi-autoipd || true
 	delgroup avahi-autoipd || true
 }
-
-SYSTEMD_PACKAGES = "${PN}-systemd"
-SYSTEMD_SERVICE_${PN}-systemd = "avahi-daemon.service"
-
-inherit systemd
