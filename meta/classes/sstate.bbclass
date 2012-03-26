@@ -153,12 +153,6 @@ def sstate_installpkg(ss, d):
         bb.mkdirhier(dir)
         oe.path.remove(dir)
 
-    # We're adding binaries into the sysroots, we don't want to execute them
-    # whilst they're half installed or being installed so we need to
-    # remove the sysroots from PATH
-    savedpath = d.getVar("PATH")
-    d.setVar("PATH", "${ORIGPATH}")
-
     sstateinst = d.expand("${WORKDIR}/sstate-install-%s/" % ss['name'])
     sstatepkg = d.getVar('SSTATE_PKG', True) + '_' + ss['name'] + ".tgz"
 
@@ -195,8 +189,6 @@ def sstate_installpkg(ss, d):
         # Need to remove this or we'd copy it into the target directory and may 
         # conflict with another writer
         os.remove(fixmefn)
-
-    d.setVar("PATH", savedpath)
 
     for state in ss['dirs']:
         prepdir(state[1])
@@ -455,12 +447,14 @@ python sstate_task_postfunc () {
 #
 sstate_create_package () {
 	cd ${SSTATE_BUILDDIR}
+	TFILE=`mktemp ${SSTATE_PKG}.XXXXXXXX`
 	# Need to handle empty directories
 	if [ "$(ls -A)" ]; then
-		tar -czf ${SSTATE_PKG} *
+		tar -czf $TFILE *
 	else
-		tar -cz --file=${SSTATE_PKG} --files-from=/dev/null
+		tar -cz --file=$TFILE --files-from=/dev/null
 	fi
+	mv $TFILE ${SSTATE_PKG}
 
 	cd ${WORKDIR}
 	rm -rf ${SSTATE_BUILDDIR}

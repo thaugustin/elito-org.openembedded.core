@@ -18,12 +18,14 @@ do_populate_lic[cleandirs] = "${LICSSTATEDIR}"
 # We should really discuss standardizing this field, but that's a longer term goal.
 # For now, we can do this and it should grab the most common LICENSE naming variations.
 #
-# Changing GPL mapping to GPL-2 as it's not very likely to be GPL-1
 # We should NEVER have a GPL/LGPL without a version!!!!
 # Any mapping to MPL/LGPL/GPL should be fixed
 # see: https://wiki.yoctoproject.org/wiki/License_Audit
 
 # GPL variations
+SPDXLICENSEMAP[GPL-1] = "GPL-1.0"
+SPDXLICENSEMAP[GPLv1] = "GPL-1.0"
+SPDXLICENSEMAP[GPLv1.0] = "GPL-1.0"
 SPDXLICENSEMAP[GPL-2] = "GPL-2.0"
 SPDXLICENSEMAP[GPLv2] = "GPL-2.0"
 SPDXLICENSEMAP[GPLv2.0] = "GPL-2.0"
@@ -73,66 +75,65 @@ SPDXLICENSEMAP[AFLv1] = "AFL-1.2"
 SPDXLICENSEMAP[EPLv1.0] = "EPL-1.0"
 
 license_create_manifest() {
-    mkdir -p ${LICENSE_DIRECTORY}/${IMAGE_NAME}
-    # Get list of installed packages
-    list_installed_packages | grep -v "locale" |sort > ${LICENSE_DIRECTORY}/${IMAGE_NAME}/package.manifest
-    INSTALLED_PKGS=`cat ${LICENSE_DIRECTORY}/${IMAGE_NAME}/package.manifest`
-    # list of installed packages is broken for deb
-    for pkg in ${INSTALLED_PKGS}; do
-        # not the best way to do this but licenses are not arch-dependent iirc
-        files=`find ${TMPDIR}/pkgdata/*/runtime -name ${pkg}| head -1`
-        for filename in $files; do
-            pkged_pn="$(sed -n 's/^PN: //p' ${filename})"
-            pkged_lic="$(sed -n '/^LICENSE: /{ s/^LICENSE: //; s/[+|&()*]/ /g; s/  */ /g; p }' ${filename})"
-            # check to see if the package name exists in the manifest. if so, bail.
-            if ! grep -q "PACKAGE NAME: ${pkg}" ${filename}; then
-                # exclude local recipes
-                if [ ! "${pkged_pn}" = "*locale*" ]; then
-                    echo "PACKAGE NAME:" ${pkg} >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
-                    echo "RECIPE NAME:" ${pkged_pn} >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
-                    echo "LICENSE: " >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
-                    for lic in ${pkged_lic}; do
-                        if [ -e "${LICENSE_DIRECTORY}/${pkged_pn}/generic_${lic}" ]; then
-                            echo ${lic}|sed s'/generic_//'g >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
-                        else
-                            echo "WARNING: The license listed, " ${lic} " was not in the licenses collected for " ${pkged_pn}>> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
-                        fi
-                    done
-                    echo "" >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
-                fi
-            fi
-        done
-    done
+	mkdir -p ${LICENSE_DIRECTORY}/${IMAGE_NAME}
+	# Get list of installed packages
+	list_installed_packages | grep -v "locale" |sort > ${LICENSE_DIRECTORY}/${IMAGE_NAME}/package.manifest
+	INSTALLED_PKGS=`cat ${LICENSE_DIRECTORY}/${IMAGE_NAME}/package.manifest`
+	# list of installed packages is broken for deb
+	for pkg in ${INSTALLED_PKGS}; do
+		# not the best way to do this but licenses are not arch dependant iirc
+		files=`find ${TMPDIR}/pkgdata/*/runtime -name ${pkg}| head -1`
+		for filename in $files; do
+			pkged_pn="$(sed -n 's/^PN: //p' ${filename})"
+			pkged_lic="$(sed -n '/^LICENSE: /{ s/^LICENSE: //; s/[+|&()*]/ /g; s/  */ /g; p }' ${filename})"
+			# check to see if the package name exists in the manifest. if so, bail.
+			if ! grep -q "PACKAGE NAME: ${pkg}" ${filename}; then
+				# exclude local recipes
+				if [ ! "${pkged_pn}" = "*locale*" ]; then
+					echo "PACKAGE NAME:" ${pkg} >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
+					echo "RECIPE NAME:" ${pkged_pn} >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
+					echo "LICENSE: " >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
+					for lic in ${pkged_lic}; do
+						if [ -e "${LICENSE_DIRECTORY}/${pkged_pn}/generic_${lic}" ]; then
+							echo ${lic}|sed s'/generic_//'g >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
+						else
+							echo "WARNING: The license listed, " ${lic} " was not in the licenses collected for " ${pkged_pn}>> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
+						fi
+					done
+					echo "" >> ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest
+				fi
+			fi
+		done
+	done
 
-    # Two options here:
-    # - Just copy the manifest
-    # - Copy the manifest and the license directories
-    # With both options set we see a .5 M increase in core-image-minimal
-    if [ -n "${COPY_LIC_MANIFEST}" ]; then
-        mkdir -p ${IMAGE_ROOTFS}/usr/share/common-licenses/
-        cp ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest ${IMAGE_ROOTFS}/usr/share/common-licenses/license.manifest
-        if [ -n "${COPY_LIC_DIRS}" ]; then
-            for pkg in ${INSTALLED_PKGS}; do
-                mkdir -p ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}
-                for lic in `ls ${LICENSE_DIRECTORY}/${pkg}`; do
-                    # Really don't need to copy the generics as they're 
-                    # represented in the manifest and in the actual pkg licenses
-                    # Doing so would make your image quite a bit larger
-                    if [[ "${lic}" != "generic_"* ]]; then
-                        cp ${LICENSE_DIRECTORY}/${pkg}/${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}/${lic}
-                    elif [[ "${lic}" == "generic_"* ]]; then
-                        if [ ! -f ${IMAGE_ROOTFS}/usr/share/common-licenses/${lic} ]; then
-                            cp ${LICENSE_DIRECTORY}/${pkg}/${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/
-                        fi
-                        ln -s ../${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}/${lic}
-                    fi
-                done
-            done
-        fi
-    fi
+	# Two options here:
+	# - Just copy the manifest
+	# - Copy the manifest and the license directories
+	# With both options set we see a .5 M increase in core-image-minimal
+	if [ -n "${COPY_LIC_MANIFEST}" ]; then
+		mkdir -p ${IMAGE_ROOTFS}/usr/share/common-licenses/
+		cp ${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest ${IMAGE_ROOTFS}/usr/share/common-licenses/license.manifest
+		if [ -n "${COPY_LIC_DIRS}" ]; then
+			for pkg in ${INSTALLED_PKGS}; do
+				mkdir -p ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}
+				for lic in `ls ${LICENSE_DIRECTORY}/${pkg}`; do
+					# Really don't need to copy the generics as they're 
+					# represented in the manifest and in the actual pkg licenses
+					# Doing so would make your image quite a bit larger
+					if [[ "${lic}" != "generic_"* ]]; then
+						cp ${LICENSE_DIRECTORY}/${pkg}/${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}/${lic}
+					elif [[ "${lic}" == "generic_"* ]]; then
+						if [ ! -f ${IMAGE_ROOTFS}/usr/share/common-licenses/${lic} ]; then
+							cp ${LICENSE_DIRECTORY}/${pkg}/${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/
+						fi
+						ln -s ../${lic} ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}/${lic}
+					fi
+				done
+			done
+		fi
+	fi
 
 }
-
 
 python do_populate_lic() {
     """
@@ -252,35 +253,48 @@ python do_populate_lic() {
 
 }
 
-def incompatible_license(d,dont_want_license):
+def return_spdx(d, license):
     """
-    This function checks if a package has only incompatible licenses. It also take into consideration 'or'
+    This function returns the spdx mapping of a license.
+    """
+    if d.getVarFlag('SPDXLICENSEMAP', license) != None:
+        return license
+    else:
+        return d.getVarFlag('SPDXLICENSEMAP', license_type)
+
+def incompatible_license(d, dont_want_license, package=""):
+    """
+    This function checks if a recipe has only incompatible licenses. It also take into consideration 'or'
     operand.
     """
     import re
     import oe.license
     from fnmatch import fnmatchcase as fnmatch
-
+    pn = d.getVar('PN', True)
     dont_want_licenses = []
     dont_want_licenses.append(d.getVar('INCOMPATIBLE_LICENSE', True))
-    if d.getVarFlag('SPDXLICENSEMAP', dont_want_license):
-	dont_want_licenses.append(d.getVarFlag('SPDXLICENSEMAP', dont_want_license))
+    recipe_license = d.getVar('LICENSE', True)
+    if package != "":
+        if d.getVar('LICENSE_' + pn + '-' + package, True):
+            license = d.getVar('LICENSE_' + pn + '-' + package, True)
+        else:
+            license = recipe_license
+    else:
+        license = recipe_license
+    spdx_license = return_spdx(d, dont_want_license)
+    dont_want_licenses.append(spdx_license)
 
     def include_license(license):
-	if any(fnmatch(license, pattern) for pattern in dont_want_licenses):
-	    return False
-	else:
-	    spdx_license = d.getVarFlag('SPDXLICENSEMAP', license)
-	    if spdx_license and any(fnmatch(spdx_license, pattern) for pattern in dont_want_licenses):
-		return False
-	    else:
-		return True
+        if any(fnmatch(license, pattern) for pattern in dont_want_licenses):
+            return False
+        else:
+            return True
 
     def choose_licenses(a, b):
         if all(include_license(lic) for lic in a):
-		return a
+            return a
         else:
-		return b
+            return b
 
     """
     If you want to exlude license named generically 'X', we surely want to exlude 'X+' as well.
@@ -288,15 +302,14 @@ def incompatible_license(d,dont_want_license):
     is not a 'X+' license.
     """
     if not re.search(r'[+]',dont_want_license):
-	licenses=oe.license.flattened_licenses(re.sub(r'[+]', '', d.getVar('LICENSE', True)), choose_licenses)
+        licenses=oe.license.flattened_licenses(re.sub(r'[+]', '', license), choose_licenses)
     else:
-	licenses=oe.license.flattened_licenses(d.getVar('LICENSE', True), choose_licenses)
+        licenses=oe.license.flattened_licenses(license, choose_licenses)
 
     for onelicense in licenses:
-	if not include_license(onelicense):
-		return True
+        if not include_license(onelicense):
+            return True
     return False
-
 
 def check_license_flags(d):
     """
@@ -358,7 +371,6 @@ def check_license_flags(d):
         if unmatched_flag:
             return unmatched_flag
     return None
-
 
 SSTATETASKS += "do_populate_lic"
 do_populate_lic[sstate-name] = "populate-lic"
