@@ -16,8 +16,8 @@ SRC_URI = "git://git.eclipse.org/gitroot/tcf/org.eclipse.tcf.agent.git;proto=git
            file://fix_tcf-agent.init.patch \
           "
 
-SRC_URI[epl.md5sum] = "7aa4215a330a0a4f6a1cbf8da1a0879f"
-SRC_URI[epl.sha256sum] = "4fd64aeed340d62a64a8da4b371efe0f6d0d745f4d2dbefacba86c646d36bc72"
+SRC_URI[epl.md5sum] = "d0fc088e4e5216422c217d39853d8601"
+SRC_URI[epl.sha256sum] = "a40741b59364cc49449255e9b9bfe1fcfe6a2e7ab4d37ca89db3bacbfb14e9d2"
 
 DEPENDS = "util-linux openssl"
 RDEPENDS_${PN} = "bash"
