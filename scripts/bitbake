@@ -1,10 +1,20 @@
 #!/bin/sh
 
+# This is the bitbake wrapper script that ensures everything is set up
+# correctly in the environment, builds pseudo separately if it hasn't
+# already been built, and then runs bitbake within pseudo.
+
 export BBFETCH2=True
 export BB_ENV_EXTRAWHITE="PSEUDO_BUILD PSEUDO_DISABLED $BB_ENV_EXTRAWHITE"
 
+# For certain operations (i.e. that won't be actually running any tasks)
+# we don't need pseudo
 NO_BUILD_OPTS="--version -h --help -p --parse-only -s --show-versions -e --environment -g --graphviz"
+
+# Some options are useful to pass through to the initial pseudo build if
+# that needs to be run (for debugging)
 PASSTHROUGH_OPTS="-D -DD -DDD -DDDD -v"
+
 needpseudo="1"
 for opt in $@; do
 for key in $NO_BUILD_OPTS; do
@@ -29,12 +39,22 @@ if [ "$py_v3_check" != "" ]; then
 fi
 
 # Similarly, we now have code that doesn't parse correctly with older
-# versions of Python, and rather than fixing that and be eternally
+# versions of Python, and rather than fixing that and being eternally
 # vigilant for any other new feature use, just check the version here.
 py_v26_check=`python -c 'import sys; print sys.version_info >= (2,6,0)'`
 if [ "$py_v26_check" != "True" ]; then
 	echo "BitBake requires Python 2.6 or later"
 	exit 1
+fi
+
+if [ ! -e conf/bblayers.conf ] ; then
+    BDPRINT=""
+    [ -n "$BUILDDIR" ] && BDPRINT=": $BUILDDIR"
+    echo "Unable to find conf/bblayers.conf"
+    echo "BitBake must be run from within your build directory$BDPRINT"
+    exit 1
+elif [ -z "$BUILDDIR" ] ; then
+    BUILDDIR="`pwd`"
 fi
 
 needtar="1"
@@ -43,18 +63,17 @@ float_test() {
      echo | awk 'END { exit ( !( '"$1"')); }'
 }
 
-# Tar version 1.24 and onwards handle symlinks in sstate packages correctly
-# but earlier versions do not
+# Tar version 1.24 and onwards handle overwriting symlinks correctly
+# but earlier versions do not; this needs to work properly for sstate
 float_test "$TARVERSION > 1.23" && needtar="0"
 
-if [ "`pwd`" != "$BUILDDIR" ] ; then
-    echo "BitBake must be run from your build directory: $BUILDDIR"
-    exit 1
-fi
-
 buildpseudo="1"
-if [ $needpseudo = "1" ] && [ -e "$BUILDDIR/pseudodone" ]; then
-    PSEUDOBINDIR=`cat $BUILDDIR/pseudodone`
+if [ $needpseudo = "1" ]; then
+    if [ -e "$BUILDDIR/pseudodone" ]; then
+        PSEUDOBINDIR=`cat $BUILDDIR/pseudodone`
+    else
+        PSEUDOBINDIR=`bitbake -e | grep STAGING_BINDIR_NATIVE=\" | cut -d '=' -f2 | cut -d '"' -f2`
+    fi
     if [ -e "$PSEUDOBINDIR/pseudo" ]; then
         buildpseudo="0"
     fi
@@ -68,6 +87,9 @@ if [ $needpseudo = "1" ] && [ -e "$BUILDDIR/pseudodone" ]; then
 	if [ -n "$PSEUDO_NEWER" ]; then
             buildpseudo="2"
 	fi
+    fi
+    if [ $buildpseudo = "0" -a ! -e "$BUILDDIR/pseudodone" ] ; then
+        echo $PSEUDOBINDIR > $BUILDDIR/pseudodone
     fi
 fi
 
@@ -130,7 +152,6 @@ BITBAKE=`which bitbake`
 export PATH=$OLDPATH
 if [ $needpseudo = "1" ]; then
     export PSEUDO_BUILD=2
-    PSEUDOBINDIR=`cat $BUILDDIR/pseudodone`
     PSEUDO_BINDIR=$PSEUDOBINDIR PSEUDO_LIBDIR=$PSEUDOBINDIR/../lib/pseudo/lib PSEUDO_PREFIX=$PSEUDOBINDIR/../../ PSEUDO_DISABLED=1 $PSEUDOBINDIR/pseudo $BITBAKE $@
 else
     export PSEUDO_BUILD=0

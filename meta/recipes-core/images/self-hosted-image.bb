@@ -4,7 +4,7 @@ LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=3f40d7994397109285ec7b81fdeb3b58 \
                     file://${COREBASE}/meta/COPYING.MIT;md5=3da9cfbcb788c80a0384361b4de20420"
 
-PR = "r6"
+PR = "r8"
 
 CORE_IMAGE_EXTRA_INSTALL = "\
     task-self-hosted \
@@ -25,7 +25,7 @@ IMAGE_FSTYPES = "vmdk"
 
 inherit core-image
 
-SRCREV = "26a46938d3ea1821e7bec4fa6cc8379babad238b"
+SRCREV = "8691a588267472eb5a32b978a0eb9ddfd0c91733"
 SRC_URI = "git://git.yoctoproject.org/poky;protocol=git"
 
 fakeroot do_populate_poky_src () {
@@ -37,16 +37,21 @@ fakeroot do_populate_poky_src () {
 	cp -Rp ${WORKDIR}/git ${IMAGE_ROOTFS}/home/builder/poky
 
 	mkdir -p ${IMAGE_ROOTFS}/home/builder/poky/build/conf
-	cp -Rp ${DL_DIR} ${IMAGE_ROOTFS}/home/builder/poky/build
+	mkdir -p ${IMAGE_ROOTFS}/home/builder/poky/build/downloads
+	cp -RpL ${DL_DIR}/* ${IMAGE_ROOTFS}/home/builder/poky/build/downloads/
+
+	# Remove the git2_* tarballs -- this is ok since we still have the git2/.
+	rm -rf ${IMAGE_ROOTFS}/home/builder/poky/build/downloads/git2_*
+
 	echo "/usr/bin" > ${IMAGE_ROOTFS}/home/builder/poky/build/pseudodone
 	echo "BB_NO_NETWORK = \"1\"" > ${IMAGE_ROOTFS}/home/builder/poky/build/conf/auto.conf
 	echo "INHERIT += \"rm_work\"" >> ${IMAGE_ROOTFS}/home/builder/poky/build/conf/auto.conf
-        mkdir -p ${IMAGE_ROOTFS}/home/builder/pseudo
-        echo "export PSEUDO_PREFIX=/usr" >> ${IMAGE_ROOTFS}/home/builder/.bashrc
-        echo "export PSEUDO_LOCALSTATEDIR=/home/builder/pseudo" >> ${IMAGE_ROOTFS}/home/builder/.bashrc
-        echo "export PSEUDO_LIBDIR=/usr/lib/pseudo/lib64" >> ${IMAGE_ROOTFS}/home/builder/.bashrc
+	mkdir -p ${IMAGE_ROOTFS}/home/builder/pseudo
+	echo "export PSEUDO_PREFIX=/usr" >> ${IMAGE_ROOTFS}/home/builder/.bashrc
+	echo "export PSEUDO_LOCALSTATEDIR=/home/builder/pseudo" >> ${IMAGE_ROOTFS}/home/builder/.bashrc
+	echo "export PSEUDO_LIBDIR=/usr/lib/pseudo/lib64" >> ${IMAGE_ROOTFS}/home/builder/.bashrc
 
-        chown builder.builder ${IMAGE_ROOTFS}/home/builder/pseudo
+	chown builder.builder ${IMAGE_ROOTFS}/home/builder/pseudo
 
 	chown -R builder.builder  ${IMAGE_ROOTFS}/home/builder/poky
 }
