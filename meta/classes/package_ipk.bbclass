@@ -74,7 +74,7 @@ package_tryout_install_multilib_ipk() {
 		local pkgname_prefix="${item}-"
 		local pkgname_len=${#pkgname_prefix}
 		for pkg in ${INSTALL_PACKAGES_MULTILIB_IPK}; do
-			local pkgname=$(echo $pkg | awk -v var=$pkgname_len '{ pkgname=substr($1, 1, var - 1); print pkgname; }' )
+			local pkgname=$(echo $pkg | awk -v var=$pkgname_len '{ pkgname=substr($1, 1, var); print pkgname; }' )
 			if [ ${pkgname} = ${pkgname_prefix} ]; then
 			    selected_pkg="${selected_pkg} ${pkg}"
 			fi
@@ -97,7 +97,7 @@ split_multilib_packages() {
 		for item in ${MULTILIB_VARIANTS}; do
 			local pkgname_prefix="${item}-"
 			local pkgname_len=${#pkgname_prefix}
-			local pkgname=$(echo $pkg | awk -v var=$pkgname_len '{ pkgname=substr($1, 1, var - 1); print pkgname; }' )
+			local pkgname=$(echo $pkg | awk -v var=$pkgname_len '{ pkgname=substr($1, 1, var); print pkgname; }' )
 			if [ ${pkgname} = ${pkgname_prefix} ]; then
 				is_multilib=1
 				break
@@ -214,7 +214,7 @@ package_update_index_ipk () {
 	for pkgdir in $packagedirs; do
 		if [ -e $pkgdir/ ]; then
 			touch $pkgdir/Packages
-			flock $pkgdir/Packages.flock -c "opkg-make-index -r $pkgdir/Packages -p $pkgdir/Packages -l $pkgdir/Packages.filelist -m $pkgdir/"
+			flock $pkgdir/Packages.flock -c "opkg-make-index -r $pkgdir/Packages -p $pkgdir/Packages -m $pkgdir/"
 		fi
 	done
 }
