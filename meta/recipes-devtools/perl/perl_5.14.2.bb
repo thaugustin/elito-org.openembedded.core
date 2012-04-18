@@ -7,7 +7,7 @@ LIC_FILES_CHKSUM = "file://Copying;md5=2b4c6ffbcfcbdee469f02565f253d81a \
 # We need gnugrep (for -I)
 DEPENDS = "virtual/db grep-native"
 DEPENDS += "gdbm zlib"
-PR = "r5"
+PR = "r6"
 
 # 5.10.1 has Module::Build built-in
 PROVIDES += "libmodule-build-perl"
@@ -163,9 +163,9 @@ do_configure() {
 			;;
 	esac
         # These are strewn all over the source tree
-        for foo in `find ${WORKDIR} -type f -print0 | xargs -0 grep -I -m1 \/usr\/include\/.*\\.h | cut -f 1 -d ":"` ; do
+        for foo in `find ${WORKDIR} -type f ! -name '*.pod' ! -name 'README*' -print0 | xargs -0 grep -I -m1 '/usr/include/.*\.h' | cut -f 1 -d ":"` ${S}/utils/h2xs.PL; do
             echo Fixing: $foo
-            sed -e "s%/usr/include/%${STAGING_INCDIR}/%g" -i $foo
+            sed -e 's|\([ "^'\''I]\+\)/usr/include/|\1${STAGING_INCDIR}/|g' -i $foo
         done
 
         rm -f config
@@ -174,8 +174,9 @@ do_configure() {
 }
 
 do_compile() {
-        sed -i -e 's|/usr/include|${STAGING_INCDIR}|g' ext/Errno/Errno_pm.PL
-        sed -i -e 's|/usr/include|${STAGING_INCDIR}|g' cpan/Compress-Raw-Zlib/config.in
+        # Fix to avoid recursive substitution of path
+        sed -i -e "s|\([ \"\']\+\)/usr/include|\1${STAGING_INCDIR}|g" ext/Errno/Errno_pm.PL
+        sed -i -e "s|\([ \"\']\+\)/usr/include|\1${STAGING_INCDIR}|g" cpan/Compress-Raw-Zlib/config.in
         sed -i -e 's|/usr/lib|""|g' cpan/Compress-Raw-Zlib/config.in
         sed -i -e 's|SYSROOTLIB|${STAGING_LIBDIR}|g' cpan/ExtUtils-MakeMaker/lib/ExtUtils/Liblist/Kid.pm
 

@@ -120,10 +120,11 @@ def check_supported_distro(e):
     if os.path.exists("/etc/redhat-release"):
         f = open("/etc/redhat-release", "r")
         try:
-            distro = f.readline()
+            distro = f.readline().strip()
         finally:
             f.close()
     elif os.path.exists("/etc/SuSE-release"):
+        import re
         f = open("/etc/SuSE-release", "r")
         try:
             distro = f.readline()
@@ -378,7 +379,7 @@ def check_sanity(e):
         if last_sstate_dir != sstate_dir:
             messages = messages + check_sanity_sstate_dir_change(sstate_dir, e.data)
 
-    if os.path.exists("conf"):
+    if os.path.exists("conf") and not messages:
         f = file(sanityverfile, 'w')
         f.write("SANITY_VERSION %s\n" % sanity_version) 
         f.write("TMPDIR %s\n" % tmpdir) 
