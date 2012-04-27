@@ -38,8 +38,8 @@ module_do_install() {
 
 pkg_postinst_append () {
 if [ -z "$D" ]; then
-		depmod -a
-		update-modules || true
+	depmod -a
+	update-modules || true
 fi
 }
 
