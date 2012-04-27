@@ -93,6 +93,7 @@ do_compile_kernelmodules() {
 	if (grep -q -i -e '^CONFIG_MODULES=y$' .config); then
 		install -d ${D}/lib/firmware
 		oe_runmake ${PARALLEL_MAKE} modules CC="${KERNEL_CC}" LD="${KERNEL_LD}"
+		rmdir ${D}/lib/firmware || :
 	else
 		bbnote "no modules to compile"
 	fi
