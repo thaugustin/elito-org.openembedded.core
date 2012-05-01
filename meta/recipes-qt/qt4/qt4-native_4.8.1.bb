@@ -1,8 +1,6 @@
 require qt4-native.inc
 
-PR = "${INC_PR}.0"
-
-DEFAULT_PREFERENCE = "-1"
+PR = "${INC_PR}.1"
 
 # Find the g++.conf/linux.conf in the right directory.
 FILESEXTRAPATHS =. "${FILE_DIRNAME}/qt-${PV}:"
