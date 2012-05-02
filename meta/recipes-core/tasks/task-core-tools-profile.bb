@@ -27,11 +27,11 @@ RRECOMMENDS_${PN} = "\
 
 PROFILETOOLS = "\
     oprofile \
-    ${@base_contains('MACHINE_FEATURES', 'screen', 'oprofileui-server', '', d)} \
+    ${@base_contains('DISTRO_DERIVED_FEATURES', 'gtk-supported', 'oprofileui-server', '', d)} \
     powertop \
     latencytop \
     lttng-control \
-    ${@base_contains('MACHINE_FEATURES', 'screen', 'lttng-viewer', '', d)}"
+    ${@base_contains('DISTRO_DERIVED_FEATURES', 'gtk-supported', 'lttng-viewer', '', d)}"
 
 # systemtap needs elfutils which is not fully buildable on uclibc
 # hence we exclude it from uclibc based builds
