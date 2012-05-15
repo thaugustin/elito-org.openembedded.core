@@ -39,9 +39,6 @@ PREFERRED_PROVIDER_virtual/linux-libc-headers = "external-csl-toolchain"
 GLIBC_INTERNAL_USE_BINARY_LOCALE = "precompiled"
 ENABLE_BINARY_LOCALE_GENERATION = ""
 
-TARGET_CPPFLAGS_prepend = " -isystem${EXTERNAL_TOOLCHAIN}/${TARGET_SYS}/include "
-TARGET_LDFLAGS_prepend = " -L${EXTERNAL_TOOLCHAIN}/${TARGET_SYS}/lib -Wl,-rpath-link,${EXTERNAL_TOOLCHAIN}/${TARGET_SYS}/lib "
-
 TOOLCHAIN_OPTIONS = " --sysroot=${STAGING_DIR_HOST}"
 
 # Translate to CodeSourcery's names for their optimized files in the toolchain
@@ -50,6 +47,7 @@ def csl_target_core(d):
         'armv7a-vfp-neon': 'armv7-a-neon',
         'i586': 'sgxx-glibc',
         'i686': 'sgxx-glibc',
+        'core2': 'sgxx-glibc',
         'mips': 'mips32',
         'mipsel': 'el',
         'powerpc-nf': 'nof',
@@ -73,7 +71,9 @@ python toolchain_metadata_setup () {
 
     d = e.data
 
-    if d.getVar('TUNE_PKGARCH', True) in ('i586', 'i686'):
+    l = d.createCopy()
+    l.finalize()
+    if os.path.exists(bb.data.expand('${EXTERNAL_TOOLCHAIN}/bin/gcc', l)):
         d.setVar('TOOLCHAIN_PATH_ADD', '')
 }
 addhandler toolchain_metadata_setup
@@ -84,7 +84,7 @@ python toolchain_setup () {
 
     d = e.data
 
-    if d.getVar('TUNE_PKGARCH', True) in ('i586', 'i686'):
+    if not d.getVar('TOOLCHAIN_PATH_ADD', True):
         populate_toolchain_links(d)
 }
 addhandler toolchain_setup
