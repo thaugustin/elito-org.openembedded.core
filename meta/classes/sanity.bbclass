@@ -4,7 +4,16 @@
 
 SANITY_REQUIRED_UTILITIES ?= "patch diffstat texi2html makeinfo svn bzip2 tar gzip gawk chrpath wget cpio"
 
-def raise_sanity_error(msg):
+def raise_sanity_error(msg, d):
+    if d.getVar("SANITY_USE_EVENTS", True) == "1":
+        # FIXME: handle when BitBake version is too old to support bb.event.SanityCheckFailed
+        # We can just fire the event directly once the minimum version is bumped beyond 1.15.1
+        try:
+            bb.event.fire(bb.event.SanityCheckFailed(msg), d)
+            return
+        except AttributeError:
+            pass
+
     bb.fatal(""" OE-core's config sanity checker detected a potential misconfiguration.
     Either fix the cause of this error or at your own risk disable the checker (see sanity.conf).
     Following is the list of potential problems / advisories:
@@ -248,10 +257,6 @@ def check_sanity_validmachine(sanity_data):
     if sanity_data.getVar('TUNE_ARCH', True) == 'INVALID':
         messages = messages + 'TUNE_ARCH is unset. Please ensure your MACHINE configuration includes a valid tune configuration file which will set this correctly.\n'
 
-    # Check TARGET_ARCH is set correctly
-    if sanity_data.getVar('TARGE_ARCH', False) == '${TUNE_ARCH}':
-        messages = messages + 'TARGET_ARCH is being overwritten, likely by your MACHINE configuration files.\nPlease use a valid tune configuration file which should set this correctly automatically\nand avoid setting this in the machine configuration. See the OE-Core mailing list for more information.\n'
-    
     # Check TARGET_OS is set
     if sanity_data.getVar('TARGET_OS', True) == 'INVALID':
         messages = messages + 'Please set TARGET_OS directly, or choose a MACHINE or DISTRO that does so.\n'
@@ -282,6 +287,7 @@ def check_sanity_validmachine(sanity_data):
 
 def check_sanity(sanity_data):
     from bb import note, error, data, __version__
+    import subprocess
 
     try:
         from distutils.version import LooseVersion
@@ -298,7 +304,7 @@ def check_sanity(sanity_data):
         return
 
     if 0 == os.getuid():
-        raise_sanity_error("Do not use Bitbake as root.")
+        raise_sanity_error("Do not use Bitbake as root.", sanity_data)
 
     messages = ""
 
@@ -400,7 +406,7 @@ def check_sanity(sanity_data):
 
     if missing != "":
         missing = missing.rstrip(',')
-        messages = messages + "Please install following missing utilities: %s\n" % missing
+        messages = messages + "Please install the following missing utilities: %s\n" % missing
 
     pseudo_msg = check_pseudo_wrapper()
     if pseudo_msg != "":
@@ -422,7 +428,7 @@ def check_sanity(sanity_data):
 
     oes_bb_conf = sanity_data.getVar( 'OES_BITBAKE_CONF', True)
     if not oes_bb_conf:
-        messages = messages + 'You do not include OpenEmbeddeds version of conf/bitbake.conf. This means your environment is misconfigured, in particular check BBPATH.\n'
+        messages = messages + 'You do not include the OpenEmbedded version of conf/bitbake.conf. This means your environment is misconfigured, in particular check BBPATH.\n'
 
     nolibs = sanity_data.getVar('NO32LIBS', True)
     if not nolibs:
@@ -495,16 +501,16 @@ def check_sanity(sanity_data):
             f.write(current_abi)
         elif abi == "2" and current_abi == "3":
             bb.note("Converting staging from layout version 2 to layout version 3")
-            os.system(sanity_data.expand("mv ${TMPDIR}/staging ${TMPDIR}/sysroots"))
-            os.system(sanity_data.expand("ln -s sysroots ${TMPDIR}/staging"))
-            os.system(sanity_data.expand("cd ${TMPDIR}/stamps; for i in */*do_populate_staging; do new=`echo $i | sed -e 's/do_populate_staging/do_populate_sysroot/'`; mv $i $new; done"))
+            subprocess.call(sanity_data.expand("mv ${TMPDIR}/staging ${TMPDIR}/sysroots"), shell=True)
+            subprocess.call(sanity_data.expand("ln -s sysroots ${TMPDIR}/staging"), shell=True)
+            subprocess.call(sanity_data.expand("cd ${TMPDIR}/stamps; for i in */*do_populate_staging; do new=`echo $i | sed -e 's/do_populate_staging/do_populate_sysroot/'`; mv $i $new; done"), shell=True)
             f = file(abifile, "w")
             f.write(current_abi)
         elif abi == "3" and current_abi == "4":
             bb.note("Converting staging layout from version 3 to layout version 4")
             if os.path.exists(sanity_data.expand("${STAGING_DIR_NATIVE}${bindir_native}/${MULTIMACH_HOST_SYS}")):
-                os.system(sanity_data.expand("mv ${STAGING_DIR_NATIVE}${bindir_native}/${MULTIMACH_HOST_SYS} ${STAGING_BINDIR_CROSS}"))
-                os.system(sanity_data.expand("ln -s ${STAGING_BINDIR_CROSS} ${STAGING_DIR_NATIVE}${bindir_native}/${MULTIMACH_HOST_SYS}"))
+                subprocess.call(sanity_data.expand("mv ${STAGING_DIR_NATIVE}${bindir_native}/${MULTIMACH_HOST_SYS} ${STAGING_BINDIR_CROSS}"), shell=True)
+                subprocess.call(sanity_data.expand("ln -s ${STAGING_BINDIR_CROSS} ${STAGING_DIR_NATIVE}${bindir_native}/${MULTIMACH_HOST_SYS}"), shell=True)
 
             f = file(abifile, "w")
             f.write(current_abi)
@@ -512,7 +518,7 @@ def check_sanity(sanity_data):
             messages = messages + "Staging layout has changed. The cross directory has been deprecated and cross packages are now built under the native sysroot.\nThis requires a rebuild.\n"
         elif abi == "5" and current_abi == "6":
             bb.note("Converting staging layout from version 5 to layout version 6")
-            os.system(sanity_data.expand("mv ${TMPDIR}/pstagelogs ${SSTATE_MANIFESTS}"))
+            subprocess.call(sanity_data.expand("mv ${TMPDIR}/pstagelogs ${SSTATE_MANIFESTS}"), shell=True)
             f = file(abifile, "w")
             f.write(current_abi)
         elif abi == "7" and current_abi == "8":
@@ -532,7 +538,7 @@ def check_sanity(sanity_data):
         messages = messages + "Error, you have a space in your COREBASE directory path. Please move the installation to a directory which doesn't include a space."
 
     if messages != "":
-        raise_sanity_error(messages)
+        raise_sanity_error(messages, sanity_data)
 
 # Create a copy of the datastore and finalise it to ensure appends and 
 # overrides are set - the datastore has yet to be finalised at ConfigParsed
@@ -548,6 +554,7 @@ python check_sanity_eventhandler() {
         check_sanity(sanity_data)
     elif bb.event.getName(e) == "SanityCheck":
         sanity_data = copy_data(e)
+        sanity_data.setVar("SANITY_USE_EVENTS", "1")
         check_sanity(sanity_data)
         bb.event.fire(bb.event.SanityCheckPassed(), e.data)
 
