@@ -1,19 +1,18 @@
-inherit kernel
 require recipes-kernel/linux/linux-yocto.inc
 
 KBRANCH = "standard/preempt-rt/base"
-KBRANCH_qemuppc = "standard/preempt-rt/qemu-ppc32"
+KBRANCH_qemuppc = "standard/preempt-rt/qemuppc"
 
-LINUX_VERSION ?= "3.4.1"
+LINUX_VERSION ?= "3.4.3"
 LINUX_KERNEL_TYPE = "preempt-rt"
 
 KMETA = "meta"
 
-SRCREV_machine ?= "9dc5e97d144abb03deec411acb9c64883602cff9"
-SRCREV_machine_qemuppc ?= "241a41d6104df6916280f1273894bbd7fa7cdd71"
-SRCREV_meta ?= "aa226dcc5a1351fae49da40d77b718c4c3a76e7c"
+SRCREV_machine ?= "4a688295a1c6d44f3eea409d51a0344c8830d829"
+SRCREV_machine_qemuppc ?= "83843542dd524007547eddba507690cd4bab393b"
+SRCREV_meta ?= "d65afd9e42230a3ef4cc1f9ad62d0aa84a533cd0"
 
-PR = "r0"
+PR = "${INC_PR}.0"
 PV = "${LINUX_VERSION}+git${SRCPV}"
 
 SRC_URI = "git://git.yoctoproject.org/linux-yocto-3.4.git;protocol=git;bareclone=1;branch=${KBRANCH},meta;name=machine,meta"
