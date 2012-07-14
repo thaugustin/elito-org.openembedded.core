@@ -24,7 +24,7 @@ def get_gcc_fpu_setting(bb, d):
 
     if fpu == 'hardfp':
         fpu = 'hard'
-    elif d.getVar('ARMPKGSFX_EABI', True) is "hf" and  d.getVar('TRANSLATED_TARGET_ARCH', True) is "arm":
+    elif d.getVar('ARMPKGSFX_EABI', True) == "hf" and  d.getVar('TRANSLATED_TARGET_ARCH', True) == "arm":
         fpu = 'hard'
 
     if fpu in [ 'soft', 'softfp', 'hard' ]:
