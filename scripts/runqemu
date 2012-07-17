@@ -94,7 +94,7 @@ KVM_ENABLED="no"
 while true; do
     arg=${1}
     case "$arg" in
-        "qemux86" | "qemux86-64" | "qemuarm" | "qemumips" | "qemumips64" | "qemush4"  | "qemuppc")
+        "qemux86" | "qemux86-64" | "qemuarm" | "qemumips" | "qemumipsel" | "qemumips64" | "qemush4"  | "qemuppc")
             [ -z "$MACHINE" ] && MACHINE=$arg || \
                 error "conflicting MACHINE types [$MACHINE] and [$arg]"
             ;;
@@ -245,6 +245,9 @@ QEMUARM_DEFAULT_FSTYPE=ext3
 QEMUMIPS_DEFAULT_KERNEL=vmlinux-qemumips.bin
 QEMUMIPS_DEFAULT_FSTYPE=ext3
 
+QEMUMIPSEL_DEFAULT_KERNEL=vmlinux-qemumipsel.bin
+QEMUMIPSEL_DEFAULT_FSTYPE=ext3
+
 QEMUMIPS64_DEFAULT_KERNEL=vmlinux-qemumips64.bin
 QEMUMIPS64_DEFAULT_FSTYPE=ext3
 
@@ -383,20 +386,6 @@ echo "FSTYPE: [$FSTYPE]"
 
 setup_sysroot
 # OECORE_NATIVE_SYSROOT is now set for all cases
-
-# We can't run without a libGL.so
-libgl='no'
-
-[ -e /usr/lib/libGL.so -a -e /usr/lib/libGLU.so ] && libgl='yes'
-[ -e /usr/lib64/libGL.so -a -e /usr/lib64/libGLU.so ] && libgl='yes'
-[ -e /usr/lib/*-linux-gnu/libGL.so -a -e /usr/lib/*-linux-gnu/libGLU.so ] && libgl='yes'
-
-if [ "$libgl" != 'yes' ]; then
-    echo "You need libGL.so and libGLU.so to exist in your library path to run the QEMU emulator.
-    Ubuntu package names are: libgl1-mesa-dev and libglu1-mesa-dev.
-    Fedora package names are: mesa-libGL-devel mesa-libGLU-devel."
-    exit 1;
-fi
 
 INTERNAL_SCRIPT="$0-internal"
 if [ ! -f "$INTERNAL_SCRIPT" -o ! -r "$INTERNAL_SCRIPT" ]; then
