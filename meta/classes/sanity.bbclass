@@ -2,7 +2,7 @@
 # Sanity check the users setup for common misconfigurations
 #
 
-SANITY_REQUIRED_UTILITIES ?= "patch diffstat texi2html makeinfo svn bzip2 tar gzip gawk chrpath wget cpio"
+SANITY_REQUIRED_UTILITIES ?= "patch diffstat texi2html makeinfo git bzip2 tar gzip gawk chrpath wget cpio"
 
 def raise_sanity_error(msg, d):
     if d.getVar("SANITY_USE_EVENTS", True) == "1":
@@ -390,7 +390,8 @@ def check_sanity(sanity_data):
 
     paths = sanity_data.getVar('PATH', True).split(":")
     if "." in paths or "" in paths:
-        messages = messages + "PATH contains '.' or '', which will break the build, please remove this."
+        messages = messages + "PATH contains '.' or '' (empty element), which will break the build, please remove this.\n"
+        messages = messages + "Parsed PATH is " + str(paths) + "\n"
 
     bbpaths = sanity_data.getVar('BBPATH', True).split(":")
     if "." in bbpaths or "" in bbpaths:

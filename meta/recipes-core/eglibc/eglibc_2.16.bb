@@ -3,7 +3,7 @@ require eglibc.inc
 SRCREV = "19383"
 
 DEPENDS += "gperf-native"
-PR = "r0"
+PR = "r1"
 PR_append = "+svnr${SRCPV}"
 
 EGLIBC_BRANCH="eglibc-2_16"
@@ -22,6 +22,7 @@ SRC_URI = "svn://www.eglibc.org/svn/branches/;module=${EGLIBC_BRANCH};protocol=h
            file://eglibc_fix_findidx_parameters.patch \
            file://ppc_slow_ieee754_sqrt.patch \
            file://rpc-bootstrap.patch \
+           file://e500-math_private.patch \
           "
 LIC_FILES_CHKSUM = "file://LICENSES;md5=98a1128c4b58120182cbea3b1752d8b9 \
       file://COPYING;md5=393a5ca445f6965873eca0259a17f833 \
@@ -75,7 +76,7 @@ EXTRA_OECONF = "--enable-kernel=${OLDEST_KERNEL} \
 EXTRA_OECONF += "${@get_libc_fpu_setting(bb, d)}"
 
 do_unpack_append() {
-	bb.build.exec_func('do_move_ports', d)
+    bb.build.exec_func('do_move_ports', d)
 }
 
 do_move_ports() {
@@ -86,7 +87,7 @@ do_move_ports() {
 }
 
 do_patch_append() {
-	bb.build.exec_func('do_fix_readlib_c', d)
+    bb.build.exec_func('do_fix_readlib_c', d)
 }
 
 # for mips eglibc now builds syscall tables for all abi's

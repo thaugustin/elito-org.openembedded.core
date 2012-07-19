@@ -46,7 +46,7 @@ build_boot_dd() {
 	IMAGE=${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.hdddirect
 
 	install -d ${HDDDIR}
-	install -m 0644 ${STAGING_DIR_HOST}/kernel/bzImage ${HDDDIR}/vmlinuz
+	install -m 0644 ${STAGING_KERNEL_DIR}/bzImage ${HDDDIR}/vmlinuz
 	install -m 0644 ${S}/syslinux.cfg ${HDDDIR}/syslinux.cfg
 	install -m 444 ${STAGING_LIBDIR}/syslinux/ldlinux.sys ${HDDDIR}/ldlinux.sys
 
@@ -92,8 +92,8 @@ build_boot_dd() {
 } 
 
 python do_bootdirectdisk() {
-	bb.build.exec_func('build_syslinux_cfg', d)
-	bb.build.exec_func('build_boot_dd', d)
+    bb.build.exec_func('build_syslinux_cfg', d)
+    bb.build.exec_func('build_boot_dd', d)
 }
 
 addtask bootdirectdisk before do_build
