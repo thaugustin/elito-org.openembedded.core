@@ -12,6 +12,9 @@ def sstate_rundepfilter(siggen, fn, recipename, task, dep, depname, dataCache):
         inherits = " ".join(dataCache.inherits[fn])
         return inherits.find("module-base.bbclass") != -1 or inherits.find("linux-kernel-base.bbclass") != -1
 
+    if dep.endswith('.do_rm_old_work'):
+	return False
+
     # Always include our own inter-task dependencies
     if recipename == depname:
         return True
