@@ -51,6 +51,8 @@ sysroot_stage_dirs() {
 		sysroot_stage_libdir $from${base_libdir} $to${base_libdir}
 	fi
 	sysroot_stage_dir $from${datadir} $to${datadir}
+	# We don't care about docs/info/manpages/locales
+	rm -rf $to${mandir}/ $to${docdir}/ $to${infodir}/ ${to}${datadir}/locale/
 }
 
 sysroot_stage_all() {
@@ -103,6 +105,7 @@ python do_populate_sysroot () {
 }
 
 SSTATETASKS += "do_populate_sysroot"
+do_populate_sysroot[cleandirs] = "${SYSROOT_DESTDIR}"
 do_populate_sysroot[sstate-name] = "populate-sysroot"
 do_populate_sysroot[sstate-inputdirs] = "${SYSROOT_DESTDIR}"
 do_populate_sysroot[sstate-outputdirs] = "${STAGING_DIR_HOST}/"
