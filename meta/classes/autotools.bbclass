@@ -91,14 +91,12 @@ oe_runconf () {
 	cfgscript="${S}/configure"
 	if [ -x "$cfgscript" ] ; then
 		bbnote "Running $cfgscript ${CONFIGUREOPTS} ${EXTRA_OECONF} $@"
-		set +e
-		${CACHED_CONFIGUREVARS} $cfgscript ${CONFIGUREOPTS} ${EXTRA_OECONF} "$@"
-		if [ "$?" != "0" ]; then
-			echo "Configure failed. The contents of all config.log files follows to aid debugging"
-			find ${S} -name config.log -print -exec cat {} \;
+		${CACHED_CONFIGUREVARS} $cfgscript ${CONFIGUREOPTS} ${EXTRA_OECONF} "$@" || (
+			set +x
+			echo "Configure failed. The contents of all config.log files will be put into ${T}/config.log to ease debugging."
+			find ${S} -name config.log -print -exec cat {} \; > ${T}/config.log
 			bbfatal "oe_runconf failed"
-		fi
-		set -e
+		)
 	else
 		bbfatal "no configure script found at $cfgscript"
 	fi
