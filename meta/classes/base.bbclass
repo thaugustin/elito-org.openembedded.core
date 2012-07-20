@@ -362,6 +362,14 @@ def set_packagetriplet(d):
 python () {
     import string, re
 
+    # Disable ccache explicitly if CCACHE is null since gcc may be a
+    # symlink of ccache some distributions (e.g., Fedora 17). Please
+    # note that only the existence of $CCACHE_DISABLE matters; the
+    # value is ignored.
+    if d.getVar('CCACHE', True) == '':
+        d.setVar('CCACHE_DISABLE', True)
+        d.setVarFlag('CCACHE_DISABLE', 'export', True)
+
     # Handle PACKAGECONFIG
     #
     # These take the form:
