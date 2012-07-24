@@ -30,7 +30,9 @@ inherit siteinfo
 export CONFIG_SITE = "${@siteinfo_get_files(d)}"
 
 acpaths = "default"
-EXTRA_AUTORECONF = "--exclude=autopoint"
+# native + cross depend on gettext-minimal which does not provide
+# autopoint
+EXTRA_AUTORECONF = "${@['','--exclude=autopoint'][oe.utils.inherits(d, 'native', 'cross')]}"
 
 export lt_cv_sys_lib_dlsearch_path_spec = "${libdir} ${base_libdir}"
 
