@@ -2,7 +2,7 @@ DESCRIPTION = "Library of functions for 2D graphics"
 SECTION = "x11/gnome"
 LICENSE = "LGPLv2"
 LIC_FILES_CHKSUM = "file://COPYING;md5=3bf50002aefd002f49e7bb854063f7e7"
-PR = "r1"
+PR = "r2"
 
 ART_CONFIG = "${HOST_ARCH}/art_config.h"
 
@@ -26,6 +26,3 @@ S = "${WORKDIR}/libart_lgpl-${PV}"
 do_configure_prepend() {
 	cp ${WORKDIR}/${ART_CONFIG} ${S}/art_config.h
 }
-
-EXTRA_OECONF = "--disable-gtk-doc"
-
