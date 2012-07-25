@@ -10,6 +10,7 @@ SRC_URI += "file://04-default-is-optimized.patch \
            file://12-distutils-prefix-is-inside-staging-area.patch \
            file://debug.patch \
            file://unixccompiler.patch \
+           file://nohostlibs.patch \
            file://multilib.patch \
            file://add-md5module-support.patch \
            "
