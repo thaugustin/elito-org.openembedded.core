@@ -97,27 +97,26 @@ def siteinfo_data(d):
     bb.debug(1, "SITE files %s" % sitedata);
     return sitedata
 
-def siteinfo_get_endianness(d):
+python () {
     sitedata = set(siteinfo_data(d))
     if "endian-little" in sitedata:
-        return "le"
+        d.setVar("SITEINFO_ENDIANNESS", "le")
     elif "endian-big" in sitedata:
-        return "be"
+        d.setVar("SITEINFO_ENDIANNESS", "be")
     else:
         bb.error("Unable to determine endianness for architecture '%s'" %
                  d.getVar("HOST_ARCH", True))
         bb.fatal("Please add your architecture to siteinfo.bbclass")
 
-def siteinfo_get_bits(d):
-    sitedata = set(siteinfo_data(d))
     if "bit-32" in sitedata:
-        return "32"
+        d.setVar("SITEINFO_BITS", "32")
     elif "bit-64" in sitedata:
-        return "64"
+        d.setVar("SITEINFO_BITS", "64")
     else:
         bb.error("Unable to determine bit size for architecture '%s'" %
                  d.getVar("HOST_ARCH", True))
         bb.fatal("Please add your architecture to siteinfo.bbclass")
+}
 
 def siteinfo_get_files(d, no_cache = False):
     sitedata = siteinfo_data(d)
@@ -143,5 +142,3 @@ def siteinfo_get_files(d, no_cache = False):
 # Make some information available via variables
 #
 SITECONFIG_SYSROOTCACHE = "${STAGING_DATADIR}/${TARGET_SYS}_config_site.d"
-SITEINFO_ENDIANNESS = "${@siteinfo_get_endianness(d)}"
-SITEINFO_BITS = "${@siteinfo_get_bits(d)}"
