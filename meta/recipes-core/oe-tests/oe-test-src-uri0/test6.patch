@@ -1,7 +1,0 @@
-Index: tests/a/test6.txt
-===================================================================
---- tests.orig/a/test6.txt
-+++ tests/a/test6.txt
-@@ -1 +1 @@
--was test6.txt
-+is now a patched test6.txt
