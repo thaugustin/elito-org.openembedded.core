@@ -15,10 +15,12 @@ do_rootfs[recrdeptask] += "do_package_write_ipk"
 do_rootfs[lockfiles] += "${WORKDIR}/ipk.lock"
 
 IPKG_ARGS = "-f ${IPKGCONF_TARGET} -o ${IMAGE_ROOTFS} --force-overwrite"
+# The _POST version also works when constructing the matching SDK
+IPKG_ARGS_POST = "-f ${IPKGCONF_TARGET} -o $INSTALL_ROOTFS_IPK --force-overwrite"
 
 OPKG_PREPROCESS_COMMANDS = "package_update_index_ipk; package_generate_ipkg_conf"
 
-OPKG_POSTPROCESS_COMMANDS = "ipk_insert_feed_uris; rootfs_install_all_locales; "
+OPKG_POSTPROCESS_COMMANDS = "ipk_insert_feed_uris; "
 
 opkglibdir = "${localstatedir}/lib/opkg"
 
@@ -74,6 +76,8 @@ fakeroot rootfs_ipk_do_rootfs () {
 	#mkdir -p ${IMAGE_ROOTFS}/etc/opkg/
 	#grep "^arch" ${IPKGCONF_TARGET} >${IMAGE_ROOTFS}/etc/opkg/arch.conf
 
+	rootfs_install_complementary
+
 	${OPKG_POSTPROCESS_COMMANDS}
 	${ROOTFS_POSTINSTALL_COMMAND}
 	
@@ -126,41 +130,29 @@ remove_packaging_data_files() {
 }
 
 list_installed_packages() {
-	grep ^Package: ${IMAGE_ROOTFS}${opkglibdir}/status | sed "s/^Package: //"
-}
-
-get_package_filename() {
-	set +x
-	info=`opkg-cl ${IPKG_ARGS} info $1 | grep -B 7 -A 7 "^Status.* \(\(installed\)\|\(unpacked\)\)" || true`
-	name=`echo "${info}" | awk '/^Package/ {printf $2"_"}'`
-	name=$name`echo "${info}" | awk -F: '/^Version/ {printf $NF"_"}' | sed 's/^\s*//g'`
-	name=$name`echo "${info}" | awk '/^Archi/ {print $2".ipk"}'`
-	set -x
-
-	fullname=`find ${DEPLOY_DIR_IPK} -name "$name" || true`
-	if [ "$fullname" = "" ] ; then
-		echo $name
+	if [ "$1" = "arch" ] ; then
+		opkg-cl ${IPKG_ARGS_POST} status | opkg-query-helper.py -a
+	elif [ "$1" = "file" ] ; then
+		opkg-cl ${IPKG_ARGS_POST} status | opkg-query-helper.py -f | while read pkg pkgfile
+		do
+			fullpath=`find ${DEPLOY_DIR_IPK} -name "$pkgfile" || true`
+			if [ "$fullpath" = "" ] ; then
+				echo "$pkg $pkgfile"
+			else
+				echo "$pkg $fullpath"
+			fi
+		done
 	else
-		echo $fullname
+		opkg-cl ${IPKG_ARGS_POST} list_installed | awk '{ print $1 }'
 	fi
 }
 
-list_package_depends() {
-	opkg-cl ${IPKG_ARGS} info $1 | grep ^Depends | sed -e 's/^Depends: //' -e 's/,//g' -e 's:([=<>]* [^ )]*)::g'
-}
-
-list_package_recommends() {
-	opkg-cl ${IPKG_ARGS} info $1 | grep ^Recommends | sed -e 's/^Recommends: //' -e 's/,//g' -e 's:([=<>]* [^ )]*)::g'
-}
-
-rootfs_check_package_exists() {
-	if [ `opkg-cl ${IPKG_ARGS} info $1 | wc -l` -gt 2 ]; then
-		echo $1
-	fi
+rootfs_list_installed_depends() {
+	opkg-cl ${IPKG_ARGS_POST} status | opkg-query-helper.py
 }
 
 rootfs_install_packages() {
-	opkg-cl ${IPKG_ARGS} install $PACKAGES_TO_INSTALL
+	opkg-cl ${IPKG_ARGS_POST} install `cat $1`
 }
 
 ipk_insert_feed_uris () {

@@ -291,12 +291,16 @@ def runstrip(file, elftype, d):
         os.chmod(file, newmode)
 
     extraflags = ""
-    # .so and shared library
-    if ".so" in file and elftype & 8:
-        extraflags = "--remove-section=.comment --remove-section=.note --strip-unneeded"
-    # shared or executable:
-    elif elftype & 8 or elftype & 4:
-        extraflags = "--remove-section=.comment --remove-section=.note"
+    
+    # split_and_strip_files is calling this with elf_type None, causing:
+    # TypeError: unsupported operand type(s) for &: 'NoneType' and 'int'
+    if elftype:
+        # .so and shared library
+        if ".so" in file and elftype & 8:
+            extraflags = "--remove-section=.comment --remove-section=.note --strip-unneeded"
+        # shared or executable:
+        elif elftype & 8 or elftype & 4:
+            extraflags = "--remove-section=.comment --remove-section=.note"
 
     stripcmd = "'%s' %s '%s'" % (strip, extraflags, file)
     bb.debug(1, "runstrip: %s" % stripcmd)
@@ -371,6 +375,8 @@ python package_get_auto_pr() {
         d.setVar('PRAUTO',str(auto_pr))
 }
 
+LOCALEBASEPN ??= "${PN}"
+
 python package_do_split_locales() {
     if (d.getVar('PACKAGE_NO_LOCALE', True) == '1'):
         bb.debug(1, "package requested not splitting locales")
@@ -384,7 +390,7 @@ python package_do_split_locales() {
         return
 
     dvar = d.getVar('PKGD', True)
-    pn = d.getVar('PN', True)
+    pn = d.getVar('LOCALEBASEPN', True)
 
     if pn + '-locale' in packages:
         packages.remove(pn + '-locale')
@@ -1132,6 +1138,10 @@ python emit_pkgdata() {
         sf.write('%s_%s: %s\n' % ('PKGSIZE', pkg, get_directory_size(pkgdest + "/%s" % pkg)))
         sf.close()
 
+        # Symlinks needed for reverse lookups (from the final package name)
+        pkgval = d.getVar('PKG_%s' % (pkg), True)
+        subdata_sym = pkgdatadir + "/runtime-reverse/%s" % pkgval
+        oe.path.symlink("../runtime/%s" % pkg, subdata_sym, True)
 
         allow_empty = d.getVar('ALLOW_EMPTY_%s' % pkg, True)
         if not allow_empty:
@@ -1145,7 +1155,7 @@ python emit_pkgdata() {
 
     bb.utils.unlockfile(lf)
 }
-emit_pkgdata[dirs] = "${PKGDESTWORK}/runtime"
+emit_pkgdata[dirs] = "${PKGDESTWORK}/runtime ${PKGDESTWORK}/runtime-reverse"
 
 ldconfig_postinst_fragment() {
 if [ x"$D" = "x" ]; then
@@ -1584,19 +1594,28 @@ python package_do_pkgconfig () {
     bb.utils.unlockfile(lf)
 }
 
-python read_shlibdeps () {
+def read_libdep_files(d):
+    pkglibdeps = {}
     packages = d.getVar('PACKAGES', True).split()
     for pkg in packages:
-        rdepends = bb.utils.explode_dep_versions(d.getVar('RDEPENDS_' + pkg, False) or d.getVar('RDEPENDS', False) or "")
-
+        pkglibdeps[pkg] = []
         for extension in ".shlibdeps", ".pcdeps", ".clilibdeps":
             depsfile = d.expand("${PKGDEST}/" + pkg + extension)
             if os.access(depsfile, os.R_OK):
                 fd = file(depsfile)
                 lines = fd.readlines()
                 fd.close()
-                for l in lines:
-                    rdepends[l.rstrip()] = ""
+                pkglibdeps[pkg].extend([l.rstrip() for l in lines])
+    return pkglibdeps
+
+python read_shlibdeps () {
+    pkglibdeps = read_libdep_files(d)
+
+    packages = d.getVar('PACKAGES', True).split()
+    for pkg in packages:
+        rdepends = bb.utils.explode_dep_versions(d.getVar('RDEPENDS_' + pkg, False) or d.getVar('RDEPENDS', False) or "")
+        for dep in pkglibdeps[pkg]:
+            rdepends[dep] = ""
         d.setVar('RDEPENDS_' + pkg, bb.utils.join_deps(rdepends, commasep=False))
 }
 
@@ -1633,7 +1652,7 @@ python package_depchains() {
                 depend = depend.replace('-dbg', '')
             pkgname = getname(depend, suffix)
             #bb.note("Adding %s for %s" % (pkgname, depend))
-            if pkgname not in rreclist:
+            if pkgname not in rreclist and pkgname != pkg:
                 rreclist[pkgname] = ""
 
         #bb.note('setting: RRECOMMENDS_%s=%s' % (pkg, ' '.join(rreclist)))
@@ -1654,7 +1673,7 @@ python package_depchains() {
                 depend = depend.replace('-dbg', '')
             pkgname = getname(depend, suffix)
             #bb.note("Adding %s for %s" % (pkgname, depend))
-            if pkgname not in rreclist:
+            if pkgname not in rreclist and pkgname != pkg:
                 rreclist[pkgname] = ""
 
         #bb.note('setting: RRECOMMENDS_%s=%s' % (pkg, ' '.join(rreclist)))
@@ -1698,6 +1717,15 @@ python package_depchains() {
                     pkgs[prefix] = {}
                 pkgs[prefix][pkg] = (pkg[:-len(prefix)], pre_getname)
 
+    if "-dbg" in pkgs:
+        pkglibdeps = read_libdep_files(d)
+        pkglibdeplist = []
+        for pkg in pkglibdeps:
+            for dep in pkglibdeps[pkg]:
+                add_dep(pkglibdeplist, dep)
+        # FIXME this should not look at PN once all task recipes inherit from task.bbclass
+        dbgdefaultdeps = ((d.getVar('DEPCHAIN_DBGDEFAULTDEPS', True) == '1') or (d.getVar('PN', True) or '').startswith('task-'))
+
     for suffix in pkgs:
         for pkg in pkgs[suffix]:
             if d.getVarFlag('RRECOMMENDS_' + pkg, 'nodeprrecs'):
@@ -1705,6 +1733,10 @@ python package_depchains() {
             (base, func) = pkgs[suffix][pkg]
             if suffix == "-dev" and not d.getVarFlag('RRECOMMENDS_' + pkg, 'nodevrrecs'):
                 pkg_adddeprrecs(pkg, base, suffix, func, depends, d)
+            elif suffix == "-dbg":
+                if not dbgdefaultdeps:
+                    pkg_addrrecs(pkg, base, suffix, func, pkglibdeplist, d)
+                    continue
             if len(pkgs[suffix]) == 1:
                 pkg_addrrecs(pkg, base, suffix, func, rdepends, d)
             else:
@@ -1775,6 +1807,7 @@ addtask package before do_build after do_install
 PACKAGELOCK = "${STAGING_DIR}/package-output.lock"
 SSTATETASKS += "do_package"
 do_package[sstate-name] = "package"
+do_package[cleandirs] = "${PKGDESTWORK}"
 do_package[sstate-plaindirs] = "${PKGD} ${PKGDEST}"
 do_package[sstate-inputdirs] = "${PKGDESTWORK} ${SHLIBSWORKDIR}"
 do_package[sstate-outputdirs] = "${PKGDATA_DIR} ${SHLIBSDIR}"

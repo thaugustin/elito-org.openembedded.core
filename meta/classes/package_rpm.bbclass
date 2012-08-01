@@ -197,6 +197,50 @@ rpm_update_pkg () {
     fi
 }
 
+process_pkg_list_rpm() {
+	local insttype=$1
+	shift
+	# $@ is special POSIX linear array can not be assigned
+	# to a local variable directly in dash since its separated by
+	# space and dash expands it before assignment
+	# and local x=1 2 3 and not x="1 2 3"
+	local pkgs
+	pkgs="$@"
+	local confbase=${INSTALL_CONFBASE_RPM}
+
+	echo -n > ${target_rootfs}/install/base_archs.pkglist
+	echo -n > ${target_rootfs}/install/ml_archs.pkglist
+
+	for pkg in $pkgs; do
+		echo "Processing $pkg..."
+
+		archvar=base_archs
+		ml_pkg=$pkg
+		for i in ${MULTILIB_PREFIX_LIST} ; do
+				subst=${pkg#${i}-}
+				if [ $subst != $pkg ] ; then
+						ml_pkg=$subst
+						archvar=ml_archs
+						break
+				fi
+		done
+
+		echo $ml_pkg >> ${target_rootfs}/install/$archvar.pkglist
+	done
+
+	local manifestpfx="install"
+	local extraopt=""
+	if [ "$insttype" = "attemptonly" ] ; then
+		manifestpfx="install_attemptonly"
+		extraopt="-i"
+	fi
+
+	rpmresolve $extraopt ${confbase}-base_archs.conf ${target_rootfs}/install/base_archs.pkglist >> ${target_rootfs}/install/${manifestpfx}.manifest
+	if [ -s ${target_rootfs}/install/ml_archs.pkglist ] ; then
+		rpmresolve $extraopt ${confbase}-ml_archs.conf ${target_rootfs}/install/ml_archs.pkglist >> ${target_rootfs}/install/${manifestpfx}_multilib.manifest
+	fi
+}
+
 #
 # install a bunch of packages using rpm
 # the following shell variables needs to be set before calling this func:
@@ -209,6 +253,7 @@ rpm_update_pkg () {
 # INSTALL_PACKAGES_LINGUAS_RPM - additional packages for uclibc
 # INSTALL_PROVIDENAME_RPM - content for provide name
 # INSTALL_TASK_RPM - task name
+# INSTALL_COMPLEMENTARY_RPM - 1 to enable complementary package install mode
 
 package_install_internal_rpm () {
 
@@ -222,31 +267,35 @@ package_install_internal_rpm () {
 	local providename="${INSTALL_PROVIDENAME_RPM}"
 	local task="${INSTALL_TASK_RPM}"
 
-	# Setup base system configuration
-	mkdir -p ${target_rootfs}/etc/rpm/
-	echo "${platform}${TARGET_VENDOR}-${TARGET_OS}" > ${target_rootfs}/etc/rpm/platform
-	if [ ! -z "$platform_extra" ]; then
-		for pt in $platform_extra ; do
-			case $pt in
-				noarch | any | all)
-					os="`echo ${TARGET_OS} | sed "s,-.*,,"`.*"
-					;;
-				*)
-					os="${TARGET_OS}"
-					;;
-			esac
-			echo "$pt-.*-$os" >> ${target_rootfs}/etc/rpm/platform
-		done
-	fi
+	if [ "${INSTALL_COMPLEMENTARY_RPM}" != "1" ] ; then
+		# Setup base system configuration
+		mkdir -p ${target_rootfs}/etc/rpm/
+		echo "${platform}${TARGET_VENDOR}-${TARGET_OS}" > ${target_rootfs}/etc/rpm/platform
+		if [ ! -z "$platform_extra" ]; then
+			for pt in $platform_extra ; do
+				case $pt in
+					noarch | any | all)
+						os="`echo ${TARGET_OS} | sed "s,-.*,,"`.*"
+						;;
+					*)
+						os="${TARGET_OS}"
+						;;
+				esac
+				echo "$pt-.*-$os" >> ${target_rootfs}/etc/rpm/platform
+			done
+		fi
 
-	# Tell RPM that the "/" directory exist and is available
-	mkdir -p ${target_rootfs}/etc/rpm/sysinfo
-	echo "/" >${target_rootfs}/etc/rpm/sysinfo/Dirnames
-	if [ ! -z "$providename" ]; then
-		cat /dev/null > ${target_rootfs}/etc/rpm/sysinfo/Providename
-		for provide in $providename ; do
-			echo $provide >> ${target_rootfs}/etc/rpm/sysinfo/Providename
-		done
+		# Tell RPM that the "/" directory exist and is available
+		mkdir -p ${target_rootfs}/etc/rpm/sysinfo
+		echo "/" >${target_rootfs}/etc/rpm/sysinfo/Dirnames
+		if [ ! -z "$providename" ]; then
+			cat /dev/null > ${target_rootfs}/etc/rpm/sysinfo/Providename
+			for provide in $providename ; do
+				echo $provide >> ${target_rootfs}/etc/rpm/sysinfo/Providename
+			done
+		fi
+	else
+		mv ${target_rootfs}/install/total_solution.manifest ${target_rootfs}/install/original_solution.manifest
 	fi
 
 	# Setup manifest of packages to install...
@@ -256,55 +305,12 @@ package_install_internal_rpm () {
 	# Uclibc builds don't provide this stuff...
 	if [ x${TARGET_OS} = "xlinux" ] || [ x${TARGET_OS} = "xlinux-gnueabi" ] ; then
 		if [ ! -z "${package_linguas}" ]; then
-			for pkg in ${package_linguas}; do
-				echo "Processing $pkg..."
-
-				archvar=base_archs
-				manifest=install.manifest
-				ml_prefix=`echo ${pkg} | cut -d'-' -f1`
-				ml_pkg=$pkg
-				for i in ${MULTILIB_PREFIX_LIST} ; do
-					if [ ${ml_prefix} = ${i} ]; then
-						ml_pkg=$(echo ${pkg} | sed "s,^${ml_prefix}-\(.*\),\1,")
-						archvar=ml_archs
-						manifest=install_multilib.manifest
-						break
-					fi
-				done
-
-				pkg_name=$(resolve_package_rpm ${confbase}-${archvar}.conf ${ml_pkg})
-				if [ -z "$pkg_name" ]; then
-					echo "Unable to find package $pkg ($ml_pkg)!"
-					exit 1
-				fi
-				echo $pkg_name >> ${target_rootfs}/install/${manifest}
-			done
+			process_pkg_list_rpm linguas ${package_linguas}
 		fi
 	fi
+
 	if [ ! -z "${package_to_install}" ]; then
-		for pkg in ${package_to_install} ; do
-			echo "Processing $pkg..."
-
-			archvar=base_archs
-			manifest=install.manifest
-			ml_prefix=`echo ${pkg} | cut -d'-' -f1`
-			ml_pkg=$pkg
-			for i in ${MULTILIB_PREFIX_LIST} ; do
-				if [ ${ml_prefix} = ${i} ]; then
-					ml_pkg=$(echo ${pkg} | sed "s,^${ml_prefix}-\(.*\),\1,")
-					archvar=ml_archs
-					manifest=install_multilib.manifest
-					break
-				fi
-			done
-
-			pkg_name=$(resolve_package_rpm ${confbase}-${archvar}.conf ${ml_pkg})
-			if [ -z "$pkg_name" ]; then
-				echo "Unable to find package $pkg ($ml_pkg)!"
-				exit 1
-			fi
-			echo $pkg_name >> ${target_rootfs}/install/${manifest}
-		done
+		process_pkg_list_rpm default ${package_to_install}
 	fi
 
 	# Normal package installation
@@ -324,24 +330,9 @@ package_install_internal_rpm () {
 
 	if [ ! -z "${package_attemptonly}" ]; then
 		echo "Adding attempt only packages..."
-		for pkg in ${package_attemptonly} ; do
-			echo "Processing $pkg..."
-			archvar=base_archs
-			ml_prefix=`echo ${pkg} | cut -d'-' -f1`
-			ml_pkg=$pkg
-			for i in ${MULTILIB_PREFIX_LIST} ; do
-				if [ ${ml_prefix} = ${i} ]; then
-					ml_pkg=$(echo ${pkg} | sed "s,^${ml_prefix}-\(.*\),\1,")
-					archvar=ml_archs
-					break
-				fi
-			done
-
-			pkg_name=$(resolve_package_rpm ${confbase}-${archvar}.conf ${ml_pkg})
-			if [ -z "$pkg_name" ]; then
-				echo "Note: Unable to find package $pkg ($ml_pkg) -- PACKAGE_INSTALL_ATTEMPTONLY"
-				continue
-			fi
+		process_pkg_list_rpm attemptonly ${package_attemptonly}
+		cat ${target_rootfs}/install/install_attemptonly.manifest | while read pkg_name
+		do
 			echo "Attempting $pkg_name..." >> "`dirname ${BB_LOGFILE}`/log.do_${task}_attemptonly.${PID}"
 			${RPM} --predefine "_rpmds_sysinfo_path ${target_rootfs}/etc/rpm/sysinfo" \
 				--predefine "_rpmrc_platform_path ${target_rootfs}/etc/rpm/platform" \
@@ -499,13 +490,22 @@ mutex_set_max 163840
 # ================ Replication
 EOF
 
-	# RPM is special. It can't handle dependencies and preinstall scripts correctly. Its
-	# probably a feature. The only way to convince rpm to actually run the preinstall scripts 
-	# for base-passwd and shadow first before installing packages that depend on these packages 
-	# is to do two image installs, installing one set of packages, then the other.
-	if [ "${INC_RPM_IMAGE_GEN}" = "1" -a -f "$pre_btmanifest" ]; then
-		echo "Skipping pre install due to exisitng image"
+	if [ "${INSTALL_COMPLEMENTARY_RPM}" = "1" ] ; then
+		# Only install packages not already installed (dependency calculation will
+		# almost certainly have added some that have been)
+		sort ${target_rootfs}/install/original_solution.manifest > ${target_rootfs}/install/original_solution_sorted.manifest
+		sort ${target_rootfs}/install/total_solution.manifest > ${target_rootfs}/install/total_solution_sorted.manifest
+		comm -2 -3 ${target_rootfs}/install/total_solution_sorted.manifest \
+			${target_rootfs}/install/original_solution_sorted.manifest | awk '{print $1}' > \
+			${target_rootfs}/install/diff.manifest
+		mv ${target_rootfs}/install/diff.manifest ${target_rootfs}/install/total_solution.manifest
+	elif [ "${INC_RPM_IMAGE_GEN}" = "1" -a -f "$pre_btmanifest" ]; then
+		echo "Skipping pre install due to existing image"
 	else
+		# RPM is special. It can't handle dependencies and preinstall scripts correctly. Its
+		# probably a feature. The only way to convince rpm to actually run the preinstall scripts
+		# for base-passwd and shadow first before installing packages that depend on these packages
+		# is to do two image installs, installing one set of packages, then the other.
 		rm -f ${target_rootfs}/install/initial_install.manifest
 		echo "Installing base dependencies first (base-passwd, base-files and shadow) since rpm is special"
 		grep /base-passwd-[0-9] ${target_rootfs}/install/total_solution.manifest >> ${target_rootfs}/install/initial_install.manifest || true

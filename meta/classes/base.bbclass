@@ -10,7 +10,7 @@ inherit utility-tasks
 inherit metadata_scm
 inherit logging
 
-OE_IMPORTS += "os sys time oe.path oe.utils oe.data oe.packagegroup oe.sstatesig"
+OE_IMPORTS += "os sys time oe.path oe.utils oe.data oe.packagegroup oe.sstatesig oe.lsb"
 OE_IMPORTS[type] = "list"
 
 def oe_import(d):
@@ -34,6 +34,7 @@ def oe_import(d):
 python oe_import_eh () {
     if isinstance(e, bb.event.ConfigParsed):
         oe_import(e.data)
+        e.data.setVar("NATIVELSBSTRING", oe.lsb.distro_identifier())
 }
 
 addhandler oe_import_eh
@@ -73,6 +74,15 @@ FILESPATH = "${@base_set_filespath([ "${FILE_DIRNAME}/${PF}", "${FILE_DIRNAME}/$
 # THISDIR only works properly with imediate expansion as it has to run
 # in the context of the location its used (:=)
 THISDIR = "${@os.path.dirname(d.getVar('FILE', True))}"
+
+def extra_path_elements(d):
+    path = ""
+    elements = (d.getVar('EXTRANATIVEPATH', True) or "").split()
+    for e in elements:
+        path = path + "${STAGING_BINDIR_NATIVE}/" + e + ":"
+    return path
+
+PATH_prepend = "${@extra_path_elements(d)}"
 
 addtask fetch
 do_fetch[dirs] = "${DL_DIR}"
