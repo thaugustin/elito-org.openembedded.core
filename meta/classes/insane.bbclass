@@ -196,16 +196,13 @@ def package_qa_check_dev(path, name, d, elf, messages):
         messages.append("non -dev/-dbg/-nativesdk package contains symlink .so: %s path '%s'" % \
                  (name, package_qa_clean_path(path,d)))
         if path[-3:] == ".pc":
-            error_msg = "non -dev package contains pkgconfig file: %s path '%s'" % \
-                     (name, package_qa_clean_path(path,d))
-            sane = package_qa_handle_error(error_msg, name, d)
+            messages.append("non -dev package contains pkgconfig file: %s path '%s'" % \
+                     (name, package_qa_clean_path(path,d)))
 
-    if not(name.endswith("-dev") or name.endswith("-static") or name.endswith("-dbg")):
+    if not(name.endswith("-dev") or name.endswith("-staticdev") or name.endswith("-dbg")):
         if path[-2:] == ".a" or path[-2:] == ".o":
-            error_msg = "non -dev package contains static library or linker file: %s path '%s'" % \
-                     (name, package_qa_clean_path(path,d))
-            sane = package_qa_handle_error(error_msg, name, d)
-
+            messages.append("non -dev package contains static library or linker file: %s path '%s'" % \
+                     (name, package_qa_clean_path(path,d)))
 
 QAPATHTEST[staticdev] = "package_qa_check_staticdev"
 def package_qa_check_staticdev(path, name, d, elf, messages):
