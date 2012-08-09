@@ -68,3 +68,6 @@ ${ROOT_HOME}			0700	root	root	false - - -
 
 # Set 2775-lsb
 /var/mail			02775	root	mail	false - - -
+
+# do not allow world-access to /root
+/root				0750	root	root	false - - -
