@@ -65,3 +65,6 @@ ${localstatedir}/local		02755	root	root	false - - -
 
 # Set 4775
 /var/mail			02755	root	root	false - - -
+
+# do not allow world-access to /root
+/root				0750	root	root	false - - -
