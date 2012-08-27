@@ -61,9 +61,10 @@ do_patch() {
 	# if we have a defined/set meta branch we should not be generating
 	# any meta data. The passed branch has what we need.
 	if [ -n "${KMETA}" ]; then
-		createme_flags="--disable-meta-gen"
+		createme_flags="--disable-meta-gen --meta ${KMETA}"
 	fi
-	createme ${createme_flags} --meta ${KMETA} ${ARCH} ${kbranch}
+
+	createme ${createme_flags} ${ARCH} ${kbranch}
 	if [ $? -ne 0 ]; then
 		echo "ERROR. Could not create ${kbranch}"
 		exit 1
@@ -273,11 +274,15 @@ do_validate_branches() {
 	# SRCREV (if it isn't the current HEAD of that branch)
 	git checkout -q master
 	for b in $containing_branches; do
-		branch_head=`git show-ref -s --heads ${b}`
+		branch_head=`git show-ref -s --heads ${b}`		
 		if [ "$branch_head" != "$target_branch_head" ]; then
-			echo "[INFO] Setting branch $b to ${target_branch_head}"	      
-			git branch -D $b > /dev/null
-			git branch $b $target_branch_head > /dev/null
+			echo "[INFO] Setting branch $b to ${target_branch_head}"
+			if [ "$b" == "master" ]; then
+				git reset --hard $target_branch_head > /dev/null
+			else
+				git branch -D $b > /dev/null
+				git branch $b $target_branch_head > /dev/null
+			fi
 		fi
 	done
 
