@@ -570,28 +570,24 @@ python write_specfile () {
 
     # append information for logs and patches to %prep
     def add_prep(d,spec_files_bottom):
-        if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) and d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True).upper() == 'SRPM':
+        if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) == 'srpm':
             spec_files_bottom.append('%%prep -n %s' % d.getVar('PN', True) )
             spec_files_bottom.append('%s' % "echo \"include logs and patches, Please check them in SOURCES\"")
             spec_files_bottom.append('')
 
-    # get the name of tarball for sources, patches and logs
-    def get_tarballs(d):
-        if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) and d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True).upper() == 'SRPM':
-            return get_package(d)
-    
     # append the name of tarball to key word 'SOURCE' in xxx.spec.
-    def tail_source(d,source_list=[],patch_list=None):
-        if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) and d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True).upper() == 'SRPM':
+    def tail_source(d):
+        if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) == 'srpm':
+            source_list = get_package(d)
             source_number = 0
-            patch_number = 0
+            workdir = d.getVar('WORKDIR', True)
             for source in source_list:
+                # The rpmbuild doesn't need the root permission, but it needs
+                # to know the file's user and group name, the only user and
+                # group in fakeroot is "root" when working in fakeroot.
+                os.chown("%s/%s" % (workdir, source), 0, 0)
                 spec_preamble_top.append('Source' + str(source_number) + ': %s' % source)
                 source_number += 1
-            if patch_list:
-                for patch in patch_list:
-                    print_deps(patch, "Patch" + str(patch_number), spec_preamble_top, d)
-                    patch_number += 1
     # We need a simple way to remove the MLPREFIX from the package name,
     # and dependency information...
     def strip_multilib(name, d):
@@ -909,8 +905,7 @@ python write_specfile () {
     spec_preamble_top.append('Group: %s' % srcsection)
     spec_preamble_top.append('Packager: %s' % srcmaintainer)
     spec_preamble_top.append('URL: %s' % srchomepage)
-    source_list = get_tarballs(d)
-    tail_source(d,source_list,None)
+    tail_source(d)
 
     # Replaces == Obsoletes && Provides
     if srcrreplaces and srcrreplaces.strip() != "":
@@ -1014,7 +1009,7 @@ python write_specfile () {
 
 python do_package_rpm () {
     def creat_srpm_dir(d):
-        if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) and d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True).upper() == 'SRPM':
+        if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) == 'srpm':
             clean_licenses = get_licenses(d)
             pkgwritesrpmdir = bb.data.expand('${PKGWRITEDIRSRPM}/${PACKAGE_ARCH_EXTEND}', d)
             pkgwritesrpmdir = pkgwritesrpmdir + '/' + clean_licenses
@@ -1141,17 +1136,17 @@ python do_package_rpm () {
     cmd = cmd + " --define 'debug_package %{nil}'"
     cmd = cmd + " --define '_rpmfc_magic_path " + magicfile + "'"
     cmd = cmd + " --define '_tmppath " + workdir + "'"
-    if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) and d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True).upper() == 'SRPM':
-        cmdsrpm = cmd + " --define '_sourcedir " + workdir + "' --define '_srcrpmdir " + creat_srpm_dir(d) + "'"
-        cmdsrpm = 'fakeroot ' + cmdsrpm + " -bs " + outspecfile
-    cmd = cmd + " -bb " + outspecfile
-
-    # Build the source rpm package !
-    if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) and d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True).upper() == 'SRPM':
+    if d.getVar('SOURCE_ARCHIVE_PACKAGE_TYPE', True) == 'srpm':
+        cmd = cmd + " --define '_sourcedir " + workdir + "'"
+        cmdsrpm = cmd + " --define '_srcrpmdir " + creat_srpm_dir(d) + "'"
+        cmdsrpm = cmdsrpm + " -bs " + outspecfile
+        # Build the .src.rpm
         d.setVar('SBUILDSPEC', cmdsrpm + "\n")
         d.setVarFlag('SBUILDSPEC', 'func', '1')
         bb.build.exec_func('SBUILDSPEC', d)
-
+        # Remove the source (SOURCE0, SOURCE1 ...)
+        cmd = cmd + " --rmsource "
+    cmd = cmd + " -bb " + outspecfile
 
     # Build the rpm package!
     d.setVar('BUILDSPEC', cmd + "\n")
