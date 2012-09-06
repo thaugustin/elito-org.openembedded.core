@@ -1,9 +1,9 @@
 require eglibc.inc
 
-SRCREV = "19922"
+SRCREV = "20393"
 
 DEPENDS += "gperf-native"
-PR = "r6"
+PR = "r7"
 PR_append = "+svnr${SRCPV}"
 
 EGLIBC_BRANCH="eglibc-2_16"
@@ -21,7 +21,6 @@ SRC_URI = "svn://www.eglibc.org/svn/branches/;module=${EGLIBC_BRANCH};protocol=h
            file://initgroups_keys.patch \
            file://eglibc_fix_findidx_parameters.patch \
            file://ppc_slow_ieee754_sqrt.patch \
-           file://rpc-bootstrap.patch \
            file://e500-math_private.patch \
            file://fileops-without-wchar-io.patch \
            file://add_resource_h_to_wait_h.patch \

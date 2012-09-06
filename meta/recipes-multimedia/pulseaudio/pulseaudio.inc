@@ -19,6 +19,10 @@ SRC_URI = "http://0pointer.de/lennart/projects/pulseaudio/pulseaudio-${PV}.tar.g
 
 inherit autotools pkgconfig useradd
 
+# *.desktop rules wont be generated during configure and build will fail
+# if using --disable-nls
+USE_NLS = "yes"
+
 EXTRA_OECONF = "\
 		--disable-lynx \
 		${@base_contains('DISTRO_FEATURES', 'bluetooth', '--enable-bluez', '--disable-bluez', d)} \
@@ -134,5 +138,5 @@ RDEPENDS_pulseaudio-server = " \
     pulseaudio-module-suspend-on-idle \
     pulseaudio-module-console-kit \
     pulseaudio-module-position-event-sounds \
-    pulseaudio-module-cork-music-on-phone "
+    pulseaudio-module-role-cork "
 
