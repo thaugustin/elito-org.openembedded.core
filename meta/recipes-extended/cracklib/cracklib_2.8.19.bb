@@ -9,8 +9,7 @@ PR ="r0"
 
 EXTRA_OECONF = "--without-python"
 
-SRC_URI = "${SOURCEFORGE_MIRROR}/cracklib/cracklib-${PV}.tar.gz \
-  file://gettext-version.patch"
+SRC_URI = "${SOURCEFORGE_MIRROR}/cracklib/cracklib-${PV}.tar.gz"
 
 SRC_URI[md5sum] = "ca0ec168d9c6466612204e8dfb2df8a9"
 SRC_URI[sha256sum] = "7086b0ca23f875c9cd9ea2a993c262384b274dba9c4ea1da845ec8ac290748a9"
