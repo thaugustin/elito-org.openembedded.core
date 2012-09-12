@@ -3,14 +3,14 @@ require recipes-kernel/linux/linux-yocto.inc
 KBRANCH = "standard/preempt-rt/base"
 KBRANCH_qemuppc = "standard/preempt-rt/qemuppc"
 
-LINUX_VERSION ?= "3.4.9"
+LINUX_VERSION ?= "3.4.10"
 LINUX_KERNEL_TYPE = "preempt-rt"
 
 KMETA = "meta"
 
-SRCREV_machine ?= "9032b1e9daf5b4396f939981c3be95f67802d18c"
-SRCREV_machine_qemuppc ?= "08ce190232f89303772b6591ca7daaf2820eb74e"
-SRCREV_meta ?= "463299bc2e533e1bd38b0053ae7b210980f269c3"
+SRCREV_machine ?= "a35693b1287c0e50cdca33a1b95af0ff48b43cd0"
+SRCREV_machine_qemuppc ?= "85a1190530cb5749f5f831670976b163438dc301"
+SRCREV_meta ?= "e0374ce012e7e6fc8e5bb8b957addb0478950898"
 
 PR = "${INC_PR}.0"
 PV = "${LINUX_VERSION}+git${SRCPV}"
@@ -23,7 +23,8 @@ SRC_URI = "git://git.yoctoproject.org/linux-yocto-3.4.git;protocol=git;bareclone
 COMPATIBLE_MACHINE = "(qemux86|qemux86-64|qemuarm)"
 
 # Functionality flags
-KERNEL_FEATURES = "features/netfilter"
+KERNEL_FEATURES_append = " features/netfilter"
 KERNEL_FEATURES_append = " features/taskstats"
 KERNEL_FEATURES_append_qemux86 = " cfg/sound"
 KERNEL_FEATURES_append_qemux86-64 = " cfg/sound"
+KERNEL_FEATURES_append = " ${@bb.utils.contains("TUNE_FEATURES", "mx32", " cfg/x32", "" ,d)}"
