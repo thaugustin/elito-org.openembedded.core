@@ -56,13 +56,14 @@ def get_gcc_multiarch_setting(bb, d):
 # For now, libgcc is most important so we fix for that - RP.
 SHLIBSDIR = "${STAGING_DIR_TARGET}/shlibs"
 
-DEBIANNAME_libgcc = "libgcc1"
+DEBIANNAME_${MLPREFIX}libgcc = "libgcc1"
 
 MIRRORS =+ "\
-${GNU_MIRROR}/gcc/releases/    ftp://gcc.gnu.org/pub/gcc/releases/ \n \
-${GNU_MIRROR}/gcc/	http://mirrors.rcn.net/pub/sourceware/gcc/releases/ \n \
-${GNU_MIRROR}/gcc/releases/    http://gcc.get-software.com/releases/ \n \
-${GNU_MIRROR}/gcc/	http://gcc.get-software.com/releases/ \n \
+${GNU_MIRROR}/gcc    ftp://gcc.gnu.org/pub/gcc/releases/ \n \
+${GNU_MIRROR}/gcc	ftp://gd.tuwien.ac.at/gnu/gcc/ \n \
+${GNU_MIRROR}/gcc	http://mirrors.rcn.net/pub/sourceware/gcc/releases/ \n \
+${GNU_MIRROR}/gcc   http://gcc.get-software.com/releases/ \n \
+${GNU_MIRROR}/gcc	http://gcc.get-software.com/releases/ \n \
 "
 
 #
@@ -79,6 +80,10 @@ SS = "${TMPDIR}/stamps/work-shared/gcc-${PV}-${PR}"
 do_fetch[stamp-base] = "${SS}"
 do_unpack[stamp-base] = "${SS}"
 do_patch[stamp-base] = "${SS}"
+SSCLEAN = "${TMPDIR}/stamps/work-shared/gcc-[0-9]*-*"
+do_fetch[stamp-base-clean] = "${SSCLEAN}"
+do_unpack[stamp-base-clean] = "${SSCLEAN}"
+do_patch[stamp-base-clean] = "${SSCLEAN}"
 
 # SW means Shared Work directory
 SW = "${TMPDIR}/work-shared/gcc-${PV}-${PR}"

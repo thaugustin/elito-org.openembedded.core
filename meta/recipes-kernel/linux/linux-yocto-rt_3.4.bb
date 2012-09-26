@@ -3,14 +3,14 @@ require recipes-kernel/linux/linux-yocto.inc
 KBRANCH = "standard/preempt-rt/base"
 KBRANCH_qemuppc = "standard/preempt-rt/qemuppc"
 
-LINUX_VERSION ?= "3.4.10"
+LINUX_VERSION ?= "3.4.11"
 LINUX_KERNEL_TYPE = "preempt-rt"
 
 KMETA = "meta"
 
-SRCREV_machine ?= "dcecefa43e05f5450886648a93e2fda2ec35e2dc"
-SRCREV_machine_qemuppc ?= "5e8709c4777f07a12b0a05a22f0864f552ef9449"
-SRCREV_meta ?= "7c50e572635d356f0b66d9ab90823f127f835744"
+SRCREV_machine ?= "6d7122966eaae849ba3f2e1ccb94cdab17a46fbd"
+SRCREV_machine_qemuppc ?= "8b2acbc859c616dfcad79f786bacb856f370f4c2"
+SRCREV_meta ?= "5bdc655034a58a7147176a8a882d81e2fd51e4b9"
 
 PR = "${INC_PR}.0"
 PV = "${LINUX_VERSION}+git${SRCPV}"
