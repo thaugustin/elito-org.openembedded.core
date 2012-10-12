@@ -1072,8 +1072,9 @@ python populate_packages () {
                     # make path absolute relative to inst_root
                     target = os.path.join(root[len(inst_root):], target)
 
-                # make path absolute
-                rtarget = os.path.join(inst_root, target[1:])
+                # make path absolute; do not use os.path.join() here
+                # because target might start with multiple '/'
+                rtarget = inst_root + target
                 try:
                     os.lstat(rtarget)
                 except OSError, (err, strerror):
