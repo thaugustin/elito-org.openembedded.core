@@ -28,6 +28,7 @@ class ELFFile:
     def __init__(self, name, bits = 0):
         self.name = name
         self.bits = bits
+        self.objdump_output = {}
 
     def open(self):
         self.file = file(self.name, "r")
@@ -87,3 +88,24 @@ class ELFFile:
         import struct
         (a,) = struct.unpack(self.sex+"H", self.data[18:20])
         return a
+
+    def run_objdump(self, cmd, d):
+        import bb.process
+        import sys
+
+        if self.objdump_output.has_key(cmd):
+            return self.objdump_output[cmd]
+
+        objdump = d.getVar('OBJDUMP', True)
+        staging_dir = d.getVar('STAGING_BINDIR_TOOLCHAIN', True)
+
+        env = os.environ
+        env["LC_ALL"] = "C"
+
+        try:
+            bb.note("%s %s %s" % (objdump, cmd, self.name))
+            self.objdump_output[cmd] = bb.process.run([ os.path.join(staging_dir, objdump), cmd, self.name ], env=env, shell=False)[0]
+            return self.objdump_output[cmd]
+        except Exception, e:
+            bb.note("%s %s %s failed: %s" % (objdump, cmd, self.name, e))
+            return ""

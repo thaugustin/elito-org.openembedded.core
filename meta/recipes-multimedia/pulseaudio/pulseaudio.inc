@@ -10,7 +10,7 @@ LIC_FILES_CHKSUM = "file://GPL;md5=4325afd396febcb659c36b49533135d4 \
 DEPENDS = "libatomics-ops liboil avahi libsamplerate0 libsndfile1 libtool \
            ${@base_contains('DISTRO_FEATURES', 'x11', 'virtual/libx11 libxtst libice libsm libxcb gtk+', '', d)}"
 # optional
-DEPENDS += "udev alsa-lib glib-2.0 dbus \
+DEPENDS += "udev alsa-lib glib-2.0 dbus gconf \
            ${@base_contains('DISTRO_FEATURES', 'bluetooth', 'bluez4', '', d)}"
 
 SRC_URI = "http://0pointer.de/lennart/projects/pulseaudio/pulseaudio-${PV}.tar.gz \
@@ -64,20 +64,18 @@ USERADD_PARAM_pulseaudio-server = "--system --home /var/run/pulse \
                               --no-create-home --shell /bin/false \
                               --groups audio,pulse --gid pulse pulse"
 
-PACKAGES =+ "libpulsecore libpulsecommon libpulsedsp libpulse libpulse-simple libpulse-browse libpulse-mainloop-glib \
-             pulseaudio-server pulseaudio-misc pulseaudio-gconf-helper"
+PACKAGES =+ "libpulsecore libpulsecommon libpulse libpulse-simple libpulse-mainloop-glib \
+             pulseaudio-server pulseaudio-misc"
 
 #upgrade path:
 RREPLACES_pulseaudio-server = "libpulse-bin libpulse-conf"
 
-PACKAGES_DYNAMIC = "pulseaudio-lib* pulseaudio-module* libpulse-lib* libpulse-module* "
+PACKAGES_DYNAMIC += "^pulseaudio-lib.* ^pulseaudio-module.* ^libpulse-lib.* ^libpulse-module.* "
 
 FILES_libpulsecore = "${libdir}/libpulsecore*.so"
-FILES_libpulsecommon = "${libdir}/libpulsecommon*.so"
-FILES_libpulsedsp = "${libdir}/libpulsedsp*.so"
+FILES_libpulsecommon = "${libdir}/pulseaudio/libpulsecommon*.so"
 FILES_libpulse = "${libdir}/libpulse.so.*"
 FILES_libpulse-simple = "${libdir}/libpulse-simple.so.*"
-FILES_libpulse-browse = "${libdir}/libpulse-browse.so.*"
 FILES_libpulse-mainloop-glib = "${libdir}/libpulse-mainloop-glib.so.*"
 
 FILES_${PN}-dbg += "${libexecdir}/pulse/.debug \
@@ -86,8 +84,7 @@ FILES_${PN}-dev += "${libdir}/pulse-${PV}/modules/*.la ${datadir}/vala ${libdir}
 FILES_${PN}-conf = "${sysconfdir}"
 FILES_${PN}-bin += "${sysconfdir}/default/volatiles/volatiles.04_pulse"
 FILES_${PN}-server = "${bindir}/pulseaudio ${bindir}/start-* ${sysconfdir} ${bindir}/pactl ${base_libdir}/udev/rules.d/*.rules"
-FILES_${PN}-gconf-helper = "${libexecdir}/pulse/gconf-helper"
-FILES_${PN}-misc = "${bindir}/*"
+FILES_${PN}-misc = "${bindir}/* ${libdir}/pulseaudio/libpulsedsp.so"
 
 # Allow the pulseaudio package to be created empty as a placeholder (-dbg and -dev depend on it)
 ALLOW_EMPTY_${PN} = "1"
@@ -113,8 +110,8 @@ python populate_packages_prepend() {
     #d.setVar('PKG_pulseaudio', 'pulseaudio')
 
     plugindir = d.expand('${libdir}/pulse-${PV}/modules/')
-    do_split_packages(d, plugindir, '^module-(.*)\.so$', 'pulseaudio-module-%s', 'PulseAudio module for %s', extra_depends='' )
-    do_split_packages(d, plugindir, '^lib(.*)\.so$', 'pulseaudio-lib-%s', 'PulseAudio library for %s', extra_depends='' )
+    do_split_packages(d, plugindir, '^module-(.*)\.so$', 'pulseaudio-module-%s', 'PulseAudio module for %s', extra_depends='', prepend=True)
+    do_split_packages(d, plugindir, '^lib(.*)\.so$', 'pulseaudio-lib-%s', 'PulseAudio library for %s', extra_depends='', prepend=True)
 }
 
 RDEPENDS_pulseaudio-server = " \
@@ -137,8 +134,13 @@ RDEPENDS_pulseaudio-server = " \
     pulseaudio-module-always-sink \
     pulseaudio-module-suspend-on-idle \
     pulseaudio-module-position-event-sounds \
-    pulseaudio-module-role-cork "
+    pulseaudio-module-role-cork \
+    pulseaudio-module-switch-on-port-available"
 
 RDEPENDS_pulseaudio-module-console-kit =+ "consolekit"
+
+FILES_pulseaudio-module-gconf += "${libexecdir}/pulse/gconf-helper"
+FILES_pulseaudio-module-bluetooth-proximity += "${libexecdir}/pulse/proximity-helper"
+
 RDEPENDS_pulseaudio-server += "\
         ${@base_contains('DISTRO_FEATURES', 'x11', 'pulseaudio-module-console-kit', '', d)}"

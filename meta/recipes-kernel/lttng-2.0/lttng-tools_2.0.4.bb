@@ -11,8 +11,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=61273c2e3f60dd38a74b01beb5f51fbd \
 
 DEPENDS = "liburcu popt lttng2-ust"
 
-SRCREV = "8c3919ea2dc77fdd47fb1c90e41490a20bb4d478"
-PV = "v2.0.1+git${SRCREV}"
+SRCREV = "98c8c95b0e1afb2dac686338efdf036f6446d790"
+PV = "v2.0.4"
 PR = "r0"
 
 SRC_URI = "git://git.lttng.org/lttng-tools.git;protocol=git"
@@ -26,7 +26,12 @@ export KERNELDIR="${STAGING_KERNEL_DIR}"
 FILES_${PN} += "${libdir}/lttng/libexec/*"
 FILES_${PN}-dbg += "${libdir}/lttng/libexec/.debug"
 
+# Since files are installed into ${libdir}/lttng/libexec we match 
+# the libexec insane test so skip it.
+INSANE_SKIP_${PN} = "libexec"
+INSANE_SKIP_${PN}-dbg = "libexec"
+
 # Due to liburcu not building for MIPS currently this recipe needs to
 # be limited also.
 # So here let us first suppport x86/arm/powerpc platforms now.
-COMPATIBLE_HOST = '(x86_64.*|i.86.*|arm.*|powerpc.*)-linux'
+COMPATIBLE_HOST = '(x86_64.*|i.86.*|arm.*|powerpc.*)-linux.*'

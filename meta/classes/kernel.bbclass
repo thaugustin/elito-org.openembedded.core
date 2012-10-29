@@ -24,9 +24,9 @@ python __anonymous () {
 
 inherit kernel-arch deploy
 
-PACKAGES_DYNAMIC += "kernel-module-*"
-PACKAGES_DYNAMIC += "kernel-image-*"
-PACKAGES_DYNAMIC += "kernel-firmware-*"
+PACKAGES_DYNAMIC += "^kernel-module-.*"
+PACKAGES_DYNAMIC += "^kernel-image-.*"
+PACKAGES_DYNAMIC += "^kernel-firmware-.*"
 
 export OS = "${TARGET_OS}"
 export CROSS_COMPILE = "${TARGET_PREFIX}"
@@ -85,7 +85,6 @@ KERNEL_IMAGETYPE_FOR_MAKE = "${@(lambda s: s[:-3] if s[-3:] == ".gz" else s)(d.g
 
 kernel_do_compile() {
 	unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS MACHINE
-	oe_runmake include/linux/version.h CC="${KERNEL_CC}" LD="${KERNEL_LD}"
 	oe_runmake ${KERNEL_IMAGETYPE_FOR_MAKE} ${KERNEL_ALT_IMAGETYPE} CC="${KERNEL_CC}" LD="${KERNEL_LD}"
 	if test "${KERNEL_IMAGETYPE_FOR_MAKE}.gz" = "${KERNEL_IMAGETYPE}"; then
 		gzip -9c < "${KERNEL_IMAGETYPE_FOR_MAKE}" > "${KERNEL_OUTPUT}"
@@ -247,11 +246,11 @@ do_savedefconfig[nostamp] = "1"
 addtask savedefconfig after do_configure
 
 pkg_postinst_kernel-base () {
-	cd /${KERNEL_IMAGEDEST}; update-alternatives --install /${KERNEL_IMAGEDEST}/${KERNEL_IMAGETYPE} ${KERNEL_IMAGETYPE} ${KERNEL_IMAGETYPE}-${KERNEL_VERSION} ${KERNEL_PRIORITY} || true
+	update-alternatives --install /${KERNEL_IMAGEDEST}/${KERNEL_IMAGETYPE} ${KERNEL_IMAGETYPE} ${KERNEL_IMAGETYPE}-${KERNEL_VERSION} ${KERNEL_PRIORITY} || true
 }
 
 pkg_postrm_kernel-base () {
-	cd /${KERNEL_IMAGEDEST}; update-alternatives --remove ${KERNEL_IMAGETYPE} ${KERNEL_IMAGETYPE}-${KERNEL_VERSION} || true
+	update-alternatives --remove ${KERNEL_IMAGETYPE} ${KERNEL_IMAGETYPE}-${KERNEL_VERSION} || true
 }
 
 inherit cml1
@@ -260,11 +259,12 @@ EXPORT_FUNCTIONS do_compile do_install do_configure
 
 # kernel-base becomes kernel-${KERNEL_VERSION}
 # kernel-image becomes kernel-image-${KERNEL_VERISON}
-PACKAGES = "kernel kernel-base kernel-vmlinux kernel-image kernel-dev"
+PACKAGES = "kernel kernel-base kernel-vmlinux kernel-image kernel-dev kernel-modules"
 FILES = ""
 FILES_kernel-image = "/boot/${KERNEL_IMAGETYPE}*"
 FILES_kernel-dev = "/boot/System.map* /boot/Module.symvers* /boot/config* ${KERNEL_SRC_PATH}"
 FILES_kernel-vmlinux = "/boot/vmlinux*"
+FILES_kernel-modules = ""
 RDEPENDS_kernel = "kernel-base"
 # Allow machines to override this dependency if kernel image files are 
 # not wanted in images as standard
@@ -275,6 +275,8 @@ RPROVIDES_kernel-base += "kernel-${KERNEL_VERSION}"
 ALLOW_EMPTY_kernel = "1"
 ALLOW_EMPTY_kernel-base = "1"
 ALLOW_EMPTY_kernel-image = "1"
+ALLOW_EMPTY_kernel-modules = "1"
+DESCRIPTION_kernel-modules = "Kernel modules meta package"
 
 pkg_postinst_kernel-image () {
 if [ ! -e "$D/lib/modules/${KERNEL_VERSION}" ]; then
@@ -400,10 +402,12 @@ python populate_packages_prepend () {
 
         dvar = d.getVar('PKGD', True)
 
+        use_update_modules = oe.utils.contains('DISTRO_FEATURES', 'update-modules', True, False, d)
+
         # If autoloading is requested, output /etc/modules-load.d/<name>.conf and append
         # appropriate modprobe commands to the postinst
         autoload = d.getVar('module_autoload_%s' % basename, True)
-        if autoload:
+        if autoload and use_update_modules:
             name = '%s/etc/modules-load.d/%s.conf' % (dvar, basename)
             f = open(name, 'w')
             for m in autoload.split():
@@ -417,16 +421,17 @@ python populate_packages_prepend () {
 
         # Write out any modconf fragment
         modconf = d.getVar('module_conf_%s' % basename, True)
-        if modconf:
+        if modconf and use_update_modules:
             name = '%s/etc/modprobe.d/%s.conf' % (dvar, basename)
             f = open(name, 'w')
             f.write("%s\n" % modconf)
             f.close()
 
-        files = d.getVar('FILES_%s' % pkg, True)
-        files = "%s /etc/modules-load.d/%s.conf /etc/modprobe.d/%s.conf" % (files, basename, basename)
-        d.setVar('FILES_%s' % pkg, files)
-        d.setVarFlag('RRECOMMENDS_%s' % pkg, 'nodevrrecs', True)
+        if use_update_modules:
+            files = d.getVar('FILES_%s' % pkg, True)
+            files = "%s /etc/modules-load.d/%s.conf /etc/modprobe.d/%s.conf" % (files, basename, basename)
+            d.setVar('FILES_%s' % pkg, files)
+            d.setVarFlag('RRECOMMENDS_%s' % pkg, 'nodevrrecs', True)
 
         if vals.has_key("description"):
             old_desc = d.getVar('DESCRIPTION_' + pkg, True) or ""
@@ -442,12 +447,17 @@ python populate_packages_prepend () {
     module_regex = '^(.*)\.k?o$'
     module_pattern = 'kernel-module-%s'
 
-    postinst = d.getVar('pkg_postinst_modules', True)
-    postrm = d.getVar('pkg_postrm_modules', True)
+    use_update_modules = oe.utils.contains('DISTRO_FEATURES', 'update-modules', True, False, d)
+    if use_update_modules:
+        postinst = d.getVar('pkg_postinst_modules', True)
+        postrm = d.getVar('pkg_postrm_modules', True)
+    else:
+        postinst = None
+        postrm = None
     do_split_packages(d, root='/lib/firmware', file_regex='^(.*)\.bin$', output_pattern='kernel-firmware-%s', description='Firmware for %s', recursive=True, extra_depends='')
     do_split_packages(d, root='/lib/firmware', file_regex='^(.*)\.fw$', output_pattern='kernel-firmware-%s', description='Firmware for %s', recursive=True, extra_depends='')
     do_split_packages(d, root='/lib/firmware', file_regex='^(.*)\.cis$', output_pattern='kernel-firmware-%s', description='Firmware for %s', recursive=True, extra_depends='')
-    do_split_packages(d, root='/lib/modules', file_regex=module_regex, output_pattern=module_pattern, description='%s kernel module', postinst=postinst, postrm=postrm, recursive=True, hook=frob_metadata, extra_depends='update-modules kernel-%s' % d.getVar("KERNEL_VERSION", True))
+    do_split_packages(d, root='/lib/modules', file_regex=module_regex, output_pattern=module_pattern, description='%s kernel module', postinst=postinst, postrm=postrm, recursive=True, hook=frob_metadata, extra_depends='%skernel-%s' % (['', 'update-modules '][use_update_modules], d.getVar("KERNEL_VERSION", True)))
 
     # If modules-load.d and modprobe.d are empty at this point, remove them to
     # avoid warnings. removedirs only raises an OSError if an empty
@@ -459,8 +469,6 @@ python populate_packages_prepend () {
 
     import re
     metapkg = "kernel-modules"
-    d.setVar('ALLOW_EMPTY_' + metapkg, "1")
-    d.setVar('FILES_' + metapkg, "")
     blacklist = [ 'kernel-dev', 'kernel-image', 'kernel-base', 'kernel-vmlinux' ]
     for l in module_deps.values():
         for i in l:
@@ -472,9 +480,6 @@ python populate_packages_prepend () {
         if not pkg in blacklist and not pkg in metapkg_rdepends:
             metapkg_rdepends.append(pkg)
     d.setVar('RDEPENDS_' + metapkg, ' '.join(metapkg_rdepends))
-    d.setVar('DESCRIPTION_' + metapkg, 'Kernel modules meta package')
-    packages.append(metapkg)
-    d.setVar('PACKAGES', ' '.join(packages))
 }
 
 # Support checking the kernel size since some kernels need to reside in partitions

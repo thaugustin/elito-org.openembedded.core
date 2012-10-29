@@ -13,6 +13,7 @@ PROVIDES = "virtual/xserver-xf86"
 PROVIDES += "virtual/xserver"
 
 PE = "2"
+INC_PR = "r3"
 
 XORG_PN = "xorg-server"
 SRC_URI = "${XORG_MIRROR}/individual/xserver/${XORG_PN}-${PV}.tar.bz2"
@@ -22,7 +23,7 @@ S = "${WORKDIR}/${XORG_PN}-${PV}"
 
 inherit autotools pkgconfig
 
-PROTO_DEPS = "randrproto renderproto fixesproto damageproto xextproto xproto xf86dgaproto xf86miscproto xf86rushproto xf86vidmodeproto xf86bigfontproto compositeproto recordproto resourceproto videoproto scrnsaverproto evieext trapproto xineramaproto fontsproto kbproto inputproto bigreqsproto xcmiscproto glproto"
+PROTO_DEPS = "randrproto renderproto fixesproto damageproto xextproto xproto xf86dgaproto xf86miscproto xf86vidmodeproto compositeproto recordproto resourceproto videoproto scrnsaverproto  xineramaproto fontsproto kbproto inputproto bigreqsproto xcmiscproto glproto"
 LIB_DEPS = "pixman libxfont xtrans libxau libxext libxdmcp libdrm libxkbfile libpciaccess openssl"
 DEPENDS = "${PROTO_DEPS} ${LIB_DEPS} font-util"
 
@@ -43,7 +44,6 @@ DEPENDS = "${PROTO_DEPS} ${LIB_DEPS} font-util"
 PACKAGES =+ "${PN}-security-policy \
              ${PN}-sdl \
              ${PN}-fbdev \
-             ${PN}-xprint \
              ${PN}-xvfb \
              ${PN}-utils \
              ${PN}-xephyr \
@@ -78,7 +78,6 @@ FILES_${PN}-dbg += "${libdir}/xorg/modules/.debug \
 FILES_${PN}-security-policy += "${libdir}/xserver/SecurityPolicy"
 FILES_${PN}-sdl = "${bindir}/Xsdl"
 FILES_${PN}-fbdev = "${bindir}/Xfbdev"
-FILES_${PN}-xprint = "${libdir}/X11/xserver/*/print"
 FILES_${PN}-xvfb = "${bindir}/Xvfb"
 FILES_${PN}-utils = "${bindir}/scanpci ${bindir}/pcitweak ${bindir}/ioport ${bindir}/in[bwl] ${bindir}/out[bwl] ${bindir}/mmap[rw] ${bindir}/gtf ${bindir}/getconfig ${bindir}/getconfig.pl"
 FILES_${PN}-xephyr = "${bindir}/Xephyr"
@@ -132,4 +131,29 @@ PACKAGECONFIG[glx] = "--enable-dri --enable-dri2 --enable-glx --enable-glx-tls,\
 do_install_append () {
 	# Its assumed base-files creates this for us
 	rmdir ${D}${localstatedir}/log/
+}
+
+# Add runtime provides for the ABI versions of the video and input subsystems,
+# so that drivers can depend on the relevant version.
+python populate_packages_prepend() {
+    import subprocess
+
+    # Set PKG_CONFIG_PATH so pkg-config looks at the .pc files that are going
+    # into the new package, not the staged ones.
+    newenv = dict(os.environ)
+    newenv["PKG_CONFIG_PATH"] = d.expand("${PKGD}${libdir}/pkgconfig/")
+
+    def get_abi(name):
+        abis = {
+          "video": "abi_videodrv",
+          "input": "abi_xinput"
+        }
+        p = subprocess.Popen(args="pkg-config --variable=%s xorg-server" % abis[name],
+                             shell=True, env=newenv, stdout=subprocess.PIPE)
+        output = p.communicate()[0]
+        return "xorg-abi-%s-%s" % (name, output.split(".")[0])
+
+    pn = d.getVar("PN", True)
+    d.appendVar("RPROVIDES_" + pn, " " + get_abi("input"))
+    d.appendVar("RPROVIDES_" + pn, " " + get_abi("video"))
 }

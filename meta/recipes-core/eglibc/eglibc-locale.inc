@@ -1,14 +1,7 @@
-INHIBIT_DEFAULT_DEPS = "1"
-LICENSE = "GPLv2 & LGPLv2.1"
+include eglibc-collateral.inc
 
 BPN = "eglibc"
 LOCALEBASEPN = "eglibc"
-
-do_fetch[noexec] = "1"
-do_unpack[noexec] = "1"
-do_patch[noexec] = "1"
-do_configure[noexec] = "1"
-do_compile[noexec] = "1"
 
 # Binary locales are generated at build time if ENABLE_BINARY_LOCALE_GENERATION
 # is set. The idea is to avoid running localedef on the target (at first boot)
@@ -33,9 +26,9 @@ PROVIDES = "virtual/libc-locale"
 
 PACKAGES = "localedef ${PN}-dbg"
 
-PACKAGES_DYNAMIC = "locale-base-* \
-                    eglibc-gconv-* eglibc-charmap-* eglibc-localedata-* eglibc-binary-localedata-* \
-                    glibc-gconv-*  glibc-charmap-*  glibc-localedata-*  glibc-binary-localedata-*"
+PACKAGES_DYNAMIC = "^locale-base-.* \
+                    ^eglibc-gconv-.* ^eglibc-charmap-.* ^eglibc-localedata-.* ^eglibc-binary-localedata-.* \
+                    ^glibc-gconv-.*  ^glibc-charmap-.*  ^glibc-localedata-.*  ^glibc-binary-localedata-.*"
 
 # Create a eglibc-binaries package
 ALLOW_EMPTY_${BPN}-binaries = "1"
@@ -89,7 +82,5 @@ do_install () {
 }
 
 inherit libc-package
-
-do_install[depends] += "virtual/${MLPREFIX}libc:do_populate_sysroot"
 
 BBCLASSEXTEND = "nativesdk"

@@ -16,28 +16,13 @@ RREPLACES_packagegroup-core-sdk = "task-core-sdk"
 RCONFLICTS_packagegroup-core-sdk = "task-core-sdk"
 
 RDEPENDS_packagegroup-core-sdk = "\
-    autoconf \
-    automake \
-    binutils \
-    binutils-symlinks \
+    packagegroup-core-buildessential \
     coreutils \
-    cpp \
-    cpp-symlinks \
     ccache \
     diffutils \
-    gcc \
-    gcc-symlinks \
-    g++ \
-    g++-symlinks \
-    gettext \
-    make \
     intltool \
-    libstdc++ \
-    libstdc++-dev \
-    libtool \
     perl-module-re \
     perl-module-text-wrap \
-    pkgconfig \
     findutils \
     quilt \
     less \
@@ -89,4 +74,4 @@ RRECOMMENDS_packagegroup-core-sdk = "\
 #    d.setVar('PACKAGES', ' '.join(pkgs))
 #}
 #
-#PACKAGES_DYNAMIC = "packagegroup-core-sdk-*"
+#PACKAGES_DYNAMIC += "^packagegroup-core-sdk-.*"

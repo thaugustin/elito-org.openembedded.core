@@ -5,7 +5,7 @@
 SUMMARY = "Profiling tools"
 LICENSE = "MIT"
 
-PR = "r1"
+PR = "r2"
 
 inherit packagegroup
 
@@ -29,14 +29,14 @@ PROFILETOOLS = "\
     ${@base_contains('DISTRO_DERIVED_FEATURES', 'gtk-supported', 'oprofileui-server', '', d)} \
     powertop \
     latencytop \
-    lttng-control \
-    ${@base_contains('DISTRO_DERIVED_FEATURES', 'gtk-supported', 'lttng-viewer', '', d)}"
+    "
 
 # systemtap needs elfutils which is not fully buildable on uclibc
 # hence we exclude it from uclibc based builds
 SYSTEMTAP = "systemtap"
 SYSTEMTAP_libc-uclibc = ""
 SYSTEMTAP_mips = ""
+SYSTEMTAP_aarch64 = ""
 
 # lttng-ust uses sched_getcpu() which is not there on uclibc
 # for some of the architectures it can be patched to call the
@@ -44,9 +44,25 @@ SYSTEMTAP_mips = ""
 # which means we can not use syscall() to call it. So we ignore
 # it for x86_64/uclibc
 
-LTTNGUST = "${@base_contains('MACHINE_FEATURES', 'screen', 'lttng-ust', '', d)}"
+LTTNGUST = "${@base_contains('MACHINE_FEATURES', 'screen', 'lttng2-ust', '', d)}"
 LTTNGUST_libc-uclibc = ""
 LTTNGUST_mips = ""
+LTTNGUST_aarch64 = ""
+
+# lttng-tools, lttng-modules and babeltrace all depend on liburcu
+# which currentl doesn't build on mips
+
+LTTNGTOOLS = "lttng-tools"
+LTTNGTOOLS_mips = ""
+LTTNGTOOLS_aarch64 = ""
+
+LTTNGMODULES = "lttng-modules"
+LTTNGMODULES_mips = ""
+LTTNGMODULES_aarch64 = ""
+
+BABELTRACE = "babeltrace"
+BABELTRACE_mips = ""
+BABELTRACE_aarch64 = ""
 
 # valgrind does not work on mips
 
@@ -54,6 +70,7 @@ VALGRIND = "valgrind"
 VALGRIND_libc-uclibc = ""
 VALGRIND_mips = ""
 VALGRIND_arm = ""
+VALGRIND_aarch64 = ""
 
 #    exmap-console
 #    exmap-server
@@ -65,6 +82,9 @@ VALGRIND_arm = ""
 RDEPENDS_${PN} = "\
     ${PROFILETOOLS} \
     ${LTTNGUST} \
+    ${LTTNGTOOLS} \
+    ${LTTNGMODULES} \
+    ${BABELTRACE} \
     ${SYSTEMTAP} \
     ${VALGRIND} \
     "

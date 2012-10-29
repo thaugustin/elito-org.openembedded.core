@@ -17,10 +17,7 @@ SSTATE_EXTRAPATH   = ""
 SSTATE_EXTRAPATHWILDCARD = ""
 SSTATE_PATHSPEC   = "${SSTATE_DIR}/${SSTATE_EXTRAPATHWILDCARD}*/${SSTATE_PKGSPEC}"
 
-# In theory we should be using:
-# SSTATE_DUPWHITELIST = "${DEPLOY_DIR_IMAGE}/ ${DEPLOY_DIR}/licenses/ ${DEPLOY_DIR_IPK}/all/ ${DEPLOY_DIR_RPM}/all ${DEPLOY_DIR_DEB}/all/ ${TMPDIR}/pkgdata/all${TARGET_VENDOR}-${TARGET_OS}"
-# However until do_package is not machine specific, we'll have to make do with all of deploy/pkgdata.
-SSTATE_DUPWHITELIST = "${DEPLOY_DIR}/ ${TMPDIR}/pkgdata/"
+SSTATE_DUPWHITELIST = "${DEPLOY_DIR_IMAGE}/ ${DEPLOY_DIR}/licenses/"
 # Also need to make cross recipes append to ${PN} and install once for any given PACAGE_ARCH so
 # can avoid multiple installs (e.g. routerstationpro+qemumips both using mips32)
 SSTATE_DUPWHITELIST += "${STAGING_LIBDIR_NATIVE}/${MULTIMACH_TARGET_SYS} ${STAGING_DIR_NATIVE}/usr/libexec/${MULTIMACH_TARGET_SYS} ${STAGING_BINDIR_NATIVE}/${MULTIMACH_TARGET_SYS} ${STAGING_DIR_NATIVE}${includedir_native}/gcc-build-internal-${MULTIMACH_TARGET_SYS}"
@@ -53,9 +50,8 @@ python () {
         d.setVar('SSTATE_PKGARCH', d.expand("${SDK_ARCH}_${PACKAGE_ARCH}"))
     elif bb.data.inherits_class('allarch', d):
         d.setVar('SSTATE_PKGARCH', "allarch")
-        d.setVar('SSTATE_MANMACH', d.expand("allarch_${MACHINE}"))
     else:
-        d.setVar('SSTATE_MANMACH', d.expand("${MACHINE}"))
+        d.setVar('SSTATE_MANMACH', d.expand("${PACKAGE_ARCH}"))
 
     if bb.data.inherits_class('native', d) or bb.data.inherits_class('crosssdk', d) or bb.data.inherits_class('cross', d):
         d.setVar('SSTATE_EXTRAPATH', "${NATIVELSBSTRING}/")
@@ -120,11 +116,15 @@ def sstate_add(ss, source, dest, d):
 
 def sstate_install(ss, d):
     import oe.path
+    import subprocess
 
     sharedfiles = []
     shareddirs = []
     bb.mkdirhier(d.expand("${SSTATE_MANIFESTS}"))
     manifest = d.expand("${SSTATE_MANFILEPREFIX}.%s" % ss['name'])
+    extrainf = d.getVarFlag("do_" + ss['task'], 'stamp-extra-info', True)
+    if extrainf:
+        manifest = manifest + "." + extrainf
 
     if os.access(manifest, os.R_OK):
         bb.fatal("Package already staged (%s)?!" % manifest)
@@ -164,8 +164,13 @@ def sstate_install(ss, d):
                     break
             if realmatch:
                 match.append(f)
+                sstate_search_cmd = "grep -rl %s %s --exclude=master.list | sed -e 's:^.*/::' -e 's:\.populate-sysroot::'" % (f, d.expand("${SSTATE_MANIFESTS}"))
+                cmd_array = sstate_search_cmd.split(' ')
+                search_output = subprocess.Popen(cmd_array, stdout=subprocess.PIPE).communicate()[0]
+                if search_output != None:
+                    match.append("Matched in %s" % search_output.rstrip())
     if match:
-        bb.warn("The recipe is trying to install files into a shared area when those files already exist. Those files are:\n   %s" % "\n   ".join(match))
+        bb.warn("The recipe %s is trying to install files into a shared area when those files already exist. Those files and their manifest location are:\n   %s\nPlease verify which package should provide the above files." % (d.getVar('PN', True), "\n   ".join(match)))
 
     # Write out the manifest
     f = open(manifest, "w")
@@ -307,6 +312,9 @@ def sstate_clean(ss, d):
     import oe.path
 
     manifest = d.expand("${SSTATE_MANFILEPREFIX}.%s" % ss['name'])
+    extrainf = d.getVarFlag("do_" + ss['task'], 'stamp-extra-info', True)
+    if extrainf:
+        manifest = manifest + "." + extrainf
 
     if os.path.exists(manifest):
         locks = []
@@ -321,7 +329,6 @@ def sstate_clean(ss, d):
             bb.utils.unlockfile(lock)
 
     stfile = d.getVar("STAMP", True) + ".do_" + ss['task']
-    extrainf = d.getVarFlag("do_" + ss['task'], 'stamp-extra-info', True)
     oe.path.remove(stfile)
     oe.path.remove(stfile + "_setscene")
     if extrainf:
@@ -544,7 +551,7 @@ sstate_create_package () {
 sstate_unpack_package () {
 	mkdir -p ${SSTATE_INSTDIR}
 	cd ${SSTATE_INSTDIR}
-	tar -xvzf ${SSTATE_PKG}
+	tar -xmvzf ${SSTATE_PKG}
 }
 
 # Need to inject information about classes not in the global configuration scope

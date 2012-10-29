@@ -18,6 +18,7 @@
 def siteinfo_data(d):
     archinfo = {
         "allarch": "endian-little bit-32", # bogus, but better than special-casing the checks below for allarch
+        "aarch64": "endian-little bit-64 arm-common",
         "arm": "endian-little bit-32 arm-common",
         "armeb": "endian-big bit-32 arm-common",
         "avr32": "endian-big bit-32 avr32-common",
@@ -50,6 +51,7 @@ def siteinfo_data(d):
         "linux": "common-linux common-glibc",
         "linux-gnu": "common-linux common-glibc",
         "linux-gnux32": "common-linux common-glibc",
+        "linux-gnun32": "common-linux common-glibc",
         "linux-gnueabi": "common-linux common-glibc",
         "linux-gnuspe": "common-linux common-glibc",
         "linux-uclibc": "common-linux common-uclibc",
@@ -60,10 +62,15 @@ def siteinfo_data(d):
         "mingw32": "common-mingw",
     }
     targetinfo = {
+        "aarch64-linux-gnu": "aarch64-linux",
         "arm-linux-gnueabi": "arm-linux",
         "arm-linux-uclibceabi": "arm-linux-uclibc",
         "armeb-linux-gnueabi": "armeb-linux",
         "armeb-linux-uclibceabi": "armeb-linux-uclibc",
+        "mips-linux-gnun32": "mips-linux",
+        "mipsel-linux-gnun32": "mipsel-linux",
+        "mips64-linux-gnun32": "mips-linux",
+        "mips64el-linux-gnun32": "mipsel-linux",
         "powerpc-linux": "powerpc32-linux",
         "powerpc-linux-uclibc": "powerpc-linux powerpc32-linux",
         "powerpc-linux-gnuspe": "powerpc-linux powerpc32-linux",

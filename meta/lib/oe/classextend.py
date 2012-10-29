@@ -33,8 +33,24 @@ class ClassExtender(object):
             self.d.setVar(varname, newdata)
         return newdata
 
+    def map_regexp_variable(self, varname, setvar = True):
+        var = self.d.getVar(varname, True)
+        if not var:
+            return ""
+        var = var.split()
+        newvar = []
+        for v in var:
+            if v.startswith("^"):
+                newvar.append("^" + self.extname + "-" + v[1:])
+            else:
+                newvar.append(self.extend_name(v))
+        newdata =  " ".join(newvar)
+        if setvar:
+            self.d.setVar(varname, newdata)
+        return newdata
+
     def map_depends(self, dep):
-        if dep.endswith(("-native", "-native-runtime")):
+        if dep.endswith(("-native", "-native-runtime", "-crosssdk")) or ('nativesdk-' in dep) or ('cross-canadian' in dep):
             return dep
         else:
             return self.extend_name(dep)
@@ -77,7 +93,7 @@ class ClassExtender(object):
 
 class NativesdkClassExtender(ClassExtender):
     def map_depends(self, dep):
-        if dep.endswith(("-native", "-native-runtime", "-cross")):
+        if dep.endswith(("-native", "-native-runtime", "-cross", "-crosssdk")) or ('nativesdk-' in dep):
             return dep
         elif dep.endswith(("-gcc-intermediate", "-gcc-initial", "-gcc", "-g++")):
             return dep + "-crosssdk"

@@ -127,10 +127,11 @@ autotools_do_configure() {
 		cd ${S}
 		# Remove any previous copy of the m4 macros
 		rm -rf ${B}/aclocal-copy/
+		ACLOCAL="aclocal --system-acdir=${B}/aclocal-copy/"
 		if [ x"${acpaths}" = xdefault ]; then
 			acpaths=
 			for i in `find ${S} -maxdepth 2 -name \*.m4|grep -v 'aclocal.m4'| \
-				grep -v 'acinclude.m4' | sed -e 's,\(.*/\).*$,\1,'|sort -u`; do
+				grep -v 'acinclude.m4' | grep -v 'aclocal-copy' | sed -e 's,\(.*/\).*$,\1,'|sort -u`; do
 				acpaths="$acpaths -I $i"
 			done
 		else
@@ -140,16 +141,19 @@ autotools_do_configure() {
 		automake --version
 		echo "AUTOV is $AUTOV"
 		if [ -d ${STAGING_DATADIR_NATIVE}/aclocal-$AUTOV ]; then
-			acpaths="$acpaths -I${STAGING_DATADIR_NATIVE}/aclocal-$AUTOV"
+			ACLOCAL="$ACLOCAL --automake-acdir=${STAGING_DATADIR_NATIVE}/aclocal-$AUTOV"
 		fi
 		# The aclocal directory could get modified by other processes 
 		# uninstalling data from the sysroot. See Yocto #861 for details.
 		# We avoid this by taking a copy here and then files cannot disappear.
-		if [ -d ${STAGING_DATADIR}/aclocal ]; then
-			# for scratch build this directory can be empty
-			# so avoid cp's no files to copy error
-			cp-noerror ${STAGING_DATADIR}/aclocal ${B}/aclocal-copy/
-			acpaths="$acpaths -I ${B}/aclocal-copy/"
+		# We copy native first, then target. This avoids certain races since cp-noerror
+		# won't overwrite existing files.
+		mkdir -p ${B}/aclocal-copy/
+		if [ -d ${STAGING_DATADIR_NATIVE}/aclocal ]; then
+			cp-noerror ${STAGING_DATADIR_NATIVE}/aclocal/ ${B}/aclocal-copy/
+		fi
+		if [ -d ${STAGING_DATADIR}/aclocal -a "${STAGING_DATADIR_NATIVE}/aclocal" != "${STAGING_DATADIR}/aclocal" ]; then
+			cp-noerror ${STAGING_DATADIR}/aclocal/ ${B}/aclocal-copy/
 		fi
 		# autoreconf is too shy to overwrite aclocal.m4 if it doesn't look
 		# like it was auto-generated.  Work around this by blowing it away
@@ -162,21 +166,24 @@ autotools_do_configure() {
 		else
 			CONFIGURE_AC=configure.ac
 		fi
-		if ! echo ${EXTRA_OECONF} | grep -q "\-\-disable-nls"; then
-			if grep "^[[:space:]]*AM_GLIB_GNU_GETTEXT" $CONFIGURE_AC >/dev/null; then
-				if grep "sed.*POTFILES" $CONFIGURE_AC >/dev/null; then
-					: do nothing -- we still have an old unmodified configure.ac
-		    		else
-					bbnote Executing glib-gettextize --force --copy
-					echo "no" | glib-gettextize --force --copy
+		if grep "^[[:space:]]*AM_GLIB_GNU_GETTEXT" $CONFIGURE_AC >/dev/null; then
+			if grep "sed.*POTFILES" $CONFIGURE_AC >/dev/null; then
+				: do nothing -- we still have an old unmodified configure.ac
+	    		else
+				bbnote Executing glib-gettextize --force --copy
+				echo "no" | glib-gettextize --force --copy
+			fi
+		else if grep "^[[:space:]]*AM_GNU_GETTEXT" $CONFIGURE_AC >/dev/null; then
+			# We'd call gettextize here if it wasn't so broken...
+				cp ${STAGING_DATADIR_NATIVE}/gettext/config.rpath ${AUTOTOOLS_AUXDIR}/
+				if [ -d ${S}/po/ ]; then
+					cp ${STAGING_DATADIR_NATIVE}/gettext/po/Makefile.in.in ${S}/po/
 				fi
-			else if grep "^[[:space:]]*AM_GNU_GETTEXT" $CONFIGURE_AC >/dev/null; then
-				# We'd call gettextize here if it wasn't so broken...
-					cp ${STAGING_DATADIR}/gettext/config.rpath ${AUTOTOOLS_AUXDIR}/
-					if [ -d ${S}/po/ -a ! -e ${S}/po/Makefile.in.in ]; then
-						cp ${STAGING_DATADIR}/gettext/po/Makefile.in.in ${S}/po/
-					fi
-				fi
+				for i in gettext.m4 iconv.m4 lib-ld.m4 lib-link.m4 lib-prefix.m4 nls.m4 po.m4 progtest.m4; do
+					for j in `find ${S} -name $i | grep -v aclocal-copy`; do
+						rm $j
+					done
+				done
 			fi
 		fi
 		mkdir -p m4
@@ -184,8 +191,8 @@ autotools_do_configure() {
 			bbnote Executing intltoolize --copy --force --automake
 			intltoolize --copy --force --automake
 		fi
-		bbnote Executing autoreconf --verbose --install --force ${EXTRA_AUTORECONF} $acpaths
-		autoreconf -Wcross --verbose --install --force ${EXTRA_AUTORECONF} $acpaths || bbfatal "autoreconf execution failed."
+		bbnote Executing ACLOCAL=\"$ACLOCAL\" autoreconf --verbose --install --force ${EXTRA_AUTORECONF} $acpaths
+		ACLOCAL="$ACLOCAL" autoreconf -Wcross --verbose --install --force ${EXTRA_AUTORECONF} $acpaths || bbfatal "autoreconf execution failed."
 		cd $olddir
 	fi
 	if [ -e ${S}/configure ]; then

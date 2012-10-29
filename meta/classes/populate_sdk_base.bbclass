@@ -7,7 +7,7 @@ SDK_DEPLOY = "${TMPDIR}/deploy/sdk"
 
 SDKTARGETSYSROOT = "${SDKPATH}/sysroots/${MULTIMACH_TARGET_SYS}"
 
-TOOLCHAIN_HOST_TASK ?= "nativesdk-packagegroup-sdk-host packagegroup-cross-canadian-${TRANSLATED_TARGET_ARCH}"
+TOOLCHAIN_HOST_TASK ?= "nativesdk-packagegroup-sdk-host packagegroup-cross-canadian-${@' packagegroup-cross-canadian-'.join(all_multilib_tune_values(d, 'TRANSLATED_TARGET_ARCH').split())}"
 TOOLCHAIN_HOST_TASK_ATTEMPTONLY ?= ""
 TOOLCHAIN_TARGET_TASK ?= "packagegroup-core-standalone-sdk-target packagegroup-core-standalone-sdk-target-dbg"
 TOOLCHAIN_TARGET_TASK_ATTEMPTONLY ?= ""
@@ -23,6 +23,8 @@ REAL_MULTIMACH_TARGET_SYS = "${TUNE_PKGARCH}${TARGET_VENDOR}-${TARGET_OS}"
 PID = "${@os.getpid()}"
 
 EXCLUDE_FROM_WORLD = "1"
+
+SDK_PACKAGING_FUNC ?= "create_shar"
 
 python () {
     # If we don't do this we try and run the mapping hooks while parsing which is slow
@@ -56,7 +58,7 @@ fakeroot python do_populate_sdk() {
 
     bb.build.exec_func("tar_sdk", d)
 
-    bb.build.exec_func("create_shar", d)
+    bb.build.exec_func(d.getVar("SDK_PACKAGING_FUNC", True), d)
 }
 
 fakeroot populate_sdk_image() {
@@ -117,6 +119,7 @@ fakeroot create_shar() {
 #!/bin/bash
 
 DEFAULT_INSTALL_DIR="${SDKPATH}"
+COMPONENTS_LEN=$(echo ".${SDKPATH}" | sed "s/\// /g" | wc -w)
 
 printf "Enter target directory for SDK (default: $DEFAULT_INSTALL_DIR): "
 read target_sdk_dir
@@ -153,13 +156,14 @@ fi
 payload_offset=$(($(grep -na -m1 "^MARKER:$" $0|cut -d':' -f1) + 1))
 
 printf "Extracting SDK..."
-tail -n +$payload_offset $0| tar xj --strip-components=4 -C $target_sdk_dir
+tail -n +$payload_offset $0| tar xj --strip-components=$COMPONENTS_LEN -C $target_sdk_dir
 echo "done"
 
 printf "Setting it up..."
 # fix environment paths
-env_setup_script=$(find $target_sdk_dir/ -name "environment-setup-${REAL_MULTIMACH_TARGET_SYS}")
-sed -e "s:$DEFAULT_INSTALL_DIR:$target_sdk_dir:g" -i $env_setup_script
+for env_setup_script in `ls $target_sdk_dir/environment-setup-*`; do
+  sed -e "s:$DEFAULT_INSTALL_DIR:$target_sdk_dir:g" -i $env_setup_script
+done
 
 # fix dynamic loader paths in all ELF SDK binaries
 native_sysroot=$(cat $env_setup_script |grep OECORE_NATIVE_SYSROOT|cut -d'=' -f2|tr -d '"')

@@ -17,13 +17,8 @@
 #   files under exec_prefix
 
 
-#
-# We need to have the scanelf utility as soon as
-# possible and this is contained within the pax-utils-native.
-# The package.bbclass can help us here.
-#
 inherit package
-PACKAGE_DEPENDS += "pax-utils-native ${QADEPENDS}"
+PACKAGE_DEPENDS += "${QADEPENDS}"
 PACKAGEFUNCS += " do_package_qa "
 
 # unsafe-references-in-binaries requires prelink-rtld from
@@ -44,6 +39,7 @@ def package_qa_get_machine_dict():
                         "arm" :       (40,     0,    0,          True,          32),
                       },
             "linux" : { 
+                        "aarch64" :   (183,    0,    0,          True,          64),
                         "arm" :       (40,    97,    0,          True,          32),
                         "armeb":      (40,    97,    0,          False,         32),
                         "powerpc":    (20,     0,    0,          False,         32),
@@ -109,11 +105,15 @@ def package_qa_get_machine_dict():
             "linux-gnux32" :       {
                         "x86_64":     (62,     0,    0,          True,          32),
                       },
+            "linux-gnun32" :       {
+                        "mips64":       ( 8,     0,    0,          False,         32),
+                        "mipsel64":     ( 8,     0,    0,          True,          32),
+                      },
         }
 
 
 # Currently not being used by default "desktop"
-WARN_QA ?= "ldflags useless-rpaths rpaths unsafe-references-in-binaries unsafe-references-in-scripts staticdev libdir"
+WARN_QA ?= "ldflags useless-rpaths rpaths unsafe-references-in-binaries unsafe-references-in-scripts staticdev libdir xorg-driver-abi"
 ERROR_QA ?= "dev-so debug-deps dev-deps debug-files arch la2 pkgconfig la perms dep-cmp"
 
 ALL_QA = "${WARN_QA} ${ERROR_QA}"
@@ -139,6 +139,20 @@ def package_qa_handle_error(error_class, error_msg, d):
         bb.warn("QA Issue: %s" % error_msg)
         return True
 
+QAPATHTEST[libexec] = "package_qa_check_libexec"
+def package_qa_check_libexec(path,name, d, elf, messages):
+
+    # Skip the case where the default is explicitly /usr/libexec
+    libexec = d.getVar('libexecdir', True)
+    if libexec == "/usr/libexec":
+        return True
+
+    if 'libexec' in path.split(os.path.sep):
+        messages.append("%s: %s is using libexec please relocate to %s" % (name, package_qa_clean_path(path, d), libexec))
+        return False
+
+    return True
+
 QAPATHTEST[rpaths] = "package_qa_check_rpath"
 def package_qa_check_rpath(file,name, d, elf, messages):
     """
@@ -147,21 +161,26 @@ def package_qa_check_rpath(file,name, d, elf, messages):
     if not elf:
         return
 
-    scanelf = os.path.join(d.getVar('STAGING_BINDIR_NATIVE',True),'scanelf')
+    if os.path.islink(file):
+        return
+
     bad_dirs = [d.getVar('TMPDIR', True) + "/work", d.getVar('STAGING_DIR_TARGET', True)]
     bad_dir_test = d.getVar('TMPDIR', True)
-    if not os.path.exists(scanelf):
-        bb.fatal("Can not check RPATH, scanelf (part of pax-utils-native) not found")
 
     if not bad_dirs[0] in d.getVar('WORKDIR', True):
         bb.fatal("This class assumed that WORKDIR is ${TMPDIR}/work... Not doing any check")
 
-    output = os.popen("%s -B -F%%r#F '%s'" % (scanelf,file))
-    txt    = output.readline().split()
-    for line in txt:
-        for dir in bad_dirs:
-            if dir in line:
-                messages.append("package %s contains bad RPATH %s in file %s" % (name, line, file))
+    phdrs = elf.run_objdump("-p", d)
+
+    import re
+    rpath_re = re.compile("\s+RPATH\s+(.*)")
+    for line in phdrs.split("\n"):
+    	m = rpath_re.match(line)
+	if m:
+	    rpath = m.group(1)
+	    for dir in bad_dirs:
+                if dir in rpath:
+                    messages.append("package %s contains bad RPATH %s in file %s" % (name, rpath, file))
 
 QAPATHTEST[useless-rpaths] = "package_qa_check_useless_rpaths"
 def package_qa_check_useless_rpaths(file, name, d, elf, messages):
@@ -174,15 +193,17 @@ def package_qa_check_useless_rpaths(file, name, d, elf, messages):
     if not elf:
         return
 
-    objdump = d.getVar('OBJDUMP', True)
-    env_path = d.getVar('PATH', True)
+    if os.path.islink(file):
+        return
 
     libdir = d.getVar("libdir", True)
     base_libdir = d.getVar("base_libdir", True)
 
+    phdrs = elf.run_objdump("-p", d)
+
     import re
     rpath_re = re.compile("\s+RPATH\s+(.*)")
-    for line in os.popen("LC_ALL=C PATH=%s %s -p '%s' 2> /dev/null" % (env_path, objdump, file), "r"):
+    for line in phdrs.split("\n"):
     	m = rpath_re.match(line)
 	if m:
 	   rpath = m.group(1)
@@ -443,14 +464,13 @@ def package_qa_hash_style(path, name, d, elf, messages):
     if not gnu_hash:
         return
 
-    objdump = d.getVar('OBJDUMP', True)
-    env_path = d.getVar('PATH', True)
-
     sane = False
     has_syms = False
 
+    phdrs = elf.run_objdump("-p", d)
+
     # If this binary has symbols, we expect it to have GNU_HASH too.
-    for line in os.popen("LC_ALL=C PATH=%s %s -p '%s' 2> /dev/null" % (env_path, objdump, path), "r"):
+    for line in phdrs.split("\n"):
         if "SYMTAB" in line:
             has_syms = True
         if "GNU_HASH" in line:
@@ -479,6 +499,24 @@ def package_qa_check_buildpaths(path, name, d, elf, messages):
     file_content = open(path).read()
     if tmpdir in file_content:
         messages.append("File %s in package contained reference to tmpdir" % package_qa_clean_path(path,d))
+
+
+QAPATHTEST[xorg-driver-abi] = "package_qa_check_xorg_driver_abi"
+def package_qa_check_xorg_driver_abi(path, name, d, elf, messages):
+    """
+    Check that all packages containing Xorg drivers have ABI dependencies
+    """
+
+    # Skip dev, dbg or nativesdk packages
+    if name.endswith("-dev") or name.endswith("-dbg") or name.startswith("nativesdk-"):
+        return
+
+    driverdir = d.expand("${libdir}/xorg/modules/drivers/")
+    if driverdir in path and path.endswith(".so"):
+        for rdep in bb.utils.explode_deps(d.getVar('RDEPENDS_' + name, True) or ""):
+            if rdep.startswith("xorg-abi-"):
+                return
+        messages.append("Package %s contains Xorg driver (%s) but no xorg-abi- dependencies" % (name, os.path.basename(path)))
 
 def package_qa_check_license(workdir, d):
     """

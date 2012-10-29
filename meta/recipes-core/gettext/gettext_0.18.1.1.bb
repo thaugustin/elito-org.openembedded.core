@@ -5,9 +5,9 @@ SECTION = "libs"
 LICENSE = "GPLv3+ & LGPL-2.1+"
 LIC_FILES_CHKSUM = "file://COPYING;md5=d32239bcb673463ab874e80d47fae504"
 
-PR = "r17"
-DEPENDS = "libxml2-native gettext-native virtual/libiconv ncurses expat"
-DEPENDS_virtclass-native = "libxml2-native gettext-minimal-native"
+PR = "r18"
+DEPENDS = "gettext-native virtual/libiconv ncurses expat"
+DEPENDS_virtclass-native = "gettext-minimal-native"
 PROVIDES = "virtual/libintl virtual/gettext"
 PROVIDES_virtclass-native = "virtual/gettext-native"
 RCONFLICTS_${PN} = "proxy-libintl"
@@ -102,6 +102,8 @@ do_install_append() {
 
 do_install_append_virtclass-native () {
 	rm ${D}${datadir}/aclocal/*
+	rm ${D}${datadir}/gettext/config.rpath
+	rm ${D}${datadir}/gettext/po/Makefile.in.in
 }
 
 BBCLASSEXTEND = "native nativesdk"

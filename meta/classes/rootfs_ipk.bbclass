@@ -111,11 +111,11 @@ fakeroot rootfs_ipk_do_rootfs () {
 			fi
 
 			# Also delete the status files
-			rm -rf ${IMAGE_ROOTFS}${opkglibdir}
+			remove_packaging_data_files
 		fi
 	fi
 	set +x
-	log_check rootfs 	
+	log_check rootfs
 	set -x
 }
 
@@ -135,8 +135,8 @@ rootfs_ipk_write_manifest() {
 
 remove_packaging_data_files() {
 	rm -rf ${IMAGE_ROOTFS}${opkglibdir}
-        # We need the directory for the package manager lock
-        mkdir ${IMAGE_ROOTFS}${opkglibdir}
+	# We need the directory for the package manager lock
+	mkdir ${IMAGE_ROOTFS}${opkglibdir}
 }
 
 list_installed_packages() {

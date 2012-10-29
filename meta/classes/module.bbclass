@@ -1,18 +1,7 @@
-RDEPENDS += "kernel-image update-modules"
+RDEPENDS_${PN} += "kernel-image ${@oe.utils.contains('DISTRO_FEATURES', 'update-modules', 'update-modules', '', d)}"
 DEPENDS += "virtual/kernel"
 
 inherit module-base
-
-#
-# Ensure the hostprogs are available for module compilation. Modules that
-# inherit this recipe and override do_compile() should be sure to call
-# do_make_scripts() or ensure the scripts are built independently.
-#
-do_make_scripts() {
-	unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS 
-	oe_runmake CC="${KERNEL_CC}" LD="${KERNEL_LD}" AR="${KERNEL_AR}" \
-	           -C ${STAGING_KERNEL_DIR} scripts
-}
 
 addtask make_scripts before do_compile
 do_make_scripts[lockfiles] = "${TMPDIR}/kernel-scripts.lock"

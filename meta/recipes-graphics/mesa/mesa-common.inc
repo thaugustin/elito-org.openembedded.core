@@ -38,10 +38,10 @@ PACKAGECONFIG[x11] = "--enable-glx-tls,--disable-glx,${X11_DEPS}"
 # Multiple virtual/gl providers being built breaks staging
 EXCLUDE_FROM_WORLD = "1"
 
-# ie mesa-dri could be empty and mesa-dri-dev RDEPENDS on it
-ALLOW_EMPTY_${PN} = "1"
+# Remove the mesa-dri dependency on mesa-dri-dev, as mesa-dri is empty
+RDEPENDS_${PN}-dev = ""
 
-PACKAGES =+ "libegl libegl-dev libegl-dbg \
+PACKAGES =+ "libegl libegl-dev \
              libglu libglu-dev \
              libosmesa libosmesa-dev \
              libgl libgl-dev \
@@ -69,5 +69,4 @@ FILES_libgles2-dev = "${libdir}/libGLESv2.* ${includedir}/GLES2 ${libdir}/pkgcon
 FILES_libglu-dev = "${libdir}/libGLU.* ${includedir}/GL/glu*.h ${libdir}/pkgconfig/glu.pc"
 FILES_libosmesa-dev = "${libdir}/libOSMesa.* ${includedir}/osmesa.h"
 
-FILES_${PN}-dbg += "${libdir}/dri/.debug/*"
-FILES_libegl-dbg += "${libdir}/egl/.debug/*"
+FILES_${PN}-dbg += "${libdir}/dri/.debug/* ${libdir}/egl/.debug/*"

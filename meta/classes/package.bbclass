@@ -292,7 +292,7 @@ def splitfile2(debugsrcdir, d):
         # We need to ignore files that are not actually ours
         # we do this by only paying attention to items from this package
         processdebugsrc += "fgrep -z '%s' | "
-        processdebugsrc += "(cd '%s' ; cpio -pd0mL --no-preserve-owner '%s%s' 2>/dev/null)"
+        processdebugsrc += "(cd '%s' ; cpio -pd0mlL --no-preserve-owner '%s%s' 2>/dev/null)"
 
         subprocess.call(processdebugsrc % (sourcefile, workbasedir, workparentdir, dvar, debugsrcdir), shell=True)
 
@@ -451,7 +451,7 @@ python package_do_split_locales() {
         pkg = pn + '-locale-' + ln
         packages.append(pkg)
         d.setVar('FILES_' + pkg, os.path.join(datadir, 'locale', l))
-        d.setVar('RDEPENDS_' + pkg, '%s%svirtual-locale-%s' % (pndep, mlprefix, ln))
+        d.setVar('RRECOMMENDS_' + pkg, '%s%svirtual-locale-%s' % (pndep, mlprefix, ln))
         d.setVar('RPROVIDES_' + pkg, '%s-locale %s%s-translation' % (pn, mlprefix, ln))
         d.setVar('SUMMARY_' + pkg, '%s - %s translations' % (summary, l))
         d.setVar('DESCRIPTION_' + pkg, '%s  This package contains language translation files for the %s locale.' % (description, l))
@@ -1301,8 +1301,17 @@ python package_do_filedeps() {
         d.setVar("FILERPROVIDESFLIST_" + pkg, " ".join(provides_files))
 }
 
-SHLIBSDIR = "${STAGING_DIR_HOST}/shlibs"
-SHLIBSWORKDIR = "${WORKDIR}/shlibs"
+def getshlibsdirs(d):
+    dirs = []
+    triplets = (d.getVar("PKGTRIPLETS") or "").split()
+    for t in triplets:
+        dirs.append("${TMPDIR}/pkgdata/" + t + "/shlibs/")
+    return " ".join(dirs)
+getshlibsdirs[vardepsexclude] = "PKGTRIPLETS"
+
+SHLIBSDIRS = "${@getshlibsdirs(d)}"
+SHLIBSDIR = "${TMPDIR}/pkgdata/${PACKAGE_ARCH}${TARGET_VENDOR}-${TARGET_OS}/shlibs"
+SHLIBSWORKDIR = "${PKGDESTWORK}/shlibs"
 
 python package_do_shlibs() {
     import re, pipes
@@ -1327,7 +1336,7 @@ python package_do_shlibs() {
 
     pkgdest = d.getVar('PKGDEST', True)
 
-    shlibs_dir = d.getVar('SHLIBSDIR', True)
+    shlibs_dirs = d.getVar('SHLIBSDIRS', True).split()
     shlibswork_dir = d.getVar('SHLIBSWORKDIR', True)
 
     # Take shared lock since we're only reading, not writing
@@ -1481,7 +1490,7 @@ python package_do_shlibs() {
             d.setVar('pkg_postinst_%s' % pkg, postinst)
 
     list_re = re.compile('^(.*)\.list$')
-    for dir in [shlibs_dir]:
+    for dir in shlibs_dirs:
         if not os.path.exists(dir):
             continue
         for file in os.listdir(dir):
@@ -1552,7 +1561,7 @@ python package_do_pkgconfig () {
     workdir = d.getVar('WORKDIR', True)
     pkgdest = d.getVar('PKGDEST', True)
 
-    shlibs_dir = d.getVar('SHLIBSDIR', True)
+    shlibs_dirs = d.getVar('SHLIBSDIRS', True).split()
     shlibswork_dir = d.getVar('SHLIBSWORKDIR', True)
 
     pc_re = re.compile('(.*)\.pc$')
@@ -1603,7 +1612,7 @@ python package_do_pkgconfig () {
                 f.write('%s\n' % p)
             f.close()
 
-    for dir in [shlibs_dir]:
+    for dir in shlibs_dirs:
         if not os.path.exists(dir):
             continue
         for file in os.listdir(dir):
@@ -1862,10 +1871,9 @@ SSTATETASKS += "do_package"
 do_package[sstate-name] = "package"
 do_package[cleandirs] = "${PKGDESTWORK}"
 do_package[sstate-plaindirs] = "${PKGD} ${PKGDEST}"
-do_package[sstate-inputdirs] = "${PKGDESTWORK} ${SHLIBSWORKDIR}"
-do_package[sstate-outputdirs] = "${PKGDATA_DIR} ${SHLIBSDIR}"
+do_package[sstate-inputdirs] = "${PKGDESTWORK}"
+do_package[sstate-outputdirs] = "${PKGDATA_DIR}"
 do_package[sstate-lockfile-shared] = "${PACKAGELOCK}"
-do_package[stamp-extra-info] = "${MACHINE}"
 do_package_setscene[dirs] = "${STAGING_DIR}"
 
 python do_package_setscene () {

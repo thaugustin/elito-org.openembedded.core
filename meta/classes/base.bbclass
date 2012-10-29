@@ -183,6 +183,8 @@ def preferred_ml_updates(d):
             providers.append(v)
 
     for pkg, reason in blacklists.items():
+        if pkg.endswith(("-native", "-crosssdk")) or pkg.startswith("nativesdk-") or 'cross-canadian' in pkg:
+            continue
         for p in prefixes:
             newpkg = p + "-" + pkg
             if not d.getVarFlag('PNBLACKLIST', newpkg, True):
@@ -191,7 +193,18 @@ def preferred_ml_updates(d):
     for v in versions:
         val = d.getVar(v, False)
         pkg = v.replace("PREFERRED_VERSION_", "")
-        if pkg.endswith("-native") or pkg.startswith("nativesdk-"):
+        if pkg.endswith(("-native", "-crosssdk")) or pkg.startswith("nativesdk-"):
+            continue
+        if 'cross-canadian' in pkg:
+            for p in prefixes:
+                localdata = bb.data.createCopy(d)
+                override = ":virtclass-multilib-" + p
+                localdata.setVar("OVERRIDES", localdata.getVar("OVERRIDES", False) + override)
+                bb.data.update_data(localdata)
+                newname = localdata.expand(v)
+                if newname != v:
+                    newval = localdata.getVar(v, True)
+                    d.setVar(newname, newval)
             continue
         for p in prefixes:
             newname = "PREFERRED_VERSION_" + p + "-" + pkg
@@ -201,16 +214,38 @@ def preferred_ml_updates(d):
     for prov in providers:
         val = d.getVar(prov, False)
         pkg = prov.replace("PREFERRED_PROVIDER_", "")
-        if pkg.endswith("-native") or pkg.startswith("nativesdk-"):
+        if pkg.endswith(("-native", "-crosssdk")) or pkg.startswith("nativesdk-"):
+            continue
+        if 'cross-canadian' in pkg:
+            for p in prefixes:
+                localdata = bb.data.createCopy(d)
+                override = ":virtclass-multilib-" + p
+                localdata.setVar("OVERRIDES", localdata.getVar("OVERRIDES", False) + override)
+                bb.data.update_data(localdata)
+                newname = localdata.expand(prov)
+                if newname != prov:
+                    newval = localdata.expand(val)
+                    d.setVar(newname, newval)
             continue
         virt = ""
         if pkg.startswith("virtual/"):
             pkg = pkg.replace("virtual/", "")
             virt = "virtual/"
         for p in prefixes:
-            newname = "PREFERRED_PROVIDER_" + virt + p + "-" + pkg
             if pkg != "kernel":
                 val = p + "-" + val
+
+            # implement variable keys
+            localdata = bb.data.createCopy(d)
+            override = ":virtclass-multilib-" + p
+            localdata.setVar("OVERRIDES", localdata.getVar("OVERRIDES", False) + override)
+            bb.data.update_data(localdata)
+            newname = localdata.expand(prov)
+            if newname != prov:
+                d.setVar(newname, localdata.expand(val))
+
+            # implement alternative multilib name
+            newname = localdata.expand("PREFERRED_PROVIDER_" + virt + p + "-" + pkg)
             if not d.getVar(newname, False):
                 d.setVar(newname, val)
 
@@ -218,7 +253,7 @@ def preferred_ml_updates(d):
     mp = (d.getVar("MULTI_PROVIDER_WHITELIST", True) or "").split()
     extramp = []
     for p in mp:
-        if p.endswith("-native") or p.startswith("nativesdk-"):
+        if p.endswith(("-native", "-crosssdk")) or p.startswith("nativesdk-") or 'cross-canadian' in p:
             continue
         virt = ""
         if p.startswith("virtual/"):
@@ -333,6 +368,38 @@ do_build[recrdeptask] += "do_deploy"
 do_build () {
 	:
 }
+
+def set_packagetriplet(d):
+    archs = []
+    tos = []
+    tvs = []
+
+    archs.append(d.getVar("PACKAGE_ARCHS", True).split())
+    tos.append(d.getVar("TARGET_OS", True))
+    tvs.append(d.getVar("TARGET_VENDOR", True))
+
+    def settriplet(d, varname, archs, tos, tvs):
+        triplets = []
+        for i in range(len(archs)):
+            for arch in archs[i]:
+                triplets.append(arch + tvs[i] + "-" + tos[i])
+        triplets.reverse()
+        d.setVar(varname, " ".join(triplets))
+
+    settriplet(d, "PKGTRIPLETS", archs, tos, tvs)
+
+    variants = d.getVar("MULTILIB_VARIANTS", True) or ""
+    for item in variants.split():
+        localdata = bb.data.createCopy(d)
+        overrides = localdata.getVar("OVERRIDES", False) + ":virtclass-multilib-" + item
+        localdata.setVar("OVERRIDES", overrides)
+        bb.data.update_data(localdata)
+
+        archs.append(localdata.getVar("PACKAGE_ARCHS", True).split())
+        tos.append(localdata.getVar("TARGET_OS", True))
+        tvs.append(localdata.getVar("TARGET_VENDOR", True))
+
+    settriplet(d, "PKGMLTRIPLETS", archs, tos, tvs)
 
 python () {
     import exceptions, string, re
@@ -528,6 +595,8 @@ python () {
     # unzip-native should already be staged before unpacking ZIP recipes
     if ".zip" in srcuri:
         d.appendVarFlag('do_unpack', 'depends', ' unzip-native:do_populate_sysroot')
+
+    set_packagetriplet(d)
 
     # 'multimachine' handling
     mach_arch = d.getVar('MACHINE_ARCH', True)
