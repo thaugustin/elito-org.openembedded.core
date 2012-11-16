@@ -31,7 +31,7 @@ The '-n' flag is well supported (coreutils have it at least since
 1999, busybox at least since 0.60.3 (2002)) and it obsoletes the
 explicit check whether target is a directory.
 
-
+Upstream-Status: pending [http://code.google.com/p/opkg/issues/detail?id=95]
 Signed-off-by: Enrico Scholz <enrico.scholz@sigma-chemnitz.de>
 
 Index: trunk/utils/update-alternatives.in
