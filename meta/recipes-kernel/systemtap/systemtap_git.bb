@@ -3,14 +3,10 @@ DESCRIPTION = "SystemTap - script-directed dynamic tracing and performance analy
 require systemtap_git.inc
 
 DEPENDS = "elfutils sqlite3 systemtap-native"
-DEPENDS_virtclass-native = "elfutils-native sqlite3-native gettext-native"
-DEPENDS_virtclass-nativesdk = "nativesdk-elfutils nativesdk-sqlite3 nativesdk-gettext"
+DEPENDS_class-native = "elfutils-native sqlite3-native gettext-native"
+DEPENDS_class-nativesdk = "nativesdk-elfutils nativesdk-sqlite3 nativesdk-gettext"
 
 PR = "r0"
-
-export CC_FOR_BUILD = "${BUILD_CC}"
-export CFLAGS_FOR_BUILD = "${BUILD_CFLAGS}"
-export LDFLAGS_FOR_BUILD = "${BUILD_LDFLAGS}"
 
 EXTRA_OECONF += "--with-libelf=${STAGING_DIR_TARGET} --without-rpm \
             --without-nss --without-avahi \

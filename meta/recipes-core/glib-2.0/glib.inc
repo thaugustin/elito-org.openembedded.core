@@ -13,9 +13,9 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=3bf50002aefd002f49e7bb854063f7e7 \
 BUGTRACKER = "http://bugzilla.gnome.org"
 SECTION = "libs"
 
-DEPENDS = "glib-2.0-native zip virtual/libiconv"
-DEPENDS_virtclass-native = "pkgconfig-native gettext-native"
-DEPENDS_virtclass-nativesdk = "nativesdk-libtool"
+DEPENDS = "glib-2.0-native virtual/libiconv"
+DEPENDS_class-native = "pkgconfig-native gettext-native"
+DEPENDS_class-nativesdk = "nativesdk-libtool"
 PACKAGES =+ "${PN}-utils ${PN}-bash-completion ${PN}-codegen"
 
 LEAD_SONAME = "libglib-2.0.*"
@@ -25,10 +25,10 @@ inherit autotools gettext gtk-doc pkgconfig
 
 S = "${WORKDIR}/glib-${PV}"
 
-CORECONF = "--disable-dtrace --disable-fam --disable-libelf --disable-systemtap"
+CORECONF = "--disable-dtrace --disable-fam --disable-libelf --disable-systemtap --disable-modular-tests"
 
 EXTRA_OECONF = "--enable-included-printf=no ${CORECONF}"
-EXTRA_OECONF_virtclass-native = "${CORECONF}"
+EXTRA_OECONF_class-native = "${CORECONF}"
 EXTRA_OECONF_linuxstdbase = "--enable-included-printf=no ${CORECONF}"
 
 FILES_${PN} = "${libdir}/lib*${SOLIBS} ${datadir}/glib-2.0/schemas \

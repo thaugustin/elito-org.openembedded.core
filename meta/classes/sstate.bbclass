@@ -1,4 +1,4 @@
-SSTATE_VERSION = "2"
+SSTATE_VERSION = "3"
 
 SSTATE_MANIFESTS ?= "${TMPDIR}/sstate-control"
 SSTATE_MANFILEBASE = "${SSTATE_MANIFESTS}/manifest-${SSTATE_MANMACH}-"
@@ -110,6 +110,12 @@ def sstate_state_fromvars(d, task = None):
     return ss
 
 def sstate_add(ss, source, dest, d):
+    if not source.endswith("/"):
+         source = source + "/"
+    if not dest.endswith("/"):
+         dest = dest + "/"
+    source = os.path.normpath(source)
+    dest = os.path.normpath(dest)
     srcbase = os.path.basename(source)
     ss['dirs'].append([srcbase, source, dest])
     return ss
