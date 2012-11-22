@@ -21,8 +21,6 @@ SSTATE_DUPWHITELIST = "${DEPLOY_DIR_IMAGE}/ ${DEPLOY_DIR}/licenses/"
 # Also need to make cross recipes append to ${PN} and install once for any given PACAGE_ARCH so
 # can avoid multiple installs (e.g. routerstationpro+qemumips both using mips32)
 SSTATE_DUPWHITELIST += "${STAGING_LIBDIR_NATIVE}/${MULTIMACH_TARGET_SYS} ${STAGING_DIR_NATIVE}/usr/libexec/${MULTIMACH_TARGET_SYS} ${STAGING_BINDIR_NATIVE}/${MULTIMACH_TARGET_SYS} ${STAGING_DIR_NATIVE}${includedir_native}/gcc-build-internal-${MULTIMACH_TARGET_SYS}"
-# Also avoid python issues until we fix the python recipe
-SSTATE_DUPWHITELIST += "${STAGING_LIBDIR}/python2.7/config/Makefile ${STAGING_LIBDIR}/libpython2.7 ${STAGING_INCDIR}/python2.7/pyconfig.h"
 # Avoid docbook/sgml catalog warnings for now
 SSTATE_DUPWHITELIST += "${STAGING_ETCDIR_NATIVE}/sgml ${STAGING_DATADIR_NATIVE}/sgml"
 
@@ -621,4 +619,56 @@ def sstate_checkhashes(sq_fn, sq_task, sq_hash, sq_hashfn, d):
                 pass     
 
     return ret
+
+BB_SETSCENE_DEPVALID = "setscene_depvalid"
+
+def setscene_depvalid(task, taskdependees, notneeded, d):
+    # taskdependees is a dict of tasks which depend on task, each being a 3 item list of [PN, TASKNAME, FILENAME]
+    # task is included in taskdependees too
+
+    bb.debug(2, "Considering setscene task: %s" % (str(taskdependees[task])))
+
+    def isNative(x):
+        return x.endswith("-native")
+    def isNativeCross(x):
+        return x.endswith("-native") or x.endswith("-cross") or x.endswith("-cross-initial")
+    def isSafeDep(x):
+        if x in ["quilt-native", "autoconf-native", "automake-native", "gnu-config-native", "libtool-native", "pkgconfig-native", "gcc-cross", "binutils-cross"]:
+            return True
+        return False
+
+    # We can skip these "safe" dependencies since the aren't runtime dependencies, just build time
+    if isSafeDep(taskdependees[task][0]) and taskdependees[task][1] == "do_populate_sysroot":
+        return True
+
+    # We only need to trigger populate_lic through direct dependencies
+    if taskdependees[task][1] == "do_populate_lic":
+        return True
+
+    for dep in taskdependees:
+        bb.debug(2, "  considering dependency: %s" % (str(taskdependees[dep])))
+        if task == dep:
+            continue
+        if dep in notneeded:
+            continue
+        # do_package_write_* and do_package doesn't need do_package
+        if taskdependees[task][1] == "do_package" and taskdependees[dep][1] in ['do_package', 'do_package_write_deb', 'do_package_write_ipk', 'do_package_write_rpm']:
+            continue
+        # do_package_write_* and do_package doesn't need do_populate_sysroot
+        if taskdependees[task][1] == "do_populate_sysroot" and taskdependees[dep][1] in ['do_package', 'do_package_write_deb', 'do_package_write_ipk', 'do_package_write_rpm']:
+            continue
+        # Native/Cross packages don't exist and are noexec anyway
+        if isNativeCross(taskdependees[dep][0]) and taskdependees[dep][1] in ['do_package_write_deb', 'do_package_write_ipk', 'do_package_write_rpm']:
+            continue
+        # Native/Cross populate_sysroot need their dependencies
+        if isNativeCross(taskdependees[task][0]) and isNativeCross(taskdependees[dep][0]) and taskdependees[task][1] == 'do_populate_sysroot' and taskdependees[dep][1] == 'do_populate_sysroot':
+            return False
+        # Target populate_sysroot do not need their dependencies
+        if taskdependees[task][1] == 'do_populate_sysroot' and taskdependees[dep][1] == 'do_populate_sysroot':
+            continue
+
+        # Safe fallthrough default
+        bb.debug(2, " Default setscene dependency fall through due to dependency: %s" % (str(taskdependees[dep])))
+        return False
+    return True
 

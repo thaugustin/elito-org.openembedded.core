@@ -15,8 +15,11 @@ SRC_URI += "file://04-default-is-optimized.patch \
            file://nohostlibs.patch \
            file://multilib.patch \
            file://add-md5module-support.patch \
+           file://builddir.patch \
            "
 S = "${WORKDIR}/Python-${PV}"
+
+FILESPATH = "${FILE_DIRNAME}/python-native/:${FILE_DIRNAME}/python/"
 
 inherit native
 

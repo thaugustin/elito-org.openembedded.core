@@ -7,8 +7,6 @@ NATIVEDEPS = ""
 
 inherit autotools gettext
 
-FILESDIR = "${@os.path.dirname(d.getVar('FILE',1))}/gcc-${PV}"
-
 def get_gcc_fpu_setting(bb, d):
     res=[]
 
