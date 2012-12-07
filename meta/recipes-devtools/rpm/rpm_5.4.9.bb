@@ -43,7 +43,7 @@ LICENSE = "LGPLv2.1"
 LIC_FILES_CHKSUM = "file://COPYING.LIB;md5=2d5025d4aa3495befef8f17206a5b0a1"
 
 DEPENDS = "libpcre attr acl popt ossp-uuid file bison-native"
-PR = "r54"
+PR = "r58"
 
 # rpm2cpio is a shell script, which is part of the rpm src.rpm.  It is needed
 # in order to extract the distribution SRPM into a format we can extract...
@@ -82,6 +82,8 @@ SRC_URI = "http://www.rpm5.org/files/rpm/rpm-5.4/rpm-5.4.9-0.20120508.src.rpm;ex
 	   file://rpm-db_buffer_small.patch \
 	   file://rpm-py-init.patch \
 	   file://python-rpm-rpmsense.patch \
+	   file://rpm-reloc-macros.patch \
+	   file://rpm-platform2.patch \
 	  "
 
 SRC_URI[md5sum] = "60d56ace884340c1b3fcac6a1d58e768"
@@ -203,7 +205,6 @@ FILES_${PN} =  "${bindir}/rpm \
 		${libdir}/rpm/tgpg \
 		${libdir}/rpm/macros \
 		${libdir}/rpm/rpmpopt \
-		${libdir}/rpm/rpmdb_loadcvt \
 		${libdir}/rpm/rpm2cpio \
 		${libdir}/rpm/vcheck \
 		${libdir}/rpm/helpers \
@@ -236,6 +237,8 @@ FILES_${PN}-libs = "${libdir}/librpm-*.so \
 		${libdir}/librpmmisc-*.so \
 		${libdir}/librpmbuild-*.so \
 		"
+
+RDEPENDS_${PN}-build += "bash"
 
 FILES_${PN}-build = "${prefix}/src/rpm \
 		${bindir}/rpmbuild \
@@ -317,6 +320,8 @@ FILES_perl-module-rpm = "${libdir}/perl/*/* \
 FILES_perl-module-rpm-dev = "${prefix}/share/man/man3/RPM* \
 		"
 
+RDEPENDS_${PN}-dev += "bash"
+
 FILES_${PN}-dev = "${includedir}/rpm \
 		${libdir}/librpm.la \
 		${libdir}/librpm.so \
@@ -332,6 +337,7 @@ FILES_${PN}-dev = "${includedir}/rpm \
 		${libdir}/librpmbuild.so \
 		${libdir}/rpm/lib/liblua.la \
 		${libdir}/pkgconfig/rpm.pc \
+		${libdir}/rpm/rpmdb_loadcvt \
 		"
 
 FILES_${PN}-staticdev = " \
@@ -364,6 +370,7 @@ do_install_append() {
 	sed -i -e 's,%__perl_provides,#%%__perl_provides,' ${D}/${libdir}/rpm/macros
 	sed -i -e 's,%__perl_requires,#%%__perl_requires,' ${D}/${libdir}/rpm/macros
 	sed -i -e 's,%_repackage_all_erasures[^_].*,%_repackage_all_erasures 0,' ${D}/${libdir}/rpm/macros
+	sed -i -e 's,^#%_openall_before_chroot.*,%_openall_before_chroot\t1,' ${D}/${libdir}/rpm/macros
 
 	# Enable Debian style arbitrary tags...
 	sed -i -e 's,%_arbitrary_tags[^_].*,%_arbitrary_tags %{_arbitrary_tags_debian},' ${D}/${libdir}/rpm/macros

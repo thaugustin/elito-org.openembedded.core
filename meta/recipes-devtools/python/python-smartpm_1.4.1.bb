@@ -11,14 +11,19 @@ LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=393a5ca445f6965873eca0259a17f833"
 
 DEPENDS = "python rpm"
-PR = "r1"
+PR = "r4"
 SRCNAME = "smart"
 
 SRC_URI = "\
           http://launchpad.net/smart/trunk/${PV}/+download/${SRCNAME}-${PV}.tar.bz2 \
           file://smartpm-rpm5-nodig.patch \
           file://smart-rpm-root.patch \
-          file://smart-missingok.patch \
+          file://smart-recommends.patch \
+          file://smart-rpm-extra-macros.patch \
+          file://smart-dflags.patch \
+          file://smart-rpm-md-parse.patch \
+          file://smart-tmpdir.patch \
+          file://smart-metadata-match.patch \
           "
 
 SRC_URI[md5sum] = "573ef32ba177a6b3c4bf7ef04873fcb6"
@@ -28,13 +33,13 @@ S = "${WORKDIR}/${SRCNAME}-${PV}"
 # Options - rpm, qt4, gtk
 PACKAGECONFIG ??= "rpm"
 
-RPM_RDEP = "python-smartpm-backend-rpm"
-QT_RDEP = "python-smartpm-interface-qt4"
-GTK_RDEP = "python-smartpm-interface-gtk"
+RPM_RDEP = "${PN}-backend-rpm"
+QT_RDEP = "${PN}-interface-qt4"
+GTK_RDEP = "${PN}-interface-gtk"
 
-RPM_RDEP_virtclass-native = ""
-QT_RDEP_virtclass-native = ""
-GTK_RDEP_virtclass-native = ""
+RPM_RDEP_class-native = ""
+QT_RDEP_class-native = ""
+GTK_RDEP_class-native = ""
 
 PACKAGECONFIG[rpm] = ",,rpm,${RPM_RDEP}"
 PACKAGECONFIG[qt4] = ",,qt4-x11,${QT_RDEP}"
@@ -43,9 +48,6 @@ PACKAGECONFIG[gtk] = ",,gtk+,${GTK_RDEP}"
 inherit distutils
 
 do_install_append() {
-   # Cleanup unused item...
-   rmdir ${D}${datadir}/share
-
    # We don't support the following items
    rm -rf ${D}${libdir}/python*/site-packages/smart/backends/slack
    rm -rf ${D}${libdir}/python*/site-packages/smart/backends/arch
@@ -85,35 +87,33 @@ do_install_append() {
    fi
 }
 
-PACKAGES  = "python-smartpm-dev python-smartpm-dbg python-smartpm-doc smartpm"
-PACKAGES += "${@base_contains('PACKAGECONFIG', 'rpm', 'python-smartpm-backend-rpm', '', d)}"
-PACKAGES += "${@base_contains('PACKAGECONFIG', 'qt4', 'python-smartpm-interface-qt4', '', d)}"
-PACKAGES += "${@base_contains('PACKAGECONFIG', 'gtk', 'python-smartpm-interface-gtk', '', d)}"
-PACKAGES += "python-smartpm-interface-images"
-PACKAGES += "python-smartpm"
+PACKAGES = "${PN}-dev ${PN}-dbg ${PN}-doc smartpm \
+            ${@base_contains('PACKAGECONFIG', 'rpm', '${PN}-backend-rpm', '', d)} \
+            ${@base_contains('PACKAGECONFIG', 'qt4', '${PN}-interface-qt4', '', d)} \
+            ${@base_contains('PACKAGECONFIG', 'gtk', '${PN}-interface-gtk', '', d)} \
+            ${PN}-interface-images ${PN}"
 
-RDEPENDS_smartpm = 'python-smartpm'
+RDEPENDS_smartpm = "${PN}"
 
-RDEPENDS_python-smartpm_append = " python-smartpm-backend-rpm python-codecs python-textutils python-xml"
-RDEPENDS_python-smartpm_append += " python-fcntl python-pickle python-crypt python-compression python-shell"
-RDEPENDS_python-smartpm_append += " python-resource python-netclient python-threading python-unixadmin"
+RDEPENDS_${PN} += "${PN}-backend-rpm python-codecs python-textutils python-xml python-fcntl \
+                   python-pickle python-crypt python-compression python-shell \
+                   python-resource python-netclient python-threading python-unixadmin"
+RDEPENDS_${PN}_class-native = ""
 
-#RDEPENDS_python-smartpm_append += " python-modules"
+RDEPENDS_${PN}-backend-rpm = "python-rpm"
 
-RDEPENDS_python-smartpm-backend-rpm = 'python-rpm'
-
-RDEPENDS_python-smartpm-interface-qt4 = 'qt4-x11 python-smartpm-interface-images'
-RDEPENDS_python-smartpm-interface-gtk = 'gtk+ python-smartpm-interface-images'
+RDEPENDS_${PN}-interface-qt4 = "qt4-x11 ${PN}-interface-images"
+RDEPENDS_${PN}-interface-gtk = "gtk+ ${PN}-interface-images"
 
 FILES_smartpm = "${bindir}/smart"
 
 FILES_${PN}-dbg += "${libdir}/python*/site-packages/smart/backends/rpm/.debug"
 
-FILES_python-smartpm-backend-rpm = "${libdir}/python*/site-packages/smart/backends/rpm"
+FILES_${PN}-backend-rpm = "${libdir}/python*/site-packages/smart/backends/rpm"
 
-FILES_python-smartpm-interface-qt4 = "${libdir}/python*/site-packages/smart/interfaces/qt4"
-FILES_python-smartpm-interface-gtk = "${libdir}/python*/site-packages/smart/interfaces/gtk"
-FILES_python-smartpm-interface-images = "${datadir}/${baselib}/python*/site-packages/smart/interfaces/images"
+FILES_${PN}-interface-qt4 = "${libdir}/python*/site-packages/smart/interfaces/qt4"
+FILES_${PN}-interface-gtk = "${libdir}/python*/site-packages/smart/interfaces/gtk"
+FILES_${PN}-interface-images = "${datadir}/${baselib}/python*/site-packages/smart/interfaces/images"
 
 BBCLASSEXTEND = "native"
 
