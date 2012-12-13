@@ -116,6 +116,13 @@ def do_split_packages(d, root, file_regex, output_pattern, description, postinst
 
     """
 
+    dvar = d.getVar('PKGD', True)
+
+    # If the root directory doesn't exist, don't error out later but silently do
+    # no splitting.
+    if not os.path.exists(dvar + root):
+        return
+
     ml = d.getVar("MLPREFIX", True)
     if ml:
         if not output_pattern.startswith(ml):
@@ -130,7 +137,6 @@ def do_split_packages(d, root, file_regex, output_pattern, description, postinst
         if newdeps:
             extra_depends = " ".join(newdeps)
 
-    dvar = d.getVar('PKGD', True)
 
     packages = d.getVar('PACKAGES', True).split()
 
@@ -432,7 +438,7 @@ python package_do_split_locales() {
         return
 
     dvar = d.getVar('PKGD', True)
-    pn = d.getVar('LOCALEBASEPN', True)
+    pn = "%s%s" % (d.getVar('MLPREFIX', True) or "", d.getVar('LOCALEBASEPN', True))
 
     if pn + '-locale' in packages:
         packages.remove(pn + '-locale')

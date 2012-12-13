@@ -13,7 +13,7 @@ do_populate_lic[cleandirs] = "${LICSSTATEDIR}"
 license_create_manifest() {
 	mkdir -p ${LICENSE_DIRECTORY}/${IMAGE_NAME}
 	# Get list of installed packages
-	list_installed_packages | grep -v "locale" | sort > ${LICENSE_DIRECTORY}/${IMAGE_NAME}/package.manifest
+	list_installed_packages |sort > ${LICENSE_DIRECTORY}/${IMAGE_NAME}/package.manifest
 	INSTALLED_PKGS=`cat ${LICENSE_DIRECTORY}/${IMAGE_NAME}/package.manifest`
 	LICENSE_MANIFEST="${LICENSE_DIRECTORY}/${IMAGE_NAME}/license.manifest"
 	# remove existing license.manifest file
@@ -26,11 +26,6 @@ license_create_manifest() {
 		# not the best way to do this but licenses are not arch dependant iirc
 		filename=`ls ${TMPDIR}/pkgdata/*/runtime-reverse/${pkg}| head -1`
 		pkged_pn="$(sed -n 's/^PN: //p' ${filename})"
-
-		# exclude locale recipes
-		if [ "${pkged_pn}" = "*locale*" ]; then
-			continue
-		fi
 
 		# check to see if the package name exists in the manifest. if so, bail.
 		if grep -q "^PACKAGE NAME: ${pkg}" ${LICENSE_MANIFEST}; then
@@ -208,14 +203,11 @@ python do_populate_lic() {
 
 def return_spdx(d, license):
     """
-    This function returns the spdx mapping of a license.
-    """
-    if d.getVarFlag('SPDXLICENSEMAP', license) != None:
-        return license
-    else:
-        return d.getVarFlag('SPDXLICENSEMAP', license_type)
+    This function returns the spdx mapping of a license if it exists.
+     """
+    return d.getVarFlag('SPDXLICENSEMAP', license, True)
 
-def incompatible_license(d, dont_want_license, package=""):
+def incompatible_license(d, dont_want_licenses, package=None):
     """
     This function checks if a recipe has only incompatible licenses. It also take into consideration 'or'
     operand.
@@ -224,45 +216,30 @@ def incompatible_license(d, dont_want_license, package=""):
     import oe.license
     from fnmatch import fnmatchcase as fnmatch
     pn = d.getVar('PN', True)
-    dont_want_licenses = []
-    dont_want_licenses.append(d.getVar('INCOMPATIBLE_LICENSE', True))
-    recipe_license = d.getVar('LICENSE', True)
-    if package != "":
-        if d.getVar('LICENSE_' + pn + '-' + package, True):
-            license = d.getVar('LICENSE_' + pn + '-' + package, True)
-        else:
-            license = recipe_license
-    else:
-        license = recipe_license
-    spdx_license = return_spdx(d, dont_want_license)
-    dont_want_licenses.append(spdx_license)
+    license = d.getVar("LICENSE_%s-%s" % (pn, package), True) if package else None
+    if not license:
+        license = d.getVar('LICENSE', True)
 
-    def include_license(license):
-        if any(fnmatch(license, pattern) for pattern in dont_want_licenses):
+    def license_ok(license):
+        for dwl in dont_want_licenses:
+            # If you want to exclude license named generically 'X', we
+            # surely want to exclude 'X+' as well.  In consequence, we
+            # will exclude a trailing '+' character from LICENSE in
+            # case INCOMPATIBLE_LICENSE is not a 'X+' license.
+            lic = license
+        if not re.search('\+$', dwl):
+            lic = re.sub('\+', '', license)
+        if fnmatch(lic, dwl):
             return False
-        else:
-            return True
+        return True
 
-    def choose_licenses(a, b):
-        if all(include_license(lic) for lic in a):
-            return a
-        else:
-            return b
+    # Handles an "or" or two license sets provided by
+    # flattened_licenses(), pick one that works if possible.
+    def choose_lic_set(a, b):
+        return a if all(license_ok(lic) for lic in a) else b
 
-    """
-    If you want to exlude license named generically 'X', we surely want to exlude 'X+' as well.
-    In consequence, we will exclude the '+' character from LICENSE in case INCOMPATIBLE_LICENSE
-    is not a 'X+' license.
-    """
-    if not re.search(r'[+]',dont_want_license):
-        licenses=oe.license.flattened_licenses(re.sub(r'[+]', '', license), choose_licenses)
-    else:
-        licenses=oe.license.flattened_licenses(license, choose_licenses)
-
-    for onelicense in licenses:
-        if not include_license(onelicense):
-            return True
-    return False
+    licenses=oe.license.flattened_licenses(license, choose_lic_set)
+    return any(not license_ok(l) for l in licenses)
 
 def check_license_flags(d):
     """
