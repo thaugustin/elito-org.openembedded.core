@@ -9,7 +9,7 @@ as well."
 LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://COPYING;md5=d7810fab7487fb0aad327b76f1be7cd7"
 
-PR = "r5"
+PR = "r8"
 
 require perf.inc
 
@@ -67,6 +67,25 @@ EXTRA_OEMAKE = \
 		NO_GTK2=1 ${TUI_DEFINES} NO_DWARF=1 ${SCRIPTING_DEFINES} \
 		'
 
+# We already pass the correct arguments to our compiler for the CFLAGS (if we
+# don't override it, it'll add -m32/-m64 itself). For LDFLAGS, it was failing
+# to find bfd symbols.
+EXTRA_OEMAKE += "\
+	'CFLAGS=${CFLAGS}' \
+	'LDFLAGS=${LDFLAGS} -lpthread -lrt -lelf -lm -lbfd' \
+	\
+	'prefix=${prefix}' \
+	'bindir=${bindir}' \
+	'sharedir=${datadir}' \
+	'sysconfdir=${sysconfdir}' \
+	'perfexecdir=${libexecdir}/perf-core' \
+	\
+	'ETC_PERFCONFIG=${@oe.path.relative(prefix, sysconfdir)}' \
+	'sharedir=${@oe.path.relative(prefix, datadir)}' \
+	'mandir=${@oe.path.relative(prefix, mandir)}' \
+	'infodir=${@oe.path.relative(prefix, infodir)}' \
+"
+
 do_compile() {
 	oe_runmake all
 }
@@ -77,6 +96,10 @@ do_install() {
 	if [ "${@perf_feature_enabled('perf-scripting', 1, 0, d)}" = "1" -a $(grep install-python_ext ${S}/tools/perf/Makefile) = "0"]; then
 		oe_runmake DESTDIR=${D} install-python_ext
 	fi
+}
+
+do_configure_prepend () {
+    sed -i 's,-Werror ,,' ${S}/tools/perf/Makefile
 }
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"

@@ -2,16 +2,20 @@
 # Creates a root filesystem out of rpm packages
 #
 
-ROOTFS_PKGMANAGE = "rpm zypper"
+ROOTFS_PKGMANAGE = "rpm smartpm"
 
-# Add 50Meg of extra space for zypper database space
-IMAGE_ROOTFS_EXTRA_SPACE_append = "${@base_contains("PACKAGE_INSTALL", "zypper", " + 51200", "" ,d)}"
+# Add 50Meg of extra space for Smart
+IMAGE_ROOTFS_EXTRA_SPACE_append = "${@base_contains("PACKAGE_INSTALL", "smartpm", " + 51200", "" ,d)}"
+
+# Smart is python based, so be sure python-native is available to us.
+EXTRANATIVEPATH += "python-native"
 
 # Postinstalls on device are handled within this class at present
 ROOTFS_PKGMANAGE_BOOTSTRAP = ""
 
 do_rootfs[depends] += "rpm-native:do_populate_sysroot"
 do_rootfs[depends] += "rpmresolve-native:do_populate_sysroot"
+do_rootfs[depends] += "python-smartpm-native:do_populate_sysroot"
 
 # Needed for update-alternatives
 do_rootfs[depends] += "opkg-native:do_populate_sysroot"
@@ -21,8 +25,8 @@ do_rootfs[depends] += "createrepo-native:do_populate_sysroot"
 
 do_rootfs[recrdeptask] += "do_package_write_rpm"
 
-RPM_PREPROCESS_COMMANDS = "package_update_index_rpm; package_generate_rpm_conf; "
-RPM_POSTPROCESS_COMMANDS = ""
+RPM_PREPROCESS_COMMANDS = "package_update_index_rpm; "
+RPM_POSTPROCESS_COMMANDS = "rpm_setup_smart_target_config; "
 
 # 
 # Allow distributions to alter when [postponed] package install scripts are run
@@ -32,7 +36,7 @@ POSTINSTALL_INITPOSITION ?= "98"
 rpmlibdir = "/var/lib/rpm"
 opkglibdir = "${localstatedir}/lib/opkg"
 
-RPMOPTS="--dbpath ${rpmlibdir} --define='_openall_before_chroot 1'"
+RPMOPTS="--dbpath ${rpmlibdir}"
 RPM="rpm ${RPMOPTS}"
 
 # RPM doesn't work with multiple rootfs generation at once due to collisions in the use of files 
@@ -42,13 +46,10 @@ do_rootfs[lockfiles] += "${DEPLOY_DIR_RPM}/rpm.lock"
 fakeroot rootfs_rpm_do_rootfs () {
 	${RPM_PREPROCESS_COMMANDS}
 
-	#createrepo "${DEPLOY_DIR_RPM}"
-
 	# install packages
 	# This needs to work in the same way as populate_sdk_rpm.bbclass!
 	export INSTALL_ROOTFS_RPM="${IMAGE_ROOTFS}"
 	export INSTALL_PLATFORM_RPM="${TARGET_ARCH}"
-	export INSTALL_CONFBASE_RPM="${RPMCONF_TARGET_BASE}"
 	export INSTALL_PACKAGES_RPM="${PACKAGE_INSTALL}"
 	export INSTALL_PACKAGES_ATTEMPTONLY_RPM="${PACKAGE_INSTALL_ATTEMPTONLY}"
 	export INSTALL_PACKAGES_LINGUAS_RPM="${LINGUAS_INSTALL}"
@@ -61,8 +62,16 @@ fakeroot rootfs_rpm_do_rootfs () {
 
 	# List must be prefered to least preferred order
 	INSTALL_PLATFORM_EXTRA_RPM=""
-	for each_arch in ${MULTILIB_PACKAGE_ARCHS} ${PACKAGE_ARCHS}; do
-		INSTALL_PLATFORM_EXTRA_RPM="$each_arch $INSTALL_PLATFORM_EXTRA_RPM"
+	for i in ${MULTILIB_PREFIX_LIST} ; do
+		old_IFS="$IFS"
+		IFS=":"
+		set $i
+		IFS="$old_IFS"
+		shift #remove mlib
+		while [ -n "$1" ]; do  
+			INSTALL_PLATFORM_EXTRA_RPM="$INSTALL_PLATFORM_EXTRA_RPM $1"
+			shift
+		done
 	done
 	export INSTALL_PLATFORM_RPM
 
@@ -114,18 +123,10 @@ EOF
 	# remove lock files
 	rm -f ${IMAGE_ROOTFS}${rpmlibdir}/__db.*
 
-	# Move manifests into the directory with the logs
-	mv ${IMAGE_ROOTFS}/install/*.manifest ${T}/
-
 	# Remove all remaining resolver files
 	rm -rf ${IMAGE_ROOTFS}/install
 
 	log_check rootfs
-
-	# Workaround so the parser knows we need the resolve_package function!
-	if false ; then
-		resolve_package_rpm foo ${RPMCONF_TARGET_BASE}.conf || true
-	fi
 }
 
 remove_packaging_data_files() {
@@ -135,27 +136,27 @@ remove_packaging_data_files() {
 	mkdir -p $t
 	mv ${IMAGE_ROOTFS}${rpmlibdir} $t
 	rm -rf ${IMAGE_ROOTFS}${opkglibdir}
+	rm -rf ${IMAGE_ROOTFS}/var/lib/smart
 }
 
-RPM_QUERY_CMD = '${RPM} --root $INSTALL_ROOTFS_RPM -D "_dbpath ${rpmlibdir}" \
-		-D "__dbi_txn create nofsync private"'
+rpm_setup_smart_target_config() {
+	# Set up smart configuration for the target
+	rm -rf ${IMAGE_ROOTFS}/var/lib/smart
+	smart --data-dir=${IMAGE_ROOTFS}/var/lib/smart channel --add rpmsys type=rpm-sys -y
+	smart --data-dir=${IMAGE_ROOTFS}/var/lib/smart config --set rpm-nolinktos=1
+	smart --data-dir=${IMAGE_ROOTFS}/var/lib/smart config --set rpm-noparentdirs=1
+	rm -f ${IMAGE_ROOTFS}/var/lib/smart/config.old
+}
+
+RPM_QUERY_CMD = '${RPM} --root $INSTALL_ROOTFS_RPM -D "_dbpath ${rpmlibdir}"'
 
 list_installed_packages() {
-	GET_LIST=$(${RPM_QUERY_CMD} -qa --qf "[%{NAME} %{ARCH} %{PACKAGEORIGIN} %{Platform}\n]")
-
-	# Use awk to find the multilib prefix and compare it
-	# with the platform RPM thinks it is part of
-	for prefix in `echo ${MULTILIB_PREFIX_LIST}`; do
-		GET_LIST=$(echo "$GET_LIST" | awk -v prefix="$prefix" '$0 ~ prefix {printf("%s-%s\n", prefix, $0); } $0 !~ prefix {print $0}')
-	done
-
-	# print the info, need to different return counts
-	if [ "$1" = "arch" ] ; then
-		echo "$GET_LIST" | awk -v archs="${PACKAGE_ARCHS}" '{if(!index(archs, $2)) {gsub("_", "-", $2)} print $1, $2}'
-        elif [ "$1" = "file" ] ; then
-		echo "$GET_LIST" | awk '{print $1, $3}'
-        else
-		echo "$GET_LIST" | awk '{print $1}' 
+	if [ "$1" = "arch" ]; then
+		${RPM_QUERY_CMD} -qa --qf "[%{NAME} %{ARCH}\n]" | translate_smart_to_oe arch | tee /tmp/arch_list
+	elif [ "$1" = "file" ]; then
+		${RPM_QUERY_CMD} -qa --qf "[%{NAME} %{ARCH} %{PACKAGEORIGIN}\n]" | translate_smart_to_oe | tee /tmp/file_list
+	else
+		${RPM_QUERY_CMD} -qa --qf "[%{NAME} %{ARCH}\n]" | translate_smart_to_oe | tee /tmp/default_list
 	fi
 }
 
@@ -185,8 +186,11 @@ python () {
         d.setVar('RPM_POSTPROCESS_COMMANDS', '')
 
     # The following code should be kept in sync w/ the populate_sdk_rpm version.
-    ml_package_archs = ""
-    ml_prefix_list = ""
+
+    # package_arch order is reversed.  This ensures the -best- match is listed first!
+    package_archs = d.getVar("PACKAGE_ARCHS", True) or ""
+    package_archs = ":".join(package_archs.split()[::-1])
+    ml_prefix_list = "%s:%s" % ('default', package_archs)
     multilibs = d.getVar('MULTILIBS', True) or ""
     for ext in multilibs.split():
         eext = ext.split(':')
@@ -196,10 +200,7 @@ python () {
             if default_tune:
                 localdata.setVar("DEFAULTTUNE", default_tune)
             package_archs = localdata.getVar("PACKAGE_ARCHS", True) or ""
-            package_archs = " ".join([i in "all noarch any".split() and i or eext[1]+"_"+i for i in package_archs.split()])
-            ml_package_archs += " " + package_archs
-            ml_prefix_list += " " + eext[1]
-            #bb.note("ML_PACKAGE_ARCHS %s %s %s" % (eext[1], localdata.getVar("PACKAGE_ARCHS", True) or "(none)", overrides))
-    d.setVar('MULTILIB_PACKAGE_ARCHS', ml_package_archs)
+            package_archs = ":".join([i in "all noarch any".split() and i or eext[1]+"_"+i for i in package_archs.split()][::-1])
+            ml_prefix_list += " %s:%s" % (eext[1], package_archs)
     d.setVar('MULTILIB_PREFIX_LIST', ml_prefix_list)
 }

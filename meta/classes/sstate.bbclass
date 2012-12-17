@@ -1,8 +1,7 @@
 SSTATE_VERSION = "3"
 
 SSTATE_MANIFESTS ?= "${TMPDIR}/sstate-control"
-SSTATE_MANFILEBASE = "${SSTATE_MANIFESTS}/manifest-${SSTATE_MANMACH}-"
-SSTATE_MANFILEPREFIX = "${SSTATE_MANFILEBASE}${PN}"
+SSTATE_MANFILEPREFIX = "${SSTATE_MANIFESTS}/manifest-${SSTATE_MANMACH}-${PN}"
 
 def generate_sstatefn(spec, hash, d):
     if not hash:
@@ -125,10 +124,12 @@ def sstate_install(ss, d):
     sharedfiles = []
     shareddirs = []
     bb.mkdirhier(d.expand("${SSTATE_MANIFESTS}"))
-    manifest = d.expand("${SSTATE_MANFILEPREFIX}.%s" % ss['name'])
+
+    d2 = d.createCopy()
     extrainf = d.getVarFlag("do_" + ss['task'], 'stamp-extra-info', True)
     if extrainf:
-        manifest = manifest + "." + extrainf
+        d2.setVar("SSTATE_MANMACH", extrainf)
+    manifest = d2.expand("${SSTATE_MANFILEPREFIX}.%s" % ss['name'])
 
     if os.access(manifest, os.R_OK):
         bb.fatal("Package already staged (%s)?!" % manifest)
@@ -316,10 +317,11 @@ def sstate_clean_manifest(manifest, d):
 def sstate_clean(ss, d):
     import oe.path
 
-    manifest = d.expand("${SSTATE_MANFILEPREFIX}.%s" % ss['name'])
+    d2 = d.createCopy()
     extrainf = d.getVarFlag("do_" + ss['task'], 'stamp-extra-info', True)
     if extrainf:
-        manifest = manifest + "." + extrainf
+        d2.setVar("SSTATE_MANMACH", extrainf)
+    manifest = d2.expand("${SSTATE_MANFILEPREFIX}.%s" % ss['name'])
 
     if os.path.exists(manifest):
         locks = []
@@ -346,27 +348,18 @@ def sstate_clean(ss, d):
 CLEANFUNCS += "sstate_cleanall"
 
 python sstate_cleanall() {
-    import fnmatch
-
     bb.note("Removing shared state for package %s" % d.getVar('PN', True))
 
     manifest_dir = d.getVar('SSTATE_MANIFESTS', True)
-    manifest_prefix = d.getVar("SSTATE_MANFILEPREFIX", True)
-    manifest_pattern = os.path.basename(manifest_prefix) + ".*"
-
     if not os.path.exists(manifest_dir):
         return
 
-    for manifest in (os.listdir(manifest_dir)):
-        if fnmatch.fnmatch(manifest, manifest_pattern):
-            name = manifest.replace(manifest_pattern[:-1], "")
-            namemap = d.getVar('SSTATETASKNAMES', True).split()
-            tasks = d.getVar('SSTATETASKS', True).split()
-            if name not in namemap:
-                continue
-            taskname = tasks[namemap.index(name)]
-            shared_state = sstate_state_fromvars(d, taskname[3:])
-            sstate_clean(shared_state, d)
+    namemap = d.getVar('SSTATETASKNAMES', True).split()
+    tasks = d.getVar('SSTATETASKS', True).split()
+    for name in namemap:
+        taskname = tasks[namemap.index(name)]
+        shared_state = sstate_state_fromvars(d, taskname[3:])
+        sstate_clean(shared_state, d)
 }
 
 def sstate_hardcode_path(d):
