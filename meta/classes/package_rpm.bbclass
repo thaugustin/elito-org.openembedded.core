@@ -99,8 +99,11 @@ translate_smart_to_oe() {
 				if [ "$arch" = "$cmp_arch" -o "$fixed_arch" = "$cmp_arch" ]; then
 					if [ "$mlib" = "default" ]; then
 						new_pkg="$pkg"
+						new_arch=$cmp_arch
 					else
 						new_pkg="$mlib-$pkg"
+						# We need to strip off the ${mlib}_ prefix on the arch
+						new_arch=${cmp_arch#${mlib}_}
 					fi
 					# Workaround for bug 3565
 					# Simply look to see if we know of a package with that name, if not try again!
@@ -121,7 +124,7 @@ translate_smart_to_oe() {
 
 		#echo "$pkg -> $new_pkg" >&2
 		if [ "$arg1" = "arch" ]; then
-			echo $new_pkg $cmp_arch $other
+			echo $new_pkg $new_arch $other
 		else
 			echo $new_pkg $other
 		fi
@@ -462,10 +465,14 @@ EOF
 
 	if [ -n "${package_attemptonly}" ]; then
 		echo "Note: installing attempt only packages..."
+		echo "Attempting $pkgs_to_install"
 		echo "Note: see `dirname ${BB_LOGFILE}`/log.do_${task}_attemptonly.${PID}"
 		translate_oe_to_smart ${sdk_mode} --attemptonly $package_attemptonly
-		echo "Attempting $pkgs_to_install"
-		smart --data-dir=${target_rootfs}/var/lib/smart install -y $pkgs_to_install >> "`dirname ${BB_LOGFILE}`/log.do_${task}_attemptonly.${PID}" 2>&1 || true
+		for each_pkg in $pkgs_to_install ;  do
+			# We need to try each package individually as a single dependency failure
+			# will break the whole set otherwise.
+			smart --data-dir=${target_rootfs}/var/lib/smart install -y $each_pkg >> "`dirname ${BB_LOGFILE}`/log.do_${task}_attemptonly.${PID}" 2>&1 || true
+		done
 	fi
 }
 
