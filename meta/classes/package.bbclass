@@ -438,7 +438,7 @@ python package_do_split_locales() {
         return
 
     dvar = d.getVar('PKGD', True)
-    pn = "%s%s" % (d.getVar('MLPREFIX', True) or "", d.getVar('LOCALEBASEPN', True))
+    pn = d.getVar('LOCALEBASEPN', True)
 
     if pn + '-locale' in packages:
         packages.remove(pn + '-locale')
@@ -1894,7 +1894,7 @@ python do_package () {
     dvar = d.getVar('PKGD', True)
     pn = d.getVar('PN', True)
 
-    if not workdir or not outdir or not dest or not dvar or not pn or not packages:
+    if not workdir or not outdir or not dest or not dvar or not pn:
         bb.error("WORKDIR, DEPLOY_DIR, D, PN and PKGD all must be defined, unable to package")
         return
 
