@@ -206,8 +206,11 @@ kernel_do_install() {
 		rm -f $kerneldir/$entry
 	done
 
-	# Fix SLANG_INC for slang.h
-	sed -i 's#-I/usr/include/slang#-I=/usr/include/slang#g' $kerneldir/tools/perf/Makefile
+	# kernels <2.6.30 don't have $kerneldir/tools directory so we check if it exists before calling sed
+	if [ -f $kerneldir/tools/perf/Makefile ]; then
+		# Fix SLANG_INC for slang.h
+		sed -i 's#-I/usr/include/slang#-I=/usr/include/slang#g' $kerneldir/tools/perf/Makefile
+	fi
 }
 
 sysroot_stage_all_append() {
@@ -500,7 +503,8 @@ KERNEL_IMAGE_BASE_NAME ?= "${KERNEL_IMAGETYPE}-${PE}-${PV}-${PR}-${MACHINE}-${DA
 # Don't include the DATETIME variable in the sstate package signatures
 KERNEL_IMAGE_BASE_NAME[vardepsexclude] = "DATETIME"
 KERNEL_IMAGE_SYMLINK_NAME ?= "${KERNEL_IMAGETYPE}-${MACHINE}"
-MODULE_TARBALL_BASE_NAME ?= "modules-${PE}-${PV}-${PR}-${MACHINE}-${DATETIME}.tgz"
+MODULE_IMAGE_BASE_NAME ?= "modules-${PE}-${PV}-${PR}-${MACHINE}-${DATETIME}"
+MODULE_TARBALL_BASE_NAME ?= "${MODULE_IMAGE_BASE_NAME}.tgz"
 # Don't include the DATETIME variable in the sstate package signatures
 MODULE_TARBALL_BASE_NAME[vardepsexclude] = "DATETIME"
 MODULE_TARBALL_SYMLINK_NAME ?= "modules-${MACHINE}.tgz"
