@@ -560,16 +560,15 @@ python () {
                         skipped_pkgs.append(pkg)
                     else:
                         unskipped_pkgs.append(pkg)
-                some_skipped = skipped_pkgs and unskipped_pkgs
                 all_skipped = skipped_pkgs and not unskipped_pkgs
-                if some_skipped:
+                if unskipped_pkgs:
                     for pkg in skipped_pkgs:
-                        bb.note("SKIPPING the package " + pkg + " at do_rootfs because it's " + recipe_license)
+                        bb.debug(1, "SKIPPING the package " + pkg + " at do_rootfs because it's " + recipe_license)
                         d.setVar('LICENSE_EXCLUSION-' + pkg, 1)
                     for pkg in unskipped_pkgs:
-                        bb.note("INCLUDING the package " + pkg)
+                        bb.debug(1, "INCLUDING the package " + pkg)
                 elif all_skipped or incompatible_license(d, bad_licenses):
-                    bb.note("SKIPPING recipe %s because it's %s" % (pn, recipe_license))
+                    bb.debug(1, "SKIPPING recipe %s because it's %s" % (pn, recipe_license))
                     raise bb.parse.SkipPackage("incompatible with license %s" % recipe_license)
 
     srcuri = d.getVar('SRC_URI', True)

@@ -215,8 +215,7 @@ def incompatible_license(d, dont_want_licenses, package=None):
     import re
     import oe.license
     from fnmatch import fnmatchcase as fnmatch
-    pn = d.getVar('PN', True)
-    license = d.getVar("LICENSE_%s-%s" % (pn, package), True) if package else None
+    license = d.getVar("LICENSE_%s" % package, True) if package else None
     if not license:
         license = d.getVar('LICENSE', True)
 
@@ -227,10 +226,10 @@ def incompatible_license(d, dont_want_licenses, package=None):
             # will exclude a trailing '+' character from LICENSE in
             # case INCOMPATIBLE_LICENSE is not a 'X+' license.
             lic = license
-        if not re.search('\+$', dwl):
-            lic = re.sub('\+', '', license)
-        if fnmatch(lic, dwl):
-            return False
+            if not re.search('\+$', dwl):
+                lic = re.sub('\+', '', license)
+            if fnmatch(lic, dwl):
+                return False
         return True
 
     # Handles an "or" or two license sets provided by
@@ -238,7 +237,10 @@ def incompatible_license(d, dont_want_licenses, package=None):
     def choose_lic_set(a, b):
         return a if all(license_ok(lic) for lic in a) else b
 
-    licenses=oe.license.flattened_licenses(license, choose_lic_set)
+    try:
+        licenses = oe.license.flattened_licenses(license, choose_lic_set)
+    except oe.license.LicenseError as exc:
+        bb.fatal('%s: %s' % (d.getVar('P', True), exc))
     return any(not license_ok(l) for l in licenses)
 
 def check_license_flags(d):
