@@ -168,7 +168,7 @@ do_configure() {
 			;;
 	esac
         # These are strewn all over the source tree
-        for foo in `find ${WORKDIR} -type f ! -name '*.pod' ! -name 'README*' -print0 | xargs -0 grep -I -l -m1 '/usr/include/.*\.h'` ${S}/utils/h2xs.PL; do
+        for foo in `find '${S}' -type f ! -name '*.pod' ! -name 'README*' -print0 | xargs -0 grep -I -l -m1 '/usr/include/.*\.h'` ${S}/utils/h2xs.PL; do
             echo Fixing: $foo
             sed -e 's|\([ "^'\''I]\+\)/usr/include/|\1${STAGING_INCDIR}/|g' -i $foo
         done
