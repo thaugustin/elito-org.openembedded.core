@@ -41,6 +41,11 @@ def map_uboot_arch(a, d):
     elif re.match('i.86$', a): return 'x86'
     return a
 
+def kernel_ld(d):
+    ld = d.getVar('LD', True).split(None, 1)
+    ld[0] = ld[0] + (d.getVar('KERNEL_LDSUFFIX', True) or '')
+    return ' '.join(ld)
+
 export UBOOT_ARCH = "${@map_uboot_arch(d.getVar('ARCH', True), d)}"
 
 # Set TARGET_??_KERNEL_ARCH in the machine .conf to set architecture
@@ -53,6 +58,6 @@ TARGET_AR_KERNEL_ARCH ?= ""
 HOST_AR_KERNEL_ARCH ?= "${TARGET_AR_KERNEL_ARCH}"
 
 KERNEL_CC = "${CC} ${HOST_CC_KERNEL_ARCH}"
-KERNEL_LD = "${LD} ${HOST_LD_KERNEL_ARCH}"
+KERNEL_LD = "${@kernel_ld(d)}"
 KERNEL_AR = "${AR} ${HOST_AR_KERNEL_ARCH}"
 
