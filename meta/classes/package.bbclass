@@ -217,7 +217,7 @@ python () {
         d.appendVarFlag('do_package', 'depends', deps)
 
         # shlibs requires any DEPENDS to have already packaged for the *.list files
-        d.appendVarFlag('do_package', 'deptask', " do_package")
+        d.appendVarFlag('do_package', 'deptask', " do_packagedata")
 
     elif not bb.data.inherits_class('image', d):
         d.setVar("PACKAGERDEPTASK", "")
@@ -396,15 +396,13 @@ def runtime_mapping_rename (varname, d):
 #
 
 python package_get_auto_pr() {
-    # per recipe PRSERV_HOST PRSERV_PORT
+    # per recipe PRSERV_HOST
     pn = d.getVar('PN', True)
     host = d.getVar("PRSERV_HOST_" + pn, True)
-    port = d.getVar("PRSERV_PORT_" + pn, True)
     if not (host is None):
         d.setVar("PRSERV_HOST", host)
-    if not (port is None):
-        d.setVar("PRSERV_PORT", port)
-    if d.getVar('USE_PR_SERV', True) != "0":
+
+    if d.getVar('PRSERV_HOST', True):
         try:
             auto_pr=prserv_get_pr_auto(d)
         except Exception as e:
@@ -1911,9 +1909,7 @@ PACKAGELOCK = "${STAGING_DIR}/package-output.lock"
 SSTATETASKS += "do_package"
 do_package[sstate-name] = "package"
 do_package[cleandirs] = "${PKGDESTWORK}"
-do_package[sstate-plaindirs] = "${PKGD} ${PKGDEST}"
-do_package[sstate-inputdirs] = "${PKGDESTWORK}"
-do_package[sstate-outputdirs] = "${PKGDATA_DIR}"
+do_package[sstate-plaindirs] = "${PKGD} ${PKGDEST} ${PKGDESTWORK}"
 do_package[sstate-lockfile-shared] = "${PACKAGELOCK}"
 do_package_setscene[dirs] = "${STAGING_DIR}"
 
@@ -1922,6 +1918,23 @@ python do_package_setscene () {
 }
 addtask do_package_setscene
 
+do_packagedata () {
+	:
+}
+
+addtask packagedata before do_build after do_package
+
+SSTATETASKS += "do_packagedata"
+do_packagedata[sstate-name] = "packagedata"
+do_packagedata[sstate-inputdirs] = "${PKGDESTWORK}"
+do_packagedata[sstate-outputdirs] = "${PKGDATA_DIR}"
+do_packagedata[sstate-lockfile-shared] = "${PACKAGELOCK}"
+
+python do_packagedata_setscene () {
+    sstate_setscene(d)
+}
+addtask do_packagedata_setscene
+
 # Dummy task to mark when all packaging is complete
 do_package_write () {
 	:
@@ -1929,7 +1942,7 @@ do_package_write () {
 do_package_write[noexec] = "1"
 PACKAGERDEPTASK = "do_package_write"
 do_build[recrdeptask] += "${PACKAGERDEPTASK}"
-addtask package_write before do_build after do_package
+addtask package_write before do_build after do_packagedata
 
 #
 # Helper functions for the package writing classes

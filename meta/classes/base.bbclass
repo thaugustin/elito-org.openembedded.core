@@ -314,6 +314,8 @@ python base_eventhandler() {
         generate_git_config(e)
         pkgarch_mapping(e.data)
         preferred_ml_updates(e.data)
+        e.data.appendVar('DISTRO_FEATURES', oe.utils.features_backfill("DISTRO_FEATURES", e.data))
+        e.data.appendVar('MACHINE_FEATURES', oe.utils.features_backfill("MACHINE_FEATURES", e.data))
 
     if isinstance(e, bb.event.BuildStarted):
         statuslines = []
@@ -475,7 +477,10 @@ python () {
                     extraconf.append(items[1])
         appendVar('DEPENDS', extradeps)
         appendVar('RDEPENDS_${PN}', extrardeps)
-        appendVar('EXTRA_OECONF', extraconf)
+        if bb.data.inherits_class('cmake', d):
+            appendVar('EXTRA_OECMAKE', extraconf)
+        else:
+            appendVar('EXTRA_OECONF', extraconf)
 
     # If PRINC is set, try and increase the PR value by the amount specified
     princ = d.getVar('PRINC', True)
