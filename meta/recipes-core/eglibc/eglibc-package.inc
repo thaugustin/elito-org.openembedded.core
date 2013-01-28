@@ -80,6 +80,10 @@ do_install_append () {
 		sed -i -e '1s,#!.*perl,#! ${USRBINPATH}/env perl,' -e '2s,exec.*perl,exec ${USRBINPATH}/env perl,' ${D}${bindir}/mtrace
 	fi
 	rm -rf ${D}${includedir}/rpcsvc/rquota*
+	# Info dir listing isn't interesting at this point so remove it if it exists.
+	if [ -e "${D}${infodir}/dir" ]; then
+		rm -f ${D}${infodir}/dir
+	fi
 }
 
 do_install_locale () {
@@ -113,7 +117,9 @@ do_evacuate_scripts () {
 	target=${D}${includedir}/eglibc-scripts-internal-${MULTIMACH_TARGET_SYS}
 	mkdir -p $target
 	for i in ${bashscripts}; do
-		cp ${D}${bindir}/$i $target/
+		if [ -f ${D}${bindir}/$i ]; then
+			cp ${D}${bindir}/$i $target/
+		fi
 	done
 }
 
