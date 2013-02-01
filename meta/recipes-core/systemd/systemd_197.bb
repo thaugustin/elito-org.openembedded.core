@@ -8,7 +8,8 @@ LIC_FILES_CHKSUM = "file://LICENSE.GPL2;md5=751419260aa954499f7abaabaa882bbe \
 
 PROVIDES = "udev"
 
-PR = "r1"
+PE = "1"
+PR = "r2"
 
 DEPENDS = "xz kmod docbook-sgml-dtd-4.1-native intltool-native gperf-native acl readline dbus libcap libcgroup tcp-wrappers glib-2.0 libgcrypt"
 DEPENDS += "${@base_contains('DISTRO_FEATURES', 'pam', 'libpam', '', d)}"
@@ -24,7 +25,6 @@ SRC_URI = "http://www.freedesktop.org/software/systemd/systemd-${PV}.tar.xz \
            ${UCLIBCPATCHES} \
            file://00-create-volatile.conf \
            file://0001-systemd-analyze-rewrite-in-C.patch \
-           file://0001-test-unit-file-Add-libsystemd-daemon.la-to-LDADD.patch \
           "
 SRC_URI[md5sum] = "56a860dceadfafe59f40141eb5223743"
 SRC_URI[sha256sum] = "e6857ea21ae24d7056e7b0f4c2aaaba73b8bf57025b8949c0a8af0c1bc9774b5"
@@ -111,9 +111,7 @@ PACKAGES =+ "${PN}-gui ${PN}-vconsole-setup ${PN}-initramfs ${PN}-analyze"
 USERADD_PACKAGES = "${PN}"
 GROUPADD_PARAM_${PN} = "-r lock"
 
-FILES_${PN}-analyze = "${bindir}/systemd-analyze"
-RDEPENDS_${PN}-analyze = "python-dbus python-argparse python-textutils"
-RRECOMMENDS_${PN}-analyze = "python-pycairo"
+FILES_${PN}-analyze = "${base_bindir}/systemd-analyze"
 
 FILES_${PN}-initramfs = "/init"
 RDEPENDS_${PN}-initramfs = "${PN}"

@@ -223,13 +223,12 @@ python () {
         d.setVar("PACKAGERDEPTASK", "")
 }
 
-def splitfile(file, debugfile, debugsrcdir, d):
-    # Function to split a single file, called from split_and_strip_files below
-    # A working 'file' (one which works on the target architecture)
-    # is split and the split off portions go to debugfile.
+def splitdebuginfo(file, debugfile, debugsrcdir, d):
+    # Function to split a single file into two components, one is the stripped
+    # target system binary, the other contains any debugging information. The
+    # two files are linked to reference each other.
     #
-    # The debug information is then processed for src references.  These
-    # references are copied to debugsrcdir, if defined.
+    # sourcefile is also generated containing a list of debugsources
 
     import commands, stat, subprocess
 
@@ -267,10 +266,8 @@ def splitfile(file, debugfile, debugsrcdir, d):
 
     return 0
 
-def splitfile2(debugsrcdir, d):
-    # Function to split a single file, called from split_and_strip_files below
-    #
-    # The debug src information processed in the splitfile2 is further procecessed
+def copydebugsources(debugsrcdir, d):
+    # The debug src information written out to sourcefile is further procecessed
     # and copied to the destination here.
 
     import commands, stat, subprocess
@@ -328,10 +325,6 @@ def runstrip(file, elftype, d):
     pathprefix = "export PATH=%s; " % d.getVar('PATH', True)
     strip = d.getVar("STRIP", True)
 
-    # Handle kernel modules specifically - .debug directories here are pointless
-    if file.find("/lib/modules/") != -1 and file.endswith(".ko"):
-        return subprocess.call("%s'%s' --strip-debug --remove-section=.comment --remove-section=.note --preserve-dates '%s'" % (pathprefix, strip, file), shell=True)
-
     newmode = None
     if not os.access(file, os.W_OK) or os.access(file, os.R_OK):
         origmode = os.stat(file)[stat.ST_MODE]
@@ -340,15 +333,14 @@ def runstrip(file, elftype, d):
 
     extraflags = ""
     
-    # split_and_strip_files is calling this with elf_type None, causing:
-    # TypeError: unsupported operand type(s) for &: 'NoneType' and 'int'
-    if elftype:
-        # .so and shared library
-        if ".so" in file and elftype & 8:
-            extraflags = "--remove-section=.comment --remove-section=.note --strip-unneeded"
-        # shared or executable:
-        elif elftype & 8 or elftype & 4:
-            extraflags = "--remove-section=.comment --remove-section=.note"
+    # .so and shared library
+    if elftype & 16:
+        extraflags = "--strip-debug --remove-section=.comment --remove-section=.note --preserve-dates"
+    elif ".so" in file and elftype & 8:
+        extraflags = "--remove-section=.comment --remove-section=.note --strip-unneeded"
+    # shared or executable:
+    elif elftype & 8 or elftype & 4:
+        extraflags = "--remove-section=.comment --remove-section=.note"
 
     stripcmd = "'%s' %s '%s'" % (strip, extraflags, file)
     bb.debug(1, "runstrip: %s" % stripcmd)
@@ -752,6 +744,7 @@ python split_and_strip_files () {
     # 2 - stripped
     # 4 - executable
     # 8 - shared library
+    # 16 - kernel module
     def isELF(path):
         type = 0
         pathprefix = "export PATH=%s; " % d.getVar('PATH', True)
@@ -778,11 +771,16 @@ python split_and_strip_files () {
     #
     file_list = {}
     file_links = {}
+    kernmods = []
     if (d.getVar('INHIBIT_PACKAGE_DEBUG_SPLIT', True) != '1') and \
             (d.getVar('INHIBIT_PACKAGE_STRIP', True) != '1'):
         for root, dirs, files in os.walk(dvar):
             for f in files:
                 file = os.path.join(root, f)
+                if file.endswith(".ko") and file.find("/lib/modules/") != -1:
+                    kernmods.append(file)
+                    continue
+
                 # Only process files (and symlinks)... Skip files that are obviously debug files
                 if not (debugappend != "" and file.endswith(debugappend)) and \
                    not (debugdir != "" and debugdir in os.path.dirname(file[len(dvar):])) and \
@@ -875,7 +873,7 @@ python split_and_strip_files () {
                 bb.mkdirhier(os.path.dirname(fpath))
                 #bb.note("Split %s -> %s" % (file, fpath))
                 # Only store off the hard link reference if we successfully split!
-                if splitfile(file, fpath, debugsrcdir, d) == 0 and file_reference != "":
+                if splitdebuginfo(file, fpath, debugsrcdir, d) == 0 and file_reference != "":
                     file_links[file_reference] = file
 
         # The above may have generated dangling symlinks, remove them!
@@ -899,7 +897,7 @@ python split_and_strip_files () {
 
         # Process the debugsrcdir if requested...
         # This copies and places the referenced sources for later debugging...
-        splitfile2(debugsrcdir, d)
+        copydebugsources(debugsrcdir, d)
     #
     # End of debug splitting
     #
@@ -913,21 +911,15 @@ python split_and_strip_files () {
                 elf_file = int(file_list[file][5:])
                 #bb.note("Strip %s" % file)
                 runstrip(file, elf_file, d)
-
-
-    if (d.getVar('INHIBIT_PACKAGE_STRIP', True) != '1'):
-        for root, dirs, files in os.walk(dvar):
-            for f in files:
-                if not f.endswith(".ko"):
-                    continue
-                runstrip(os.path.join(root, f), 0, d)
+        for f in kernmods:
+            runstrip(f, 16, d)
     #
     # End of strip
     #
 }
 
 python populate_packages () {
-    import glob, stat, errno, re, subprocess
+    import glob, re, subprocess
 
     workdir = d.getVar('WORKDIR', True)
     outdir = d.getVar('DEPLOY_DIR', True)
@@ -957,24 +949,16 @@ python populate_packages () {
     seen = []
 
     for pkg in package_list:
-        localdata = bb.data.createCopy(d)
         root = os.path.join(pkgdest, pkg)
         bb.mkdirhier(root)
 
-        localdata.setVar('PKG', pkg)
-        overrides = localdata.getVar('OVERRIDES', True)
-        if not overrides:
-            raise bb.build.FuncFailed('OVERRIDES not defined')
-        localdata.setVar('OVERRIDES', overrides + ':' + pkg)
-        bb.data.update_data(localdata)
-
-        filesvar = localdata.getVar('FILES', True) or ""
+        filesvar = d.getVar('FILES_%s' % pkg, True) or d.getVar('FILES', True) or ""
+        if "//" in filesvar:
+            bb.warn("FILES variable for package %s contains '//' which is invalid. Attempting to fix this but you should correct the metadata.\n" % pkg)
+            filesvar.replace("//", "/")
         files = filesvar.split()
         file_links = {}
         for file in files:
-            if file.find("//") != -1:
-                bb.warn("FILES variable for package %s contains '//' which is invalid. Attempting to fix this but you should correct the metadata.\n" % pkg)
-                file.replace("//", "/")
             if os.path.isabs(file):
                 file = '.' + file
             if not os.path.islink(file):
@@ -1005,6 +989,8 @@ python populate_packages () {
                     seen.append(p)
 
             def mkdir_recurse(src, dest, paths):
+                if os.path.exists(dest + '/' + paths):
+                    return
                 while paths.startswith("./"):
                     paths = paths[2:]
                 p = "."
@@ -1029,7 +1015,6 @@ python populate_packages () {
             if ret is False or ret == 0:
                 raise bb.build.FuncFailed("File population failed")
 
-        del localdata
     os.chdir(workdir)
 
     unshipped = []
@@ -1050,23 +1035,21 @@ python populate_packages () {
             for f in unshipped:
                 msg = msg + "\n  " + f
             package_qa_handle_error("installed_vs_shipped", msg, d)
+}
+populate_packages[dirs] = "${D}"
 
-    bb.build.exec_func("package_name_hook", d)
-
-    for pkg in package_list:
-        pkgname = d.getVar('PKG_%s' % pkg, True)
-        if pkgname is None:
-            d.setVar('PKG_%s' % pkg, pkg)
+python package_fixsymlinks () {
+    import errno
+    pkgdest = d.getVar('PKGDEST', True)
+    packages = d.getVar("PACKAGES").split()
 
     dangling_links = {}
     pkg_files = {}
-    for pkg in package_list:
+    for pkg in packages:
         dangling_links[pkg] = []
         pkg_files[pkg] = []
         inst_root = os.path.join(pkgdest, pkg)
-        for root, dirs, files in os.walk(inst_root):
-            for f in files:
-                path = os.path.join(root, f)
+        for path in pkgfiles[pkg]:
                 rpath = path[len(inst_root):]
                 pkg_files[pkg].append(rpath)
 
@@ -1076,7 +1059,7 @@ python populate_packages () {
                 target = os.readlink(path)
                 if target[0] != '/':
                     # make path absolute relative to inst_root
-                    target = os.path.join(root[len(inst_root):], target)
+                    target = os.path.join(os.path.dirname(path)[len(inst_root):], target)
 
                 # make path absolute; do not use os.path.join() here
                 # because target might start with multiple '/'
@@ -1088,27 +1071,31 @@ python populate_packages () {
                         raise
                     dangling_links[pkg].append(os.path.normpath(target))
 
-    for pkg in package_list:
-        rdepends = bb.utils.explode_dep_versions2(d.getVar('RDEPENDS_' + pkg, True) or d.getVar('RDEPENDS', True) or "")
-
+    newrdepends = {}
+    for pkg in dangling_links:
         for l in dangling_links[pkg]:
             found = False
             bb.debug(1, "%s contains dangling link %s" % (pkg, l))
-            for p in package_list:
-                for f in pkg_files[p]:
-                    if f == l:
+            for p in packages:
+                if l in pkg_files[p]:
                         found = True
                         bb.debug(1, "target found in %s" % p)
                         if p == pkg:
                             break
-                        if p not in rdepends:
-                            rdepends[p] = []
+                        if pkg not in newrdepends:
+                            newrdepends[pkg] = []
+                        newrdepends[pkg].append(p)
                         break
             if found == False:
                 bb.note("%s contains dangling symlink to %s" % (pkg, l))
+
+    for pkg in newrdepends:
+        rdepends = bb.utils.explode_dep_versions2(d.getVar('RDEPENDS_' + pkg, True) or d.getVar('RDEPENDS', True) or "")
+        for p in newrdepends[pkg]:
+            if p not in rdepends:
+                rdepends[p] = []
         d.setVar('RDEPENDS_' + pkg, bb.utils.join_deps(rdepends, commasep=False))
 }
-populate_packages[dirs] = "${D}"
 
 PKGDESTWORK = "${WORKDIR}/pkgdata"
 
@@ -1178,6 +1165,11 @@ python emit_pkgdata() {
     for pkg in packages.split():
         subdata_file = pkgdatadir + "/runtime/%s" % pkg
 
+        pkgval = d.getVar('PKG_%s' % pkg, True)
+        if pkgval is None:
+            pkgval = pkg
+            d.setVar('PKG_%s' % pkg, pkg)
+
         sf = open(subdata_file, 'w')
         write_if_exists(sf, pkg, 'PN')
         write_if_exists(sf, pkg, 'PV')
@@ -1213,7 +1205,6 @@ python emit_pkgdata() {
         sf.close()
 
         # Symlinks needed for reverse lookups (from the final package name)
-        pkgval = d.getVar('PKG_%s' % (pkg), True)
         subdata_sym = pkgdatadir + "/runtime-reverse/%s" % pkgval
         oe.path.symlink("../runtime/%s" % pkg, subdata_sym, True)
 
@@ -1323,12 +1314,8 @@ python package_do_filedeps() {
 
         provides_files = []
         requires_files = []
-        rpfiles = []
-        for root, dirs, files in os.walk(pkgdest + "/" + pkg):
-            for file in files:
-                rpfiles.append(os.path.join(root, file))
 
-        for files in chunks(rpfiles, 100):
+        for files in chunks(pkgfiles[pkg], 100):
             dep_pipe = os.popen(rpmdeps + " " + " ".join(files))
 
             process_deps(dep_pipe, pkg, provides_files, requires_files)
@@ -1378,9 +1365,9 @@ python package_do_shlibs() {
     # Take shared lock since we're only reading, not writing
     lf = bb.utils.lockfile(d.expand("${PACKAGELOCK}"))
 
-    def linux_so(root, path, file):
+    def linux_so(file):
         needs_ldconfig = False
-        cmd = d.getVar('OBJDUMP', True) + " -p " + pipes.quote(os.path.join(root, file)) + " 2>/dev/null"
+        cmd = d.getVar('OBJDUMP', True) + " -p " + pipes.quote(file) + " 2>/dev/null"
         cmd = "PATH=\"%s\" %s" % (d.getVar('PATH', True), cmd)
         fd = os.popen(cmd)
         lines = fd.readlines()
@@ -1397,15 +1384,14 @@ python package_do_shlibs() {
                     # if library is private (only used by package) then do not build shlib for it
                     if not private_libs or -1 == private_libs.find(this_soname):
                         sonames.append(this_soname)
-                if libdir_re.match(root):
+                if libdir_re.match(os.path.dirname(file)):
                     needs_ldconfig = True
-                if snap_symlinks and (file != this_soname):
-                    renames.append((os.path.join(root, file), os.path.join(root, this_soname)))
+                if snap_symlinks and (os.path.basename(file) != this_soname):
+                    renames.append((file, os.path.join(os.path.dirname(file), this_soname)))
         return needs_ldconfig
 
-    def darwin_so(root, path, file):
-        fullpath = os.path.join(root, file)
-        if not os.path.exists(fullpath):
+    def darwin_so(file):
+        if not os.path.exists(file):
             return
 
         def get_combinations(base):
@@ -1430,7 +1416,7 @@ python package_do_shlibs() {
                 if not combo in sonames:
                     sonames.append(combo)
         if file.endswith('.dylib') or file.endswith('.so'):
-            lafile = fullpath.replace(os.path.join(pkgdest, pkg), d.getVar('PKGD', True))
+            lafile = file.replace(os.path.join(pkgdest, pkg), d.getVar('PKGD', True))
             # Drop suffix
             lafile = lafile.rsplit(".",1)[0]
             lapath = os.path.dirname(lafile)
@@ -1443,7 +1429,7 @@ python package_do_shlibs() {
             lafile = lapath + '/' + combo + '.la'
 
             #bb.note("Foo2: %s" % lafile)
-            #bb.note("Foo %s %s" % (file, fullpath))
+            #bb.note("Foo %s" % file)
             if os.path.exists(lafile):
                 fd = open(lafile, 'r')
                 lines = fd.readlines()
@@ -1491,17 +1477,14 @@ python package_do_shlibs() {
         needed[pkg] = []
         sonames = list()
         renames = list()
-        top = os.path.join(pkgdest, pkg)
-        for root, dirs, files in os.walk(top):
-            for file in files:
+        for file in pkgfiles[pkg]:
                 soname = None
-                path = os.path.join(root, file)
-                if os.path.islink(path):
+                if os.path.islink(file):
                     continue
                 if targetos == "darwin" or targetos == "darwin8":
-                    darwin_so(root, dirs, file)
-                elif os.access(path, os.X_OK) or lib_re.match(file):
-                    ldconfig = linux_so(root, dirs, file)
+                    darwin_so(file)
+                elif os.access(file, os.X_OK) or lib_re.match(file):
+                    ldconfig = linux_so(file)
                     needs_ldconfig = needs_ldconfig or ldconfig
         for (old, new) in renames:
             bb.note("Renaming %s to %s" % (old, new))
@@ -1610,18 +1593,15 @@ python package_do_pkgconfig () {
     for pkg in packages.split():
         pkgconfig_provided[pkg] = []
         pkgconfig_needed[pkg] = []
-        top = os.path.join(pkgdest, pkg)
-        for root, dirs, files in os.walk(top):
-            for file in files:
+        for file in pkgfiles[pkg]:
                 m = pc_re.match(file)
                 if m:
                     pd = bb.data.init()
                     name = m.group(1)
                     pkgconfig_provided[pkg].append(name)
-                    path = os.path.join(root, file)
-                    if not os.access(path, os.R_OK):
+                    if not os.access(file, os.R_OK):
                         continue
-                    f = open(path, 'r')
+                    f = open(file, 'r')
                     lines = f.readlines()
                     f.close()
                     for l in lines:
@@ -1709,7 +1689,7 @@ python read_shlibdeps () {
 
     packages = d.getVar('PACKAGES', True).split()
     for pkg in packages:
-        rdepends = bb.utils.explode_dep_versions2(d.getVar('RDEPENDS_' + pkg, False) or d.getVar('RDEPENDS', False) or "")
+        rdepends = bb.utils.explode_dep_versions2(d.getVar('RDEPENDS_' + pkg, True) or d.getVar('RDEPENDS', True) or "")
         for dep in pkglibdeps[pkg]:
             # Add the dep if it's not already there, or if no comparison is set
             if dep not in rdepends:
@@ -1860,13 +1840,19 @@ def gen_packagevar(d):
     return " ".join(ret)
 
 PACKAGE_PREPROCESS_FUNCS ?= ""
-PACKAGEFUNCS ?= "package_get_auto_pr \
+# Functions for setting up PKGD
+PACKAGEBUILDPKGD ?= " \
                 perform_packagecopy \
                 ${PACKAGE_PREPROCESS_FUNCS} \
-                package_do_split_locales \
                 split_and_strip_files \
                 fixup_perms \
-                populate_packages \
+                package_do_split_locales \
+                populate_packages"
+# Functions which process metadata based on split packages
+PACKAGEFUNCS ?= " \
+                package_fixsymlinks \
+                package_name_hook \
+                package_get_auto_pr \
                 package_do_filedeps \
                 package_do_shlibs \
                 package_do_pkgconfig \
@@ -1895,6 +1881,20 @@ python do_package () {
     if not workdir or not outdir or not dest or not dvar or not pn:
         bb.error("WORKDIR, DEPLOY_DIR, D, PN and PKGD all must be defined, unable to package")
         return
+
+    for f in (d.getVar('PACKAGEBUILDPKGD', True) or '').split():
+        bb.build.exec_func(f, d)
+
+    # Build global list of files in each split package
+    global pkgfiles
+    pkgfiles = {}
+    packages = d.getVar('PACKAGES', True).split()
+    pkgdest = d.getVar('PKGDEST', True)
+    for pkg in packages:
+        pkgfiles[pkg] = []
+        for walkroot, dirs, files in os.walk(pkgdest + "/" + pkg):
+            for file in files:
+                pkgfiles[pkg].append(walkroot + os.sep + file)
 
     for f in (d.getVar('PACKAGEFUNCS', True) or '').split():
         bb.build.exec_func(f, d)

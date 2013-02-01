@@ -557,8 +557,6 @@ def package_qa_check_license(workdir, d):
         return True
 
     if not lic_files:
-        # just throw a warning now. Once licensing data in entered for enough of the recipes,
-        # this will be converted into error and False will be returned.
         bb.error(pn + ": Recipe file does not have license file information (LIC_FILES_CHKSUM)")
         return False
 
@@ -660,9 +658,7 @@ def package_qa_walk(path, warnfuncs, errorfuncs, skip, package, d):
 
     warnings = []
     errors = []
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            path = os.path.join(root,file)
+    for path in pkgfiles[package]:
             elf = oe.qa.ELFFile(path)
             try:
                 elf.open()
