@@ -31,7 +31,6 @@ _pkgs_touch = "\
 
 _pkgs_screen = "\
     fstests \
-    clutter-box2d \
     owl-video \
 "
 

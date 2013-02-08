@@ -282,7 +282,9 @@ python perform_packagecopy_append () {
                     bb.warn('%s: Unable to resolve dangling symlink: %s' % (pn, alt_target))
 }
 
-python populate_packages_prepend () {
+PACKAGESPLITFUNCS_prepend = "populate_packages_updatealternatives "
+
+python populate_packages_updatealternatives () {
     pn = d.getVar('BPN', True)
 
     # Do actual update alternatives processing
@@ -353,7 +355,7 @@ python package_do_filedeps_append () {
                 continue
 
             # Add file provide
-            trans_target = file_translate(alt_target)
+            trans_target = oe.package.file_translate(alt_target)
             d.appendVar('FILERPROVIDES_%s_%s' % (trans_target, pkg), " " + alt_link)
             if not trans_target in (d.getVar('FILERPROVIDESFLIST_%s' % pkg, True) or ""):
                 d.appendVar('FILERPROVIDESFLIST_%s' % pkg, " " + trans_target)

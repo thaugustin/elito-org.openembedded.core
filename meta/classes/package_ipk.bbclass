@@ -12,6 +12,8 @@ OPKGBUILDCMD ??= "opkg-build"
 
 OPKG_ARGS = "-f $INSTALL_CONF_IPK -o $INSTALL_ROOTFS_IPK --force_postinstall --prefer-arch-to-version"
 
+OPKGLIBDIR = "${localstatedir}/lib"
+
 python package_ipk_fn () {
     d.setVar('PKGFN', d.getVar('PKG'))
 }
@@ -138,7 +140,7 @@ package_install_internal_ipk() {
 	local package_to_install="${INSTALL_PACKAGES_NORMAL_IPK}"
 	local package_multilib="${INSTALL_PACKAGES_MULTILIB_IPK}"
 
-	mkdir -p ${target_rootfs}${localstatedir}/lib/opkg/
+	mkdir -p ${target_rootfs}${OPKGLIBDIR}/opkg
 
 	local ipkg_args="${OPKG_ARGS}"
 
@@ -196,7 +198,7 @@ ipk_log_check() {
 # Update the Packages index files in ${DEPLOY_DIR_IPK}
 #
 package_update_index_ipk () {
-	set -x
+	#set -x
 
 	ipkgarchs="${ALL_MULTILIB_PACKAGE_ARCHS} ${SDK_PACKAGE_ARCHS}"
 

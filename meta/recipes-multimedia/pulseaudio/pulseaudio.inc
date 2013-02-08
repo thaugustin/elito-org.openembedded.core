@@ -40,6 +40,7 @@ EXTRA_OECONF = "\
 		--disable-openssl \
 		--disable-xen \
 		--with-database=simple \
+		--without-fftw \
 "
 
 PARALLEL_MAKE = ""
@@ -98,12 +99,7 @@ CONFFILES_pulseaudio-server = "\
   "
 
 pkg_postinst_${PN}-server() {
-        # can't do this offline
-        if [ "x$D" != "x" ]; then
-                exit 1
-        fi
-
-        if [ -e ${sysconfdir}/init.d/populate-volatile.sh ] ; then
+        if [ -z "$D" ] && [ -e ${sysconfdir}/init.d/populate-volatile.sh ] ; then
             ${sysconfdir}/init.d/populate-volatile.sh update
         fi
 }

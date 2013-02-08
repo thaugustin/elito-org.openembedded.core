@@ -10,7 +10,7 @@ inherit utility-tasks
 inherit metadata_scm
 inherit logging
 
-OE_IMPORTS += "os sys time oe.path oe.utils oe.data oe.packagegroup oe.sstatesig oe.lsb"
+OE_IMPORTS += "os sys time oe.path oe.utils oe.data oe.package oe.packagegroup oe.sstatesig oe.lsb"
 OE_IMPORTS[type] = "list"
 
 def oe_import(d):
@@ -54,7 +54,6 @@ die() {
 }
 
 oe_runmake() {
-	if [ x"$MAKE" = x ]; then MAKE=make; fi
 	bbnote ${MAKE} ${EXTRA_OEMAKE} "$@"
 	${MAKE} ${EXTRA_OEMAKE} "$@" || die "oe_runmake failed"
 }
@@ -160,7 +159,7 @@ def pkgarch_mapping(d):
             d.setVar("TUNE_PKGARCH", "armv7a")
 
 def preferred_ml_updates(d):
-    # If any PREFERRED_PROVIDER or PREFERRED_VERSIONS are set,
+    # If any PREFERRED_PROVIDER or PREFERRED_VERSION are set,
     # we need to mirror these variables in the multilib case;
     # likewise the PNBLACKLIST flags.
     multilibs = d.getVar('MULTILIBS', True) or ""

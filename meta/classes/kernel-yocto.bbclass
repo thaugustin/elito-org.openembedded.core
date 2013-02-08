@@ -20,7 +20,7 @@ def find_sccs(d):
     sources_list=[]
     for s in sources:
         base, ext = os.path.splitext(os.path.basename(s))
-        if ext and ext in ('.scc' '.cfg'):
+        if ext and ext in [".scc", ".cfg"]:
             sources_list.append(s)
         elif base and base in 'defconfig':
             sources_list.append(s)
@@ -41,6 +41,23 @@ def find_urls(d):
                 patch_list.append(local+':'+urldata.path)
 
     return patch_list
+
+# check the SRC_URI for "kmeta" type'd git repositories. Return the name of
+# the repository as it will be found in WORKDIR
+def find_kernel_feature_dirs(d):
+    feature_dirs=[]
+    fetch = bb.fetch2.Fetch([], d)
+    for url in fetch.urls:
+        urldata = fetch.ud[url]
+        parm = urldata.parm
+        if "type" in parm:
+            type = parm["type"]
+        if "destsuffix" in parm:
+            destdir = parm["destsuffix"]
+            if type == "kmeta":
+                feature_dirs.append(destdir)
+	    
+    return feature_dirs
 
 
 do_patch() {
@@ -72,6 +89,7 @@ do_patch() {
 
 	sccs="${@" ".join(find_sccs(d))}"
 	patches="${@" ".join(find_patches(d))}"
+	feat_dirs="${@" ".join(find_kernel_feature_dirs(d))}"
 
 	set +e
 	# add any explicitly referenced features onto the end of the feature
@@ -82,13 +100,26 @@ do_patch() {
 		done
 	fi
 
+	# check for feature directories/repos/branches that were part of the
+	# SRC_URI. If they were supplied, we convert them into include directives
+	# for the update part of the process
+	if [ -n "${feat_dirs}" ]; then
+	    for f in ${feat_dirs}; do
+		if [ -d "${WORKDIR}/$f/meta" ]; then
+		    includes="$includes -I${WORKDIR}/$f/meta"
+		elif [ -d "${WORKDIR}/$f" ]; then
+		    includes="$includes -I${WORKDIR}/$f"
+		fi
+	    done
+	fi
+
 	if [ "${kbranch}" != "${KBRANCH_DEFAULT}" ]; then
 		updateme_flags="--branch ${kbranch}"
 	fi
 
 	# updates or generates the target description
 	updateme ${updateme_flags} -DKDESC=${KMACHINE}:${LINUX_KERNEL_TYPE} \
-                           ${addon_features} ${ARCH} ${KMACHINE} ${sccs} ${patches}
+                         ${includes} ${addon_features} ${ARCH} ${KMACHINE} ${sccs} ${patches}
 	if [ $? -ne 0 ]; then
 		echo "ERROR. Could not update ${kbranch}"
 		exit 1
@@ -127,22 +158,10 @@ do_kernel_checkout() {
 		mkdir -p ${S}
 		
 		# We can fix up the kernel repository even if it wasn't a bare clone.
-		# If KMETA is defined, the branch must exist, but a machine branch
-		# can be missing since it may be created later by the tools.
 		mv ${WORKDIR}/git/.git ${S}
 		rm -rf ${WORKDIR}/git/
 		cd ${S}
-		if [ -n "${KMETA}" ]; then
-			git branch -a | grep -q ${KMETA}
-			if [ $? -ne 0 ]; then
-				echo "ERROR. The branch '${KMETA}' is required and was not"
-				echo "found. Ensure that the SRC_URI points to a valid linux-yocto"
-				echo "kernel repository"
-				exit 1
-			fi
-		fi
-	fi
-	if [ -d "${WORKDIR}/git/" ] && [ ! -d "${WORKDIR}/git/.git" ]; then
+	elif [ -d "${WORKDIR}/git/" ] && [ ! -d "${WORKDIR}/git/.git" ]; then
 		# we build out of {S}, so ensure that ${S} is clean and present
 		rm -rf ${S}
 		mkdir -p ${S}/.git
@@ -151,8 +170,28 @@ do_kernel_checkout() {
 		rm -rf ${WORKDIR}/git/
 		cd ${S}	
 		git config core.bare false
+	else
+	        # We have no git repository at all. To support low bandwidth options
+		# for building the kernel, we'll just convert the tree to a git repo
+	        # and let the rest of the process work unchanged
+	        cd ${S}
+		git init
+		git add .
+		git commit -q -m "baseline commit: creating repo for ${PN}-${PV}"
 	fi
 	# end debare
+
+       	# If KMETA is defined, the branch must exist, but a machine branch
+	# can be missing since it may be created later by the tools.
+	if [ -n "${KMETA}" ]; then
+		git branch -a | grep -q ${KMETA}
+		if [ $? -ne 0 ]; then
+			echo "ERROR. The branch '${KMETA}' is required and was not"
+			echo "found. Ensure that the SRC_URI points to a valid linux-yocto"
+			echo "kernel repository"
+			exit 1
+		fi
+	fi
 
 	# convert any remote branches to local tracking ones
 	for i in `git branch -a | grep remotes | grep -v HEAD`; do
@@ -207,7 +246,7 @@ do_kernel_configme() {
 python do_kernel_configcheck() {
     import re, string, sys, commands
 
-    bb.plain("NOTE: validating kernel configuration")
+    bb.plain("NOTE: validating kernel config, see log.do_kernel_configcheck for details")
 
     # if KMETA isn't set globally by a recipe using this routine, we need to
     # set the default to 'meta'. Otherwise, kconf_check is not passed a valid
@@ -218,7 +257,11 @@ python do_kernel_configcheck() {
     cmd = d.expand("cd ${S}; kconf_check -config- %s/meta-series ${S} ${B}" % kmeta)
     ret, result = commands.getstatusoutput("%s%s" % (pathprefix, cmd))
 
-    bb.plain( "%s" % result )
+    config_check_visibility = d.getVar( "KCONF_AUDIT_LEVEL", True ) or 1
+    if config_check_visibility == 1:
+        bb.debug( 1, "%s" % result )
+    else:
+        bb.note( "%s" % result )
 }
 
 # Ensure that the branches (BSP and meta) are on the locations specified by

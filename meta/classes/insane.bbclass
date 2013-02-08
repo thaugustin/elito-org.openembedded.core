@@ -114,7 +114,7 @@ def package_qa_get_machine_dict():
 
 # Currently not being used by default "desktop"
 WARN_QA ?= "ldflags useless-rpaths rpaths staticdev libdir xorg-driver-abi textrel"
-ERROR_QA ?= "dev-so debug-deps dev-deps debug-files arch la2 pkgconfig la perms dep-cmp"
+ERROR_QA ?= "dev-so debug-deps dev-deps debug-files arch la2 pkgconfig la perms dep-cmp pkgvarcheck"
 
 ALL_QA = "${WARN_QA} ${ERROR_QA}"
 
@@ -836,6 +836,10 @@ python do_qa_staging() {
 python do_qa_configure() {
     import subprocess
 
+    ###########################################################################
+    # Check config.log for cross compile issues
+    ###########################################################################
+
     configs = []
     workdir = d.getVar('WORKDIR', True)
     bb.note("Checking autotools environment for common misconfiguration")
@@ -851,6 +855,10 @@ Rerun configure task after fixing this. The path was '%s'""" % root)
             configs.append(os.path.join(root,"configure.ac"))
         if "configure.in" in files:
             configs.append(os.path.join(root, "configure.in"))
+
+    ###########################################################################
+    # Check gettext configuration and dependencies are correct
+    ###########################################################################
 
     cnf = d.getVar('EXTRA_OECONF', True) or ""
     if "gettext" not in d.getVar('P', True) and "gcc-runtime" not in d.getVar('P', True) and "--disable-nls" not in cnf:
@@ -869,8 +877,13 @@ Rerun configure task after fixing this. The path was '%s'""" % root)
                     bb.fatal("""%s required but not in DEPENDS for file %s.
 Missing inherit gettext?""" % (gt, config))
 
+    ###########################################################################
+    # Check license variables
+    ###########################################################################
+
     if not package_qa_check_license(workdir, d):
         bb.fatal("Licensing Error: LIC_FILES_CHKSUM does not match, please fix")
+
 }
 # The Staging Func, to check all staging
 #addtask qa_staging after do_populate_sysroot before do_build
@@ -885,4 +898,19 @@ python () {
     tests = d.getVar('ALL_QA', True).split()
     if "desktop" in tests:
         d.appendVar("PACKAGE_DEPENDS", "desktop-file-utils-native")
+
+    ###########################################################################
+    # Check various variables
+    ###########################################################################
+
+    if d.getVar('do_stage', True) is not None:
+        bb.fatal("Legacy staging found for %s as it has a do_stage function. This will need conversion to a do_install or often simply removal to work with OE-core" % d.getVar("FILE", True))
+
+    issues = []
+    if (d.getVar('PACKAGES', True) or "").split():
+        for var in 'RDEPENDS', 'RRECOMMENDS', 'RSUGGESTS', 'RCONFLICTS', 'RPROVIDES', 'RREPLACES', 'FILES', 'pkg_preinst', 'pkg_postinst', 'pkg_prerm', 'pkg_postrm':
+            if d.getVar(var):
+                issues.append(var)
+    for i in issues:
+        package_qa_handle_error("pkgvarcheck", "%s: Variable %s is set as not being package specific, please fix this." % (d.getVar("FILE", True), i), d)
 }
