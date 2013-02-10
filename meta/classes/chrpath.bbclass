@@ -96,6 +96,7 @@ def process_dir (rootdir, directory, d):
             # We need read and write permissions for chrpath, if we don't have
             # them then set them temporarily. Take a copy of the files
             # permissions so that we can restore them afterwards.
+            assert(not os.path.islink(fpath))
             perms = os.stat(fpath)[stat.ST_MODE]
             if os.access(fpath, os.W_OK|os.R_OK):
                 perms = None

@@ -320,6 +320,7 @@ def splitdebuginfo(file, debugfile, debugsrcdir, sourcefile, d):
         return 1
 
     newmode = None
+    assert(not os.path.islink(file))
     if not os.access(file, os.W_OK) or os.access(file, os.R_OK):
         origmode = os.stat(file)[stat.ST_MODE]
         newmode = origmode | stat.S_IWRITE | stat.S_IREAD
@@ -983,6 +984,7 @@ python split_and_strip_files () {
             fpath = dvar + dest
             # Skip it if the target doesn't exist
             try:
+                assert(not os.path.islink(fpath))
                 s = os.stat(fpath)
             except OSError as e:
                 (err, strerror) = e.args
