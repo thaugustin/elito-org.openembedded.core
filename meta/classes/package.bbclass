@@ -742,7 +742,8 @@ python split_and_strip_files () {
                     continue
 
                 try:
-                    s = os.stat(file)
+                    ltarget = oe.path.realpath(file, dvar, False)
+                    s = os.lstat(ltarget)
                 except OSError, (err, strerror):
                     if err != errno.ENOENT:
                         raise
@@ -753,11 +754,6 @@ python split_and_strip_files () {
                     # If it's a symlink, and points to an ELF file, we capture the readlink target
                     if os.path.islink(file):
                         target = os.readlink(file)
-                        if not os.path.isabs(target):
-                            ltarget = os.path.join(os.path.dirname(file), target)
-                        else:
-                            ltarget = target
-
                         if isELF(ltarget):
                             #bb.note("Sym: %s (%d)" % (ltarget, isELF(ltarget)))
                             symlinks[file] = target
@@ -1010,19 +1006,14 @@ python package_fixsymlinks () {
                 if not os.path.islink(path):
                     continue
 
-                target = os.readlink(path)
-                if target[0] != '/':
-                    # make path absolute relative to inst_root
-                    target = os.path.join(os.path.dirname(path)[len(inst_root):], target)
-
-                # make path absolute; do not use os.path.join() here
-                # because target might start with multiple '/'
-                rtarget = inst_root + target
                 try:
+                    rtarget = oe.path.realpath(path, inst_root, True)
                     os.lstat(rtarget)
                 except OSError, (err, strerror):
                     if err != errno.ENOENT:
                         raise
+
+                    target = os.readlink(path)
                     dangling_links[pkg].append(os.path.normpath(target))
 
     newrdepends = {}
