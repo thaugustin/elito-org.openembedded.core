@@ -1002,19 +1002,13 @@ python package_fixsymlinks () {
         for path in pkgfiles[pkg]:
                 rpath = path[len(inst_root):]
                 pkg_files[pkg].append(rpath)
-
-                if not os.path.islink(path):
-                    continue
-
                 try:
                     rtarget = oe.path.realpath(path, inst_root, True)
                     os.lstat(rtarget)
                 except OSError, (err, strerror):
                     if err != errno.ENOENT:
                         raise
-
-                    target = os.readlink(path)
-                    dangling_links[pkg].append(os.path.normpath(target))
+                    dangling_links[pkg].append(os.path.normpath(rtarget[len(inst_root):]))
 
     newrdepends = {}
     for pkg in dangling_links:
