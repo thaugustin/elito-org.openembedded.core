@@ -1002,8 +1002,8 @@ python package_fixsymlinks () {
         for path in pkgfiles[pkg]:
                 rpath = path[len(inst_root):]
                 pkg_files[pkg].append(rpath)
+                rtarget = oe.path.realpath(path, inst_root, True, assume_dir = True)
                 try:
-                    rtarget = oe.path.realpath(path, inst_root, True)
                     os.lstat(rtarget)
                 except OSError, (err, strerror):
                     if err != errno.ENOENT:
