@@ -60,8 +60,8 @@ class TestRealPath(unittest.TestCase):
             os.symlink(l[1], os.path.join(self.root, l[0]))
 
     def __realpath(self, file, use_physdir, assume_dir = True):
-        return oe.path.realpath(os.path.join(self.root, file), self.root, use_physdir,
-                                assume_dir = assume_dir)
+        return oe.path.realpath(os.path.join(self.root, file), self.root,
+                                use_physdir, assume_dir = assume_dir)
 
     def test_norm(self):
         for l in self.LINKS:
@@ -86,5 +86,4 @@ class TestRealPath(unittest.TestCase):
     def test_loop(self):
         for e in self.EXCEPTIONS:
             self.assertRaisesRegexp(OSError, r'\[Errno %u\]' % e[1],
-                                    self.__realpath, e[0], False, False)                
-
+                                    self.__realpath, e[0], False, False)
