@@ -8,19 +8,11 @@ RPMBUILD="rpmbuild"
 PKGWRITEDIRRPM = "${WORKDIR}/deploy-rpms"
 PKGWRITEDIRSRPM = "${DEPLOY_DIR}/sources/deploy-srpm"
 
-python package_rpm_fn () {
-    d.setVar('PKGFN', d.getVar('PKG'))
-}
-
-python package_rpm_install () {
-    bb.fatal("package_rpm_install not implemented!")
-}
-
 #
 # Update the packages indexes ${DEPLOY_DIR_RPM}
 #
 package_update_index_rpm () {
-	if [ ! -z "${DEPLOY_KEEP_PACKAGES}" -o ! -e "${DEPLOY_DIR_RPM}" ]; then
+	if [ ! -z "${DEPLOY_KEEP_PACKAGES}" ]; then
 		return
 	fi
 
@@ -45,11 +37,16 @@ package_update_index_rpm () {
 		echo $arch
 	done | sort | uniq`
 
+	found=0
 	for arch in $archs; do
 		if [ -d ${DEPLOY_DIR_RPM}/$arch ] ; then
 			createrepo --update -q ${DEPLOY_DIR_RPM}/$arch
+			found=1
 		fi
 	done
+	if [ "$found" != "1" ]; then
+		bbfatal "There are no packages in ${DEPLOY_DIR_RPM}!"
+	fi
 }
 
 rpm_log_check() {
@@ -1129,6 +1126,6 @@ do_package_write_rpm[cleandirs] = "${PKGWRITEDIRRPM}"
 do_package_write_rpm[umask] = "022"
 addtask package_write_rpm before do_package_write after do_packagedata do_package
 
-PACKAGEINDEXES += "package_update_index_rpm; [ ! -e ${DEPLOY_DIR_RPM} ] || createrepo ${DEPLOY_DIR_RPM};"
+PACKAGEINDEXES += "[ ! -e ${DEPLOY_DIR_RPM} ] || package_update_index_rpm;"
 PACKAGEINDEXDEPS += "rpm-native:do_populate_sysroot"
 PACKAGEINDEXDEPS += "createrepo-native:do_populate_sysroot"
