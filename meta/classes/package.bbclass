@@ -1636,9 +1636,9 @@ python package_depchains() {
                 #bb.note("Skipping %s" % depend)
                 continue
             if depend.endswith('-dev'):
-                depend = depend.replace('-dev', '')
+                depend = depend[:-4]
             if depend.endswith('-dbg'):
-                depend = depend.replace('-dbg', '')
+                depend = depend[:-4]
             pkgname = getname(depend, suffix)
             #bb.note("Adding %s for %s" % (pkgname, depend))
             if pkgname not in rreclist and pkgname != pkg:
@@ -1657,9 +1657,9 @@ python package_depchains() {
                 #bb.note("Skipping %s" % depend)
                 continue
             if depend.endswith('-dev'):
-                depend = depend.replace('-dev', '')
+                depend = depend[:-4]
             if depend.endswith('-dbg'):
-                depend = depend.replace('-dbg', '')
+                depend = depend[:-4]
             pkgname = getname(depend, suffix)
             #bb.note("Adding %s for %s" % (pkgname, depend))
             if pkgname not in rreclist and pkgname != pkg:
