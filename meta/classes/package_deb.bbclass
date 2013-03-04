@@ -82,6 +82,9 @@ package_install_internal_deb () {
 
 	tac ${STAGING_ETCDIR_NATIVE}/apt/sources.list.rev > ${STAGING_ETCDIR_NATIVE}/apt/sources.list
 
+	# The params in deb package control don't allow character `_', so
+	# change the arch's `_' to `-' in it.
+	dpkg_arch=`echo ${dpkg_arch} | sed 's/_/-/g'`
 	cat "${STAGING_ETCDIR_NATIVE}/apt/apt.conf.sample" \
 		| sed -e "s#Architecture \".*\";#Architecture \"${dpkg_arch}\";#" \
 		| sed -e "s:#ROOTFS#:${target_rootfs}:g" \
@@ -114,12 +117,18 @@ package_install_internal_deb () {
 	fi
 
 	# normal install
-	for i in ${package_to_install}; do
-		apt-get install $i --force-yes --allow-unauthenticated
+	if [ ! -z "${package_to_install}" ]; then
+		apt-get install ${package_to_install} --force-yes --allow-unauthenticated
 		if [ $? -ne 0 ]; then
 			exit 1
 		fi
-	done
+
+		# Attempt to correct the probable broken dependencies in place.
+		apt-get -f install
+		if [ $? -ne 0 ]; then
+			exit 1
+		fi
+	fi
 
 	rm -f `dirname ${BB_LOGFILE}`/log.do_${task}-attemptonly.${PID}
 	if [ ! -z "${package_attemptonly}" ]; then
@@ -259,6 +268,11 @@ python do_package_deb () {
                     raise KeyError(f)
                 if i == 'DPKG_ARCH' and d.getVar('PACKAGE_ARCH', True) == 'all':
                     data = 'all'
+                elif i == 'PACKAGE_ARCH' or i == 'DPKG_ARCH':
+                   # The params in deb package control don't allow character
+                   # `_', so change the arch's `_' to `-'. Such as `x86_64'
+                   # -->`x86-64'
+                   data = data.replace('_', '-')
                 l2.append(data)
             return l2
 
