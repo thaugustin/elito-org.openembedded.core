@@ -726,6 +726,8 @@ python split_and_strip_files () {
     symlinks = {}
     hardlinks = {}
     kernmods = []
+    libdir = os.path.abspath(dvar + os.sep + d.getVar("libdir", True))
+    baselibdir = os.path.abspath(dvar + os.sep + d.getVar("base_libdir", True))
     if (d.getVar('INHIBIT_PACKAGE_DEBUG_SPLIT', True) != '1') and \
             (d.getVar('INHIBIT_PACKAGE_STRIP', True) != '1'):
         for root, dirs, files in os.walk(dvar):
@@ -750,7 +752,8 @@ python split_and_strip_files () {
                     # Skip broken symlinks
                     continue
                 # Check its an excutable
-                if (s[stat.ST_MODE] & stat.S_IXUSR) or (s[stat.ST_MODE] & stat.S_IXGRP) or (s[stat.ST_MODE] & stat.S_IXOTH):
+                if (s[stat.ST_MODE] & stat.S_IXUSR) or (s[stat.ST_MODE] & stat.S_IXGRP) or (s[stat.ST_MODE] & stat.S_IXOTH) \
+                        or ((file.startswith(libdir) or file.startswith(baselibdir)) and ".so" in f):
                     # If it's a symlink, and points to an ELF file, we capture the readlink target
                     if os.path.islink(file):
                         target = os.readlink(file)
@@ -1843,7 +1846,7 @@ python do_package () {
 }
 
 do_package[dirs] = "${SHLIBSWORKDIR} ${PKGDESTWORK} ${D}"
-do_package[vardeps] += "${PACKAGEFUNCS} ${@gen_packagevar(d)}"
+do_package[vardeps] += "${PACKAGEBUILDPKGD} ${PACKAGESPLITFUNCS} ${PACKAGEFUNCS} ${@gen_packagevar(d)}"
 addtask package before do_build after do_install
 
 PACKAGELOCK = "${STAGING_DIR}/package-output.lock"
