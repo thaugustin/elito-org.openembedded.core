@@ -11,7 +11,7 @@ PROVIDES = "udev"
 PE = "1"
 PR = "r4"
 
-DEPENDS = "xz kmod docbook-sgml-dtd-4.1-native intltool-native gperf-native acl readline dbus libcap libcgroup tcp-wrappers glib-2.0 libgcrypt"
+DEPENDS = "xz kmod docbook-sgml-dtd-4.1-native intltool-native gperf-native acl readline dbus libcap libcgroup tcp-wrappers glib-2.0"
 DEPENDS += "${@base_contains('DISTRO_FEATURES', 'pam', 'libpam', '', d)}"
 
 SECTION = "base/shell"
@@ -40,18 +40,16 @@ UCLIBCPATCHES_libc-uclibc = "file://systemd-pam-configure-check-uclibc.patch \
                             "
 LDFLAGS_libc-uclibc_append = " -lrt"
 
-# This will disappear with systemd 197
-SYSTEMDDISTRO ?= "debian"
-
-CACHED_CONFIGUREVARS = "ac_cv_file__usr_share_pci_ids=no \
-                        ac_cv_file__usr_share_hwdata_pci_ids=no \
-                        ac_cv_file__usr_share_misc_pci_ids=yes"
-
 GTKDOC_DOCDIR = "${S}/docs/"
 
+PACKAGECONFIG ??= ""
+# Sign the journal for anti-tampering
+PACKAGECONFIG[gcrypt] = "--enable-gcrypt,--disable-gcrypt,libgcrypt"
+
+CACHED_CONFIGUREVARS = "ac_cv_path_KILL=${base_bindir}/kill"
+
 # The gtk+ tools should get built as a separate recipe e.g. systemd-tools
-EXTRA_OECONF = " --with-distro=${SYSTEMDDISTRO} \
-                 --with-rootprefix=${base_prefix} \
+EXTRA_OECONF = " --with-rootprefix=${base_prefix} \
                  --with-rootlibdir=${base_libdir} \
                  --sbindir=${base_sbindir} \
                  --libexecdir=${base_libdir} \
