@@ -24,6 +24,9 @@ python populate_packages_prepend () {
     d.setVar('DESCRIPTION_' + metapkg, pn + ' meta package')
 }
 
+# metapkg has runtime dependency on PN
+# each plugin depends on PN, plugin-dev on PN-dev and plugin-staticdev on PN-staticdev
+# so we need them even when empty (like in gst-plugins-good case)
 ALLOW_EMPTY_${PN} = "1"
 ALLOW_EMPTY_${PN}-dev = "1"
 ALLOW_EMPTY_${PN}-staticdev = "1"
