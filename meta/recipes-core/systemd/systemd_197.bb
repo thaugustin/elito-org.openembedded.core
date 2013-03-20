@@ -25,6 +25,7 @@ SRC_URI = "http://www.freedesktop.org/software/systemd/systemd-${PV}.tar.xz \
            ${UCLIBCPATCHES} \
            file://00-create-volatile.conf \
            file://0001-systemd-analyze-rewrite-in-C.patch \
+           file://udev-linkage.patch \
           "
 SRC_URI[md5sum] = "56a860dceadfafe59f40141eb5223743"
 SRC_URI[sha256sum] = "e6857ea21ae24d7056e7b0f4c2aaaba73b8bf57025b8949c0a8af0c1bc9774b5"
@@ -64,6 +65,7 @@ EXTRA_OECONF = " --with-rootprefix=${base_prefix} \
                  --disable-microhttpd \
                  --without-python \
                  --with-sysvrcnd-path=${sysconfdir} \
+                 ac_cv_path_KILL=${base_bindir}/kill \
                "
 # uclibc does not have NSS
 EXTRA_OECONF_append_libc-uclibc = " --disable-myhostname "
@@ -171,15 +173,9 @@ FILES_${PN}-dev += "${base_libdir}/security/*.la ${datadir}/dbus-1/interfaces/ $
 
 RDEPENDS_${PN} += "dbus udev-systemd"
 
-# kbd -> loadkeys,setfont
-# And pull in the kernel modules mentioned in INSTALL
-# swapon -p is also not supported by busybox
-# busybox mount is broken
 RRECOMMENDS_${PN} += "systemd-serialgetty \
                       util-linux-agetty \
-                      util-linux-swaponoff \
                       util-linux-fsck e2fsprogs-e2fsck \
-                      util-linux-mount util-linux-umount \
                       kernel-module-autofs4 kernel-module-unix kernel-module-ipv6 \
 "
 

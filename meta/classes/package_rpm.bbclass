@@ -607,9 +607,10 @@ python write_specfile () {
                     if '-' in ver:
                         subd = oe.packagedata.read_subpkgdata_dict(dep, d)
                         if 'PKGV' in subd:
-                            pv = subd['PKGV']
-                            reppv = pv.replace('-', '+')
-                            verlist.append(ver.replace(pv, reppv))
+                            pv = subd['PV']
+                            pkgv = subd['PKGV']
+                            reppv = pkgv.replace('-', '+')
+                            verlist.append(ver.replace(pv, reppv).replace(pkgv, reppv))
                     else:
                         verlist.append(ver)
                 newdeps_dict[dep] = verlist

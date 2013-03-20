@@ -18,6 +18,8 @@ SRC_URI = "http://www.openssl.org/source/openssl-${PV}.tar.gz \
 S = "${WORKDIR}/openssl-${PV}"
 
 AR_append = " r"
+# Avoid binaries being marked as requiring an executable stack since it 
+# doesn't(which causes and this causes issues with SELinux
 CFLAG = "${@base_conditional('SITEINFO_ENDIANNESS', 'le', '-DL_ENDIAN', '-DB_ENDIAN', d)} \
 	-DTERMIO ${CFLAGS} -Wall -Wa,--noexecstack"
 

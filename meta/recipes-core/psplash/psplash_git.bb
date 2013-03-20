@@ -5,9 +5,9 @@ SECTION = "base"
 LICENSE = "GPLv2+"
 LIC_FILES_CHKSUM = "file://psplash.h;beginline=1;endline=16;md5=840fb2356b10a85bed78dd09dc7745c6"
 
-SRCREV = "de9979aefbc56af59b4d236a4b63dd19dcdcfb53"
+SRCREV = "afd4e228c606a9998feae44a3fed4474803240b7"
 PV = "0.1+git${SRCPV}"
-PR = "r6"
+PR = "r7"
 
 SRC_URI = "git://git.yoctoproject.org/${BPN};protocol=git \
            file://psplash-init \
@@ -87,7 +87,7 @@ python do_compile () {
             shutil.copyfile(localfile, destfile)
         # For some reason just updating the header is not enough, we have to touch the .c
         # file in order to get it to rebuild
-        os.utime("psplash.c", None)
+        os.utime("%s/psplash.c" % d.getVar('S', True), None)
         bb.build.exec_func("oe_runmake", d)
         shutil.copyfile("psplash", outputfile)
 }
