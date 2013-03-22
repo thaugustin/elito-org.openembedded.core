@@ -101,20 +101,13 @@ package_install_internal_deb () {
 
 	apt-get update
 
-	# Uclibc builds don't provide this stuff..
-	if [ x${TARGET_OS} = "xlinux" ] || [ x${TARGET_OS} = "xlinux-gnueabi" ] ; then
-		if [ ! -z "${package_linguas}" ]; then
-			apt-get install glibc-localedata-i18n --force-yes --allow-unauthenticated
+	if [ ! -z "${package_linguas}" ]; then
+		for i in ${package_linguas}; do
+			apt-get install $i --force-yes --allow-unauthenticated
 			if [ $? -ne 0 ]; then
 				exit 1
 			fi
-			for i in ${package_linguas}; do
-				apt-get install $i --force-yes --allow-unauthenticated
-				if [ $? -ne 0 ]; then
-					exit 1
-				fi
-			done
-		fi
+		done
 	fi
 
 	# normal install

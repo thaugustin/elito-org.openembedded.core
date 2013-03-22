@@ -7,7 +7,6 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=94d55d512a9ba36caa9b7df079bae19f \
                     file://src/pm-pmu.c;beginline=1;endline=22;md5=3c1ddbc54e735fb4a0386e14c78a3147"
 
 PR = "r1"
-RDEPENDS_${PN} = "grep"
 
 SRC_URI = "http://pm-utils.freedesktop.org/releases/pm-utils-${PV}.tar.gz"
 
@@ -19,7 +18,7 @@ inherit pkgconfig autotools
 RDEPENDS_${PN} = "grep"
 
 do_configure_prepend () {
-	autoreconf -f -i -s
+	( cd ${S}; autoreconf -f -i -s )
 }
 
 FILES_${PN} += "${libdir}/${BPN}/*"

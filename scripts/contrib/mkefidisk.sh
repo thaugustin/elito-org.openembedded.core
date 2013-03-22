@@ -132,9 +132,7 @@ ROOTFS_START=$((BOOT_SIZE))
 ROOTFS_END=$((ROOTFS_START+ROOTFS_SIZE))
 SWAP_START=$((ROOTFS_END))
 
-# MMC devices are special in a couple of ways
-# 1) they use a partition prefix character 'p'
-# 2) they are detected asynchronously (need ROOTWAIT)
+# MMC devices use a partition prefix character 'p'
 PART_PREFIX=""
 if [ ! "${DEVICE#/dev/mmcblk}" = "${DEVICE}" ]; then
 	PART_PREFIX="p"
@@ -143,11 +141,9 @@ BOOTFS=$DEVICE${PART_PREFIX}1
 ROOTFS=$DEVICE${PART_PREFIX}2
 SWAP=$DEVICE${PART_PREFIX}3
 
-ROOTWAIT=""
 TARGET_PART_PREFIX=""
 if [ ! "${TARGET_DEVICE#/dev/mmcblk}" = "${TARGET_DEVICE}" ]; then
 	TARGET_PART_PREFIX="p"
-	ROOTWAIT="rootwait"
 fi
 TARGET_ROOTFS=$TARGET_DEVICE${TARGET_PART_PREFIX}2
 TARGET_SWAP=$TARGET_DEVICE${TARGET_PART_PREFIX}3
@@ -160,19 +156,17 @@ echo "*****************"
 echo "Deleting partition table on $DEVICE ..."
 dd if=/dev/zero of=$DEVICE bs=512 count=2
 
-echo "Creating new partition table (GPT) on $DEVICE ..."
-parted $DEVICE mklabel gpt
+# Use MSDOS by default as GPT cannot be reliably distributed in disk image form
+# as it requires the backup table to be on the last block of the device, which
+# of course varies from device to device.
+echo "Creating new partition table (MSDOS) on $DEVICE ..."
+parted $DEVICE mklabel msdos
 
 echo "Creating boot partition on $BOOTFS"
 parted $DEVICE mkpart primary 0% $BOOT_SIZE
 
-# GPT doesn't have a real boot flag, parted will change the GUID to EFI System Partition, 
-# which is what we want
 echo "Enabling boot flag on $BOOTFS"
 parted $DEVICE set 1 boot on
-
-echo "Labeling $BOOTFS as EFI System Partition"
-parted $DEVICE name 1 "EFI System Partition"
 
 echo "Creating ROOTFS partition on $ROOTFS"
 parted $DEVICE mkpart primary $ROOTFS_START $ROOTFS_END
@@ -188,10 +182,10 @@ parted $DEVICE print
 #
 echo ""
 echo "Formatting $BOOTFS as vfat..."
-mkfs.vfat $BOOTFS
+mkfs.vfat $BOOTFS -n "efi"
 
 echo "Formatting $ROOTFS as ext3..."
-mkfs.ext3 $ROOTFS
+mkfs.ext3 $ROOTFS -L "root"
 
 echo "Formatting swap partition...($SWAP)"
 mkswap $SWAP
@@ -250,12 +244,14 @@ sed -i "/menuentry 'install'/,/^}/d" $GRUBCFG
 sed -i "/initrd /d" $GRUBCFG
 # Delete any LABEL= strings
 sed -i "s/ LABEL=[^ ]*/ /" $GRUBCFG
-# Replace the ramdisk root with the install device and include other options
-sed -i "s@ root=[^ ]*@ root=$TARGET_ROOTFS rw $ROOTWAIT quiet@" $GRUBCFG
-
-# Provide a startup.nsh script for older firmware with non-standard boot
-# directories and paths.
-echo "bootia32.efi" > $BOOTFS_MNT/startup.nsh
+# Remove any existing root= kernel parameters and:
+# o Add a root= parameter with the target rootfs
+# o Specify ro so fsck can be run during boot
+# o Specify rootwait in case the target media is an asyncronous block device
+#   such as MMC or USB disks
+# o Specify "quiet" to minimize boot time when using slow serial consoles
+sed -i "s@ root=[^ ]*@ @" $GRUBCFG
+sed -i "s@vmlinuz @vmlinuz root=$TARGET_ROOTFS ro rootwait quiet @" $GRUBCFG
 
 umount $BOOTFS_MNT
 umount $HDDIMG_MNT
