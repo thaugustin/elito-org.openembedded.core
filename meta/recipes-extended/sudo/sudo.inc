@@ -21,6 +21,11 @@ do_configure_prepend () {
 	fi
 }
 
+# mksigname/mksiglist are used on build host to generate source files
+do_compile_prepend () {
+	oe_runmake CC=$BUILD_CC CPPFLAGS="$BUILD_CPPFLAGS -I${S}/include -I${S} -I${B}"  -C compat mksigname mksiglist
+}
+
 # Explicitly create ${localstatedir}/lib before do_install to ensure
 # the directory is accessible by all users. Otherwise the mkinstalldirs
 # script (from sudo) will recursively create ${localstatedir}/lib/sudo

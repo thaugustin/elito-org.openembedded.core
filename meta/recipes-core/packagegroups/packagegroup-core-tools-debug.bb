@@ -22,9 +22,6 @@ MTRACE_libc-glibc = "libc-mtrace"
 RDEPENDS_${PN} = "\
     gdb \
     gdbserver \
-    tcf-agent \
-    openssh-sftp-server \
-    rsync \
     strace \
     ${MTRACE} \
     "
