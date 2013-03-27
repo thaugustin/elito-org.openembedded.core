@@ -6,7 +6,7 @@ UPDATERCD_virtclass-cross = ""
 UPDATERCD_class-native = ""
 UPDATERCD_class-nativesdk = ""
 
-RDEPENDS_${UPDATERCPN}_append = " ${UPDATERCD}"
+RRECOMMENDS_${UPDATERCPN}_append = " ${UPDATERCD}"
 
 INITSCRIPT_PARAMS ?= "defaults"
 
@@ -18,7 +18,9 @@ if test "x$D" != "x"; then
 else
 	OPT="-s"
 fi
-update-rc.d $OPT ${INITSCRIPT_NAME} ${INITSCRIPT_PARAMS}
+if type update-rc.d >/dev/null; then
+	update-rc.d $OPT ${INITSCRIPT_NAME} ${INITSCRIPT_PARAMS}
+fi
 }
 
 updatercd_prerm() {
@@ -28,10 +30,13 @@ fi
 }
 
 updatercd_postrm() {
-if [ "$D" != "" ]; then
-	update-rc.d -f -r $D ${INITSCRIPT_NAME} remove
+if test "$D" != ""; then
+	OPT="-f -r $D"
 else
-	update-rc.d ${INITSCRIPT_NAME} remove
+	OPT=""
+fi
+if type update-rc.d >/dev/null; then
+	update-rc.d $OPT ${INITSCRIPT_NAME} remove
 fi
 }
 
@@ -75,9 +80,10 @@ python populate_packages_updatercd () {
         postrm += d.getVar('updatercd_postrm', True)
         d.setVar('pkg_postrm_%s' % pkg, postrm)
 
-    # If the systemd class has also been inherited, then don't do anything as
-    # the systemd units will override anything created by update-rc.d.
-    if not d.getVar("SYSTEMD_BBCLASS_ENABLED", True):
+    # Check that this class isn't being inhibited (generally, by
+    # systemd.bbclass) before doing any work.
+    if "sysvinit" in d.getVar("DISTRO_FEATURES").split() or \
+       not d.getVar("INHIBIT_UPDATERCD_BBCLASS", True):
         pkgs = d.getVar('INITSCRIPT_PACKAGES', True)
         if pkgs == None:
             pkgs = d.getVar('UPDATERCPN', True)
