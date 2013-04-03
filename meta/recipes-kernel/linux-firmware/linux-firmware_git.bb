@@ -18,6 +18,9 @@ LIC_FILES_CHKSUM = "file://LICENSE.radeon;md5=e56b405656593a0c97e478513051ea0e \
                     file://LICENCE.agere;md5=af0133de6b4a9b2522defd5f188afd31 \
                     file://LICENCE.rtlwifi_firmware.txt;md5=00d06cfd3eddd5a2698948ead2ad54a5 \
                     file://LICENCE.broadcom_bcm43xx;md5=3160c14df7228891b868060e1951dfbc \
+                    file://LICENCE.ti-connectivity;md5=186e7a43cf6c274283ad81272ca218ea \
+                    file://LICENCE.atheros_firmware;md5=30a14c7823beedac9fa39c64fdd01a13 \
+                    file://LICENCE.via_vt6656;md5=e4159694cba42d4377a912e78a6e850f \
                    "
 
 SRCREV = "c530a75c1e6a472b0eb9558310b518f0dfcd8860"
@@ -38,20 +41,44 @@ do_install() {
 	install -d  ${D}/lib/firmware/
 	cp -r * ${D}/lib/firmware/
 
+	# Avoid Makefile to be deplyed
+	rm ${D}/lib/firmware/Makefile
+
 	# Libertas sd8686
 	ln -sf libertas/sd8686_v9.bin ${D}/lib/firmware/sd8686.bin
 	ln -sf libertas/sd8686_v9_helper.bin ${D}/lib/firmware/sd8686_helper.bin
-
-	# Realtek rtl8192* 
-	install -m 0644 LICENCE.rtlwifi_firmware.txt ${D}/lib/firmware/rtlwifi/LICENCE.rtlwifi_firmware.txt
 
 	# fixup wl12xx location, after 2.6.37 the kernel searches a different location for it
 	( cd ${D}/lib/firmware ; ln -sf ti-connectivity/* . )
 }
 
-PACKAGES =+ "${PN}-ralink ${PN}-sd8686 ${PN}-rtl8192cu \
-             ${PN}-rtl8192ce ${PN}-rtl8192su ${PN}-wl12xx \
-             ${PN}-bcm4329 ${PN}-bcm4330 ${PN}-bcm4334"
+PACKAGES =+ "${PN}-ralink ${PN}-sd8686 ${PN}-wl12xx ${PN}-vt6656 \
+             ${PN}-rtl-license ${PN}-rtl8192cu ${PN}-rtl8192ce ${PN}-rtl8192su \
+             ${PN}-broadcom-license ${PN}-bcm4329 ${PN}-bcm4330 ${PN}-bcm4334 \
+             ${PN}-atheros-license ${PN}-ar9170 ${PN}-ath6k ${PN}-ath9k"
+
+FILES_${PN}-atheros-license = "/lib/firmware/LICENCE.atheros_firmware"
+
+LICENSE_${PN}-9170 = "Firmware-atheros_firmware"
+FILES_${PN}-ar9170 = " \
+  /lib/firmware/ar9170*.fw \
+"
+RDEPENDS_${PN}-ar9170 += "${PN}-atheros-license"
+
+LICENSE_${PN}-ath6k = "Firmware-atheros_firmware"
+FILES_${PN}-ath6k = " \
+  /lib/firmware/ath6k \
+"
+RDEPENDS_${PN}-ath6k += "${PN}-atheros-license"
+
+LICENSE_${PN}-ath9k = "Firmware-atheros_firmware"
+FILES_${PN}-ath9k = " \
+  /lib/firmware/ar9271.fw \
+  /lib/firmware/ar7010*.fw \
+  /lib/firmware/htc_9271.fw \
+  /lib/firmware/htc_7010.fw \
+"
+RDEPENDS_${PN}-ath9k += "${PN}-atheros-license"
 
 LICENSE_${PN}-ralink = "Firmware-ralink"
 FILES_${PN}-ralink = " \
@@ -66,26 +93,38 @@ FILES_${PN}-sd8686 = " \
   /lib/firmware/LICENCE.libertas \
 "
 
+FILES_${PN}-rtl-license = " \
+  /lib/firmware/rtlwifi/LICENCE.rtlwifi_firmware.txt \
+"
+
 LICENSE_${PN}-rtl8192cu = "Firmware-rtlwifi"
 FILES_${PN}-rtl8192cu = " \
   /lib/firmware/rtlwifi/rtl8192cufw.bin \
-  /lib/firmware/rtlwifi/LICENCE.rtlwifi_firmware.txt \
 "
+RDEPENDS_${PN}-rtl8192cu += "${PN}-rtl-license"
 
 LICENSE_${PN}-rtl8192ce = "Firmware-rtlwifi"
 FILES_${PN}-rtl8192ce = " \
   /lib/firmware/rtlwifi/rtl8192cfw.bin \
 "
+RDEPENDS_${PN}-rtl8192ce += "${PN}-rtl-license"
+
 
 LICENSE_${PN}-rtl8192su = "Firmware-rtlwifi"
 FILES_${PN}-rtl8192su = " \
   /lib/firmware/rtlwifi/rtl8712u.bin \
 "
 
+LICENSE_${PN}-wl12xx = "Firmware-ti-connectivity"
 FILES_${PN}-wl12xx = " \
   /lib/firmware/wl12* \
   /lib/firmware/TI* \
   /lib/firmware/ti-connectivity \
+"
+
+LICENSE_${PN}-vt6656 = "Firmware-via_vt6656"
+FILES_${PN}-vt6656 = " \
+  /lib/firmware/vntwusb.fw \
 "
 
 # WARNING: The ALTERNATIVE_* variables are not using ${PN} because of
@@ -94,29 +133,31 @@ FILES_${PN}-wl12xx = " \
 
 ALTERNATIVE_LINK_NAME[brcmfmac-sdio.bin] = "/lib/firmware/brcm/brcmfmac-sdio.bin"
 
+FILES_${PN}-broadcom-license = " \
+  /lib/firmware/LICENCE.broadcom_bcm43xx \
+"
+
 LICENSE_${PN}-bcm4329 = "Firmware-bcm4329"
 FILES_${PN}-bcm4329 = " \
   /lib/firmware/brcm/brcmfmac4329.bin \
-  /lib/firmware/LICENCE.broadcom_bcm43xx \
 "
+RDEPENDS_${PN}-bcm4329 += "${PN}-broadcom-license"
 ALTERNATIVE_linux-firmware-bcm4329 = "brcmfmac-sdio.bin"
 ALTERNATIVE_TARGET_linux-firmware-bcm4329[brcmfmac-sdio.bin] = "/lib/firmware/brcm/brcmfmac4329.bin"
 
 LICENSE_${PN}-bcm4330 = "Firmware-bcm4330"
 FILES_${PN}-bcm4330 = " \
   /lib/firmware/brcm/brcmfmac4330.bin \
-  /lib/firmware/LICENCE.broadcom_bcm43xx \
 "
-
+RDEPENDS_${PN}-bcm4330 += "${PN}-broadcom-license"
 ALTERNATIVE_linux-firmware-bcm4330 = "brcmfmac-sdio.bin"
 ALTERNATIVE_TARGET_linux-firmware-bcm4330[brcmfmac-sdio.bin] = "/lib/firmware/brcm/brcmfmac4330.bin"
 
 LICENSE_${PN}-bcm4334 = "Firmware-bcm4334"
 FILES_${PN}-bcm4334 = " \
   /lib/firmware/brcm/brcmfmac4334.bin \
-  /lib/firmware/LICENCE.broadcom_bcm43xx \
 "
-
+RDEPENDS_${PN}-bcm4334 += "${PN}-broadcom-license"
 ALTERNATIVE_linux-firmware-bcm4334 = "brcmfmac-sdio.bin"
 ALTERNATIVE_TARGET_linux-firmware-bcm4334[brcmfmac-sdio.bin] = "/lib/firmware/brcm/brcmfmac4334.bin"
 

@@ -3,21 +3,16 @@ HOMEPAGE = "http://wiki.eclipse.org/TCF"
 BUGTRACKER = "https://bugs.eclipse.org/bugs/"
 
 LICENSE = "EPL-1.0 | EDL-1.0"
-LIC_FILES_CHKSUM = "file://../epl-v10.html;md5=d0fc088e4e5216422c217d39853d8601 \
-                    file://edl-v10.html;md5=522a390a83dc186513f0500543ad3679"
+LIC_FILES_CHKSUM = "file://edl-v10.html;md5=522a390a83dc186513f0500543ad3679"
 
 SRCREV = "4ef94ecb927a8912c3d79ce137182247786cff8f"
 PV = "0.4.0+git${SRCPV}"
 PR = "r0"
 
 SRC_URI = "git://git.eclipse.org/gitroot/tcf/org.eclipse.tcf.agent.git;protocol=git \
-           http://www.eclipse.org/legal/epl-v10.html;name=epl \
            file://fix_ranlib.patch \
            file://fix_tcf-agent.init.patch \
           "
-
-SRC_URI[epl.md5sum] = "d0fc088e4e5216422c217d39853d8601"
-SRC_URI[epl.sha256sum] = "a40741b59364cc49449255e9b9bfe1fcfe6a2e7ab4d37ca89db3bacbfb14e9d2"
 
 DEPENDS = "util-linux openssl"
 RDEPENDS_${PN} = "bash"
