@@ -64,11 +64,13 @@ do_install_append_class-native() {
 
 POSTLOG ?= "/var/log/postinstall.log"
 REDIRECT_CMD = "${@base_contains('IMAGE_FEATURES', 'debug-tweaks', '>${POSTLOG} 2>&1', '', d)}"
+REDIRECT_CMD[vardepsexclude] += "IMAGE_FEATURES POSTLOG"
 
 pkg_postinst_${PN} () {
 #!/bin/sh
-if [ "x$D" != "x" ]; then
+if [ "x$D" != "x" ] && [ -f $D${OPKGLIBDIR}/opkg/status ]; then
 	install -d $D${sysconfdir}/rcS.d
+
 	# this happens at S98 where our good 'ole packages script used to run
 	echo "#!/bin/sh
 opkg-cl configure ${REDIRECT_CMD}
