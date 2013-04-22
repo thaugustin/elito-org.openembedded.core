@@ -927,7 +927,7 @@ python populate_packages () {
     for pkg in packages.split():
         if d.getVar('LICENSE_EXCLUSION-' + pkg, True):
             bb.warn("%s has an incompatible license. Excluding from packaging." % pkg)
-        elif pkg in package_list:
+        if pkg in package_list:
             bb.error("%s is listed in PACKAGES multiple times, this leads to packaging errors." % pkg)
         else:
             package_list.append(pkg)
@@ -966,6 +966,9 @@ python populate_packages () {
             if file in seen:
                 continue
             seen.append(file)
+
+            if d.getVar('LICENSE_EXCLUSION-' + pkg, True):
+                continue
 
             def mkdir(src, dest, p):
                 src = os.path.join(src, p)
@@ -1791,6 +1794,10 @@ def gen_packagevar(d):
     for p in pkgs:
         for v in vars:
             ret.append(v + "_" + p)
+
+        # Ensure that changes to INCOMPATIBLE_LICENSE re-run do_package for
+        # affected recipes.
+        ret.append('LICENSE_EXCLUSION-%s' % p)
     return " ".join(ret)
 
 PACKAGE_PREPROCESS_FUNCS ?= ""
