@@ -41,6 +41,14 @@ INITSCRIPT_PARAMS = "defaults 10"
 
 SYSTEMD_SERVICE_${PN} = "dropbear.socket"
 
+# workaround different libexecdir definition in oe; it does not fix
+# the multilib issues but mades sftp work again when dropbear and
+# openssh-sftp-server are for the same architecture.
+_sftp_server_path = "${@\
+    ['${libexecdir}/sftp-server','${libdir}/openssh/sftp-server']\
+    [d.getVar('libexecdir', True).endswith(d.expand('/${BPN}'))]}"
+CFLAGS += "-DSFTPSERVER_PATH=\\"${_sftp_server_path}\\""
+
 SBINCOMMANDS = "dropbear dropbearkey dropbearconvert"
 BINCOMMANDS = "dbclient ssh scp"
 EXTRA_OEMAKE = 'MULTI=1 SCPPROGRESS=1 PROGRAMS="${SBINCOMMANDS} ${BINCOMMANDS}"'
