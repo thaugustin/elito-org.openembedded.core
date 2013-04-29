@@ -24,7 +24,7 @@ inherit autotools pkgconfig
 EXTRA_OECONF = "--without-python"
 
 PACKAGES += "lib${BPN} lib${BPN}-dev"
-FILES_${PN} = "${libexecdir}"
+FILES_${PN} = "${libexecdir}/gam_server"
 FILES_${PN}-dbg += "${libexecdir}/.debug"
 FILES_lib${BPN} = "${libdir}/lib*.so.*"
 FILES_lib${BPN}-dev = "${includedir} ${libdir}/pkgconfig ${libdir}/lib*.la \
