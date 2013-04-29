@@ -34,4 +34,4 @@ FILES_${PN}-dev += "\
         ${includedir}/*.h ${includedir}/*/*.h \
        "
 FILES_${PN} = "${sysconfdir} ${uclibc_baselibs} /sbin/ldconfig \
-               ${libexecdir} ${datadir}/zoneinfo ${libdir}/locale"
+               ${libexecdir}/pt_chown ${datadir}/zoneinfo ${libdir}/locale"
