@@ -165,6 +165,10 @@ else
     echo "DL_DIR = \"$clonedir/build-perf-test/downloads\"" >> conf/local.conf
 fi
 
+# Sometimes I've noticed big differences in timings for the same commit, on the same machine
+# Disabling the network sanity check helps a bit (because of my crappy network connection and/or proxy)
+echo "CONNECTIVITY_CHECK_URIS =\"\"" >> conf/local.conf
+
 #
 # Functions
 #
@@ -235,6 +239,15 @@ do_sync () {
     sleep 3
 }
 
+write_results() {
+    echo -n "`uname -n`,$rev," >> $globalres
+    for i in "${TIMES[@]}"; do
+        echo -n "$i," >> $globalres
+    done
+    echo >> $globalres
+    sed -i '$ s/,$//' $globalres
+}
+
 ####
 
 #
@@ -257,36 +270,36 @@ do_sync () {
 #        - report size, remove INHERIT
 
 test1_p1 () {
-log "Running Test 1, part 1/3: Measure wall clock of bitbake $IMAGE and size of tmp/ dir"
-bbnotime "$IMAGE -c fetchall"
-do_rmtmp
-do_rmsstate
-do_sync
-bbtime "$IMAGE"
-log "SIZE of tmp dir is: `du -sh tmp | sed 's/tmp//'`"
-log "Buildstats are saved in $OUTDIR/buildstats-test1"
-mv tmp/buildstats $OUTDIR/buildstats-test1
+    log "Running Test 1, part 1/3: Measure wall clock of bitbake $IMAGE and size of tmp/ dir"
+    bbnotime "$IMAGE -c fetchall"
+    do_rmtmp
+    do_rmsstate
+    do_sync
+    bbtime "$IMAGE"
+    log "SIZE of tmp dir is: `du -sh tmp | sed 's/tmp//'`"
+    log "Buildstats are saved in $OUTDIR/buildstats-test1"
+    mv tmp/buildstats $OUTDIR/buildstats-test1
 }
 
 
 test1_p2 () {
-log "Running Test 1, part 2/3: bitbake virtual/kernel -c cleansstate and time bitbake virtual/kernel"
-bbnotime "virtual/kernel -c cleansstate"
-do_sync
-bbtime "virtual/kernel"
+    log "Running Test 1, part 2/3: bitbake virtual/kernel -c cleansstate and time bitbake virtual/kernel"
+    bbnotime "virtual/kernel -c cleansstate"
+    do_sync
+    bbtime "virtual/kernel"
 }
 
 test1_p3 () {
-log "Running Test 1, part 3/3: Build $IMAGE w/o sstate and report size of tmp/dir with rm_work enabled"
-echo "INHERIT += \"rm_work\"" >> conf/local.conf
-do_rmtmp
-do_rmsstate
-do_sync
-bbtime "$IMAGE"
-sed -i 's/INHERIT += \"rm_work\"//' conf/local.conf
-log "SIZE of tmp dir is: `du -sh tmp | sed 's/tmp//'`"
-log "Buildstats are saved in $OUTDIR/buildstats-test13"
-mv tmp/buildstats $OUTDIR/buildstats-test13
+    log "Running Test 1, part 3/3: Build $IMAGE w/o sstate and report size of tmp/dir with rm_work enabled"
+    echo "INHERIT += \"rm_work\"" >> conf/local.conf
+    do_rmtmp
+    do_rmsstate
+    do_sync
+    bbtime "$IMAGE"
+    sed -i 's/INHERIT += \"rm_work\"//' conf/local.conf
+    log "SIZE of tmp dir is: `du -sh tmp | sed 's/tmp//'`"
+    log "Buildstats are saved in $OUTDIR/buildstats-test13"
+    mv tmp/buildstats $OUTDIR/buildstats-test13
 }
 
 
@@ -296,11 +309,11 @@ mv tmp/buildstats $OUTDIR/buildstats-test13
 # Pre: populated sstate cache
 
 test2 () {
-#assuming test 1 has run
-log "Running Test 2: Measure wall clock of bitbake $IMAGE -c rootfs with sstate"
-do_rmtmp
-do_sync
-bbtime "$IMAGE -c rootfs"
+    # Assuming test 1 has run
+    log "Running Test 2: Measure wall clock of bitbake $IMAGE -c rootfs with sstate"
+    do_rmtmp
+    do_sync
+    bbtime "$IMAGE -c rootfs"
 }
 
 
@@ -314,14 +327,14 @@ bbtime "$IMAGE -c rootfs"
 
 
 test3 () {
-log "Running Test 3: Parsing time metrics (bitbake -p)"
-log "   Removing tmp/cache && cache"
-rm -rf tmp/cache cache
-bbtime "-p"
-log "   Removing tmp/cache/default-eglibc/"
-rm -rf tmp/cache/default-eglibc/
-bbtime "-p"
-bbtime "-p"
+    log "Running Test 3: Parsing time metrics (bitbake -p)"
+    log "   Removing tmp/cache && cache"
+    rm -rf tmp/cache cache
+    bbtime "-p"
+    log "   Removing tmp/cache/default-eglibc/"
+    rm -rf tmp/cache/default-eglibc/
+    bbtime "-p"
+    bbtime "-p"
 }
 
 
@@ -334,15 +347,10 @@ test1_p3
 test2
 test3
 
+# if we got til here write to global results
+write_results
+
 log "All done, cleaning up..."
 
 do_rmtmp
 do_rmsstate
-
-# if we got til here write to global results
-echo "$rev" >> $globalres
-for i in "${TIMES[@]}"; do
-    echo -n "$i," >> $globalres
-done
-echo >> $globalres
-sed -i '$ s/,$//' $globalres
