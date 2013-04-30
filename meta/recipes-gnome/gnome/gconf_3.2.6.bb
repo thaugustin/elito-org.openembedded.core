@@ -51,6 +51,7 @@ RDEPENDS_${PN}_class-native = ""
 
 FILES_${PN} += "${libdir}/GConf/* \
                 ${libdir}/gio/*/*.so \
+                ${libexecdir}/gconfd-* \
                 ${datadir}/polkit* \
                 ${datadir}/dbus-1/services/*.service \
                 ${datadir}/dbus-1/system-services/*.service \
