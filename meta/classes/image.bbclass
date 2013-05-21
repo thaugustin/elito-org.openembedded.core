@@ -19,6 +19,7 @@ INHIBIT_DEFAULT_DEPS = "1"
 # IMAGE_FEATURES may contain any available package group
 IMAGE_FEATURES ?= ""
 IMAGE_FEATURES[type] = "list"
+IMAGE_FEATURES[validitems] += "debug-tweaks read-only-rootfs package-management"
 
 # rootfs bootstrap install
 ROOTFS_BOOTSTRAP_INSTALL = "${@base_contains("IMAGE_FEATURES", "package-management", "", "${ROOTFS_PKGMANAGE_BOOTSTRAP}",d)}"
@@ -33,7 +34,7 @@ NORMAL_FEATURE_INSTALL_OPTIONAL = "${@' '.join(oe.packagegroup.optional_packages
 
 def normal_groups(d):
     """Return all the IMAGE_FEATURES, with the exception of our special package groups"""
-    extras = set(['dev-pkgs', 'staticdev-pkgs', 'doc-pkgs', 'dbg-pkgs', 'ptest-pkgs'])
+    extras = set(d.getVarFlags('COMPLEMENTARY_GLOB').keys())
     features = set(oe.data.typed_value('IMAGE_FEATURES', d))
     return features.difference(extras)
 
@@ -43,25 +44,37 @@ PACKAGE_GROUP_splash = "${SPLASH}"
 
 # Wildcards specifying complementary packages to install for every package that has been explicitly
 # installed into the rootfs
+COMPLEMENTARY_GLOB[dev-pkgs] = '*-dev'
+COMPLEMENTARY_GLOB[staticdev-pkgs] = '*-staticdev'
+COMPLEMENTARY_GLOB[doc-pkgs] = '*-doc'
+COMPLEMENTARY_GLOB[dbg-pkgs] = '*-dbg'
+COMPLEMENTARY_GLOB[ptest-pkgs] = '*-ptest'
+
 def complementary_globs(featurevar, d):
+    all_globs = d.getVarFlags('COMPLEMENTARY_GLOB')
     globs = []
     features = set((d.getVar(featurevar, True) or '').split())
-    for feature in features:
-        if feature == 'dev-pkgs':
-            globs.append('*-dev')
-        elif feature == 'staticdev-pkgs':
-            globs.append('*-staticdev')
-        elif feature == 'doc-pkgs':
-            globs.append('*-doc')
-        elif feature == 'dbg-pkgs':
-            globs.append('*-dbg')
-        elif feature == 'ptest-pkgs':
-            globs.append('*-ptest')
+    for name, glob in all_globs.items():
+        if name in features:
+            globs.append(glob)
     return ' '.join(globs)
 
 IMAGE_INSTALL_COMPLEMENTARY = '${@complementary_globs("IMAGE_FEATURES", d)}'
 SDKIMAGE_FEATURES ??= "dev-pkgs dbg-pkgs"
 SDKIMAGE_INSTALL_COMPLEMENTARY = '${@complementary_globs("SDKIMAGE_FEATURES", d)}'
+
+def check_image_features(d):
+    valid_features = (d.getVarFlag('IMAGE_FEATURES', 'validitems', True) or "").split()
+    valid_features += d.getVarFlags('COMPLEMENTARY_GLOB').keys()
+    for var in d:
+       if var.startswith("PACKAGE_GROUP_"):
+           valid_features.append(var[14:])
+    valid_features.sort()
+
+    features = set(oe.data.typed_value('IMAGE_FEATURES', d))
+    for feature in features:
+        if feature not in valid_features:
+            bb.fatal("'%s' in IMAGE_FEATURES is not a valid image feature. Valid features: %s" % (feature, ' '.join(valid_features)))
 
 IMAGE_INSTALL ?= ""
 IMAGE_INSTALL[type] = "list"
@@ -130,6 +143,8 @@ python () {
             vendor = localdata.getVar("TARGET_VENDOR_virtclass-multilib-" + eext[1], False)
             ml_vendor_list += " " + vendor
     d.setVar('MULTILIB_VENDORS', ml_vendor_list)
+
+    check_image_features(d)
 }
 
 #
@@ -168,11 +183,9 @@ LINGUAS_INSTALL ?= "${@" ".join(map(lambda s: "locale-base-%s" % s, d.getVar('IM
 
 PSEUDO_PASSWD = "${IMAGE_ROOTFS}"
 
-do_rootfs[nostamp] = "1"
 do_rootfs[dirs] = "${TOPDIR} ${WORKDIR}/intercept_scripts"
 do_rootfs[lockfiles] += "${IMAGE_ROOTFS}.lock"
 do_rootfs[cleandirs] += "${S} ${WORKDIR}/intercept_scripts"
-do_build[nostamp] = "1"
 
 # Must call real_do_rootfs() from inside here, rather than as a separate
 # task, so that we have a single fakeroot context for the whole process.
@@ -371,7 +384,7 @@ for dir in dirs.split():
       key=str(os.path.join("/",os.path.relpath(item,dir)))
 
       valid=True;
-      if files.has_key(key):
+      if key in files:
         #check whether the file is allow to replace
         if allow_rep.match(key):
           valid=True

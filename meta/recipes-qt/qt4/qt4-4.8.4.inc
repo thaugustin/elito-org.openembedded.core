@@ -24,6 +24,7 @@ SRC_URI = "http://releases.qt-project.org/qt4/source/qt-everywhere-opensource-sr
            file://0022-ssl-certificates-blacklist-mis-issued-turktrust-certificates.patch \
            file://0023-qtnetwork-blacklist-two-more-certificates.patch \
            file://0024-Change-all-shmget-calls-to-user-only-memory.patch \
+           file://0025-Remove-unnecessary-typedef-found-by-gcc4-8.patch \
            file://g++.conf \
            file://linux.conf \
            "
@@ -37,8 +38,8 @@ FILES_${QT_BASE_NAME}-tools_append     = " ${bindir}/qml ${bindir}/qmlplugindump
 FILES_${QT_BASE_NAME}-tools-dbg_append = " ${bindir}/.debug/qml ${bindir}/.debug/qmlplugindump"
 
 PACKAGES_append = " ${QT_BASE_NAME}-tests-dbg ${QT_BASE_NAME}-tests"
-FILES_${QT_BASE_NAME}-tests-dbg        = "/usr/tests/qt4/*/.debug"
-FILES_${QT_BASE_NAME}-tests            = "/usr/tests/qt4/*"
+FILES_${QT_BASE_NAME}-tests-dbg        = "${prefix}/tests/qt4/*/.debug"
+FILES_${QT_BASE_NAME}-tests            = "${prefix}/tests/qt4/*"
 
 do_configure_prepend() {
     for pro in $(find ${S} -name "*.pro") ; do

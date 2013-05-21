@@ -173,10 +173,10 @@ def package_qa_check_rpath(file,name, d, elf, messages):
     import re
     rpath_re = re.compile("\s+RPATH\s+(.*)")
     for line in phdrs.split("\n"):
-    	m = rpath_re.match(line)
-	if m:
-	    rpath = m.group(1)
-	    for dir in bad_dirs:
+        m = rpath_re.match(line)
+        if m:
+            rpath = m.group(1)
+            for dir in bad_dirs:
                 if dir in rpath:
                     messages.append("package %s contains bad RPATH %s in file %s" % (name, rpath, file))
 
@@ -202,13 +202,13 @@ def package_qa_check_useless_rpaths(file, name, d, elf, messages):
     import re
     rpath_re = re.compile("\s+RPATH\s+(.*)")
     for line in phdrs.split("\n"):
-    	m = rpath_re.match(line)
-	if m:
-	   rpath = m.group(1)
-	   if rpath_eq(rpath, libdir) or rpath_eq(rpath, base_libdir):
-	      # The dynamic linker searches both these places anyway.  There is no point in
-	      # looking there again.
-	      messages.append("%s: %s contains probably-redundant RPATH %s" % (name, package_qa_clean_path(file, d), rpath))
+        m = rpath_re.match(line)
+        if m:
+            rpath = m.group(1)
+            if rpath_eq(rpath, libdir) or rpath_eq(rpath, base_libdir):
+                # The dynamic linker searches both these places anyway.  There is no point in
+                # looking there again.
+                messages.append("%s: %s contains probably-redundant RPATH %s" % (name, package_qa_clean_path(file, d), rpath))
 
 QAPATHTEST[dev-so] = "package_qa_check_dev"
 def package_qa_check_dev(path, name, d, elf, messages):
@@ -464,7 +464,7 @@ def package_qa_textrel(path, name, d, elf, messages):
     textrel_re = re.compile("\s+TEXTREL\s+")
     for line in phdrs.split("\n"):
         if textrel_re.match(line):
-	   sane = False
+            sane = False
 
     if not sane:
         messages.append("ELF binary '%s' has relocations in .text" % path)
@@ -499,7 +499,7 @@ def package_qa_hash_style(path, name, d, elf, messages):
         if "GNU_HASH" in line:
             sane = True
         if "[mips32]" in line or "[mips64]" in line:
-	    sane = True
+            sane = True
 
     if has_syms and not sane:
         messages.append("No GNU_HASH in the elf binary: '%s'" % path)
@@ -519,9 +519,10 @@ def package_qa_check_buildpaths(path, name, d, elf, messages):
         return
 
     tmpdir = d.getVar('TMPDIR', True)
-    file_content = open(path).read()
-    if tmpdir in file_content:
-        messages.append("File %s in package contained reference to tmpdir" % package_qa_clean_path(path,d))
+    with open(path) as f:
+        file_content = f.read()
+        if tmpdir in file_content:
+            messages.append("File %s in package contained reference to tmpdir" % package_qa_clean_path(path,d))
 
 
 QAPATHTEST[xorg-driver-abi] = "package_qa_check_xorg_driver_abi"
@@ -579,7 +580,7 @@ def package_qa_check_license(workdir, d):
         if (not beginline) and (not endline):
             md5chksum = bb.utils.md5_file(srclicfile)
         else:
-            fi = open(srclicfile, 'r')
+            fi = open(srclicfile, 'rb')
             fo = tempfile.NamedTemporaryFile(mode='wb', prefix='poky.', suffix='.tmp', delete=False)
             tmplicfile = fo.name;
             lineno = 0
@@ -635,15 +636,17 @@ def package_qa_check_staged(path,d):
         for file in files:
             path = os.path.join(root,file)
             if file.endswith(".la"):
-                file_content = open(path).read()
-                if workdir in file_content:
-                    error_msg = "%s failed sanity test (workdir) in path %s" % (file,root)
-                    sane = package_qa_handle_error("la", error_msg, d)
+                with open(path) as f:
+                    file_content = f.read()
+                    if workdir in file_content:
+                        error_msg = "%s failed sanity test (workdir) in path %s" % (file,root)
+                        sane = package_qa_handle_error("la", error_msg, d)
             elif file.endswith(".pc"):
-                file_content = open(path).read()
-                if pkgconfigcheck in file_content:
-                    error_msg = "%s failed sanity test (tmpdir) in path %s" % (file,root)
-                    sane = package_qa_handle_error("pkgconfig", error_msg, d)
+                with open(path) as f:
+                    file_content = f.read()
+                    if pkgconfigcheck in file_content:
+                        error_msg = "%s failed sanity test (tmpdir) in path %s" % (file,root)
+                        sane = package_qa_handle_error("pkgconfig", error_msg, d)
 
     return sane
 
@@ -716,7 +719,6 @@ def package_qa_check_deps(pkg, pkgdest, skip, d):
             rvar = bb.utils.explode_dep_versions2(localdata.getVar(var, True) or "")
         except ValueError as e:
             bb.fatal("%s_%s: %s" % (var, pkg, e))
-            raise e
         for dep in rvar:
             for v in rvar[dep]:
                 if v and not v.startswith(('< ', '= ', '> ', '<= ', '>=')):
@@ -904,6 +906,11 @@ python () {
 
     if d.getVar('do_stage', True) is not None:
         bb.fatal("Legacy staging found for %s as it has a do_stage function. This will need conversion to a do_install or often simply removal to work with OE-core" % d.getVar("FILE", True))
+
+    overrides = d.getVar('OVERRIDES', True).split(':')
+    pn = d.getVar('PN', True)
+    if pn in overrides:
+        bb.warn('Recipe %s has PN of "%s" which is in OVERRIDES, this can result in unexpected behaviour.' % (d.getVar("FILE", True), pn))
 
     issues = []
     if (d.getVar('PACKAGES', True) or "").split():

@@ -504,8 +504,7 @@ def write_rpm_perfiledata(srcname, d):
     outdepends = workdir + "/" + srcname + ".requires"
 
     try:
-        from __builtin__ import file
-        dependsfile = file(outdepends, 'w')
+        dependsfile = open(outdepends, 'w')
     except OSError:
         raise bb.build.FuncFailed("unable to open spec file for writing.")
 
@@ -518,8 +517,7 @@ def write_rpm_perfiledata(srcname, d):
     outprovides = workdir + "/" + srcname + ".provides"
 
     try:
-        from __builtin__ import file
-        providesfile = file(outprovides, 'w')
+        providesfile = open(outprovides, 'w')
     except OSError:
         raise bb.build.FuncFailed("unable to open spec file for writing.")
 
@@ -674,12 +672,10 @@ python write_specfile () {
     pkgdest = d.getVar('PKGDEST', True)
     if not pkgdest:
         bb.fatal("No PKGDEST")
-        return
 
     outspecfile = d.getVar('OUTSPECFILE', True)
     if not outspecfile:
         bb.fatal("No OUTSPECFILE")
-        return
 
     # Construct the SPEC file...
     srcname    = strip_multilib(d.getVar('PN', True), d)
@@ -1005,8 +1001,7 @@ python write_specfile () {
 
     # Write the SPEC file
     try:
-        from __builtin__ import file
-        specfile = file(outspecfile, 'w')
+        specfile = open(outspecfile, 'w')
     except OSError:
         raise bb.build.FuncFailed("unable to open spec file for writing.")
 

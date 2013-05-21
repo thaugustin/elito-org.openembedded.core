@@ -108,7 +108,7 @@ python base_do_fetch() {
     try:
         fetcher = bb.fetch2.Fetch(src_uri, localdata)
         fetcher.download()
-    except bb.fetch2.BBFetchException, e:
+    except bb.fetch2.BBFetchException as e:
         raise bb.build.FuncFailed(e)
 }
 
@@ -128,7 +128,7 @@ python base_do_unpack() {
     try:
         fetcher = bb.fetch2.Fetch(src_uri, localdata)
         fetcher.unpack(rootdir)
-    except bb.fetch2.BBFetchException, e:
+    except bb.fetch2.BBFetchException as e:
         raise bb.build.FuncFailed(e)
 }
 
@@ -394,7 +394,7 @@ def set_packagetriplet(d):
     settriplet(d, "PKGMLTRIPLETS", archs, tos, tvs)
 
 python () {
-    import exceptions, string, re
+    import string, re
 
     # Disable ccache explicitly if CCACHE is null since gcc may be a
     # symlink of ccache some distributions (e.g., Fedora 17). Please

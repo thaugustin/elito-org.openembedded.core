@@ -51,7 +51,11 @@ def get_imagecmds(d):
         types.remove("live")
 
     if d.getVar('IMAGE_LINK_NAME', True):
-        cmds += "\trm -f ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.*"
+        if d.getVar('RM_OLD_IMAGE', True) == "1":
+            # Remove the old image
+            cmds += "\trm -f `find ${DEPLOY_DIR_IMAGE} -maxdepth 1 -type l -name ${IMAGE_LINK_NAME}'.*' -exec readlink -f {} \;`"
+        # Remove the symlink
+        cmds += "\n\trm -f ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.*"
 
     for type in types:
         ccmd = []
@@ -188,7 +192,7 @@ IMAGE_CMD_cpio () {
 	cd ${IMAGE_ROOTFS} && (find . | cpio -o -H newc >${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.cpio)
 }
 
-ELF_KERNEL ?= "${STAGING_DIR_HOST}/kernel/${KERNEL_IMAGETYPE}"
+ELF_KERNEL ?= "${STAGING_DIR_HOST}/usr/src/kernel/${KERNEL_IMAGETYPE}"
 ELF_APPEND ?= "ramdisk_size=32768 root=/dev/ram0 rw console="
 
 IMAGE_CMD_elf () {

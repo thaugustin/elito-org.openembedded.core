@@ -20,6 +20,7 @@
 # External variables (also used by syslinux.bbclass)
 # ${INITRD} - indicates a filesystem image to use as an initrd (optional)
 # ${NOISO}  - skip building the ISO image if set to 1
+# ${NOHDD}  - skip building the HDD image if set to 1
 # ${ROOTFS} - indicates a filesystem image to include as the root filesystem (optional)
 
 do_bootimg[depends] += "dosfstools-native:do_populate_sysroot \
@@ -197,4 +198,3 @@ python do_bootimg() {
 }
 
 addtask bootimg before do_build
-do_bootimg[nostamp] = "1"

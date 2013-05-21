@@ -37,6 +37,8 @@ def qemuimagetest_main(d):
     resultstr = re.compile(r'\s*(?P<case>\w+)\s*(?P<pass>\d+)\s*(?P<fail>\d+)\s*(?P<noresult>\d+)')
     machine = d.getVar('MACHINE', True)
     pname = d.getVar('PN', True)
+    allfstypes = d.getVar("IMAGE_FSTYPES", True).split()
+    testfstypes = [ "ext2", "ext3", "ext4", "jffs2", "btrfs" ]
     
     """function to save test cases running status"""
     def teststatus(test, status, index, length):
@@ -50,7 +52,7 @@ def qemuimagetest_main(d):
         f.close()
 
     """funtion to run each case under scenario"""
-    def runtest(scen, case, fulltestpath):
+    def runtest(scen, case, fulltestpath, fstype):
         resultpath = d.getVar('TEST_RESULT', True)
         tmppath = d.getVar('TEST_TMP', True)
 
@@ -75,6 +77,7 @@ def qemuimagetest_main(d):
         os.environ["TEST_SERIALIZE"] = d.getVar("TEST_SERIALIZE", True)
         os.environ["SDK_NAME"] = d.getVar("SDK_NAME", True)
         os.environ["RUNQEMU_LOGFILE"] = d.expand("${T}/log.runqemutest.%s" % os.getpid())
+        os.environ["ROOTFS_EXT"] = fstype
 
         # Add in all variables from the user's original environment which
         # haven't subsequntly been set/changed
@@ -137,15 +140,16 @@ def qemuimagetest_main(d):
 
                     f = open(scenlist, "r")
                     for line in f:
-                       if item != line.split()[0]:
-                           continue
-                       else:
-                           casefile = line.split()[1]
+                        if item != line.split()[0]:
+                            continue
+                        else:
+                            casefile = line.split()[1]
 
-                       fulltestcase = os.path.join(dir, item, casefile)
-                       if not os.path.isfile(fulltestcase):
+                        fulltestcase = os.path.join(dir, item, casefile)
+                        if not os.path.isfile(fulltestcase):
                             raise bb.build.FuncFailed("Testcase %s not found" % fulltestcase)
-                       list.append((item, casefile, fulltestcase))
+                        list.append((item, casefile, fulltestcase))
+                    f.close()
         final_list = check_list(list)
         return final_list
 
@@ -192,21 +196,22 @@ def qemuimagetest_main(d):
         os.remove(sresultfile)
     subprocess.call("touch %s" % resultfile, shell=True)
     os.symlink(resultfile, sresultfile)
-    f = open(sresultfile, "a")
-    f.write("\tTest Result for %s %s\n" % (machine, pname))
-    f.write("\t%-15s%-15s%-15s%-15s\n" % ("Testcase", "PASS", "FAIL", "NORESULT"))
-    f.close()
     
     """generate pre-defined testcase list"""
     testlist = d.getVar('TEST_SCEN', True)
     fulllist = generate_list(testlist)
 
     """Begin testing"""
-    for index,test in enumerate(fulllist):
-        (scen, case, fullpath) = test
-        teststatus(case, "running", index, (len(fulllist) - 1))
-        runtest(scen, case, fullpath)
-        teststatus(case, "finished", index, (len(fulllist) - 1))
+    for fstype in allfstypes:
+        if fstype in testfstypes:
+            with open(sresultfile, "a") as f:
+                f.write("\tTest Result for %s %s %s\n" % (machine, pname, fstype))
+                f.write("\t%-15s%-15s%-15s%-15s\n" % ("Testcase", "PASS", "FAIL", "NORESULT"))
+            for index,test in enumerate(fulllist):
+                (scen, case, fullpath) = test
+                teststatus(case, "running", index, (len(fulllist) - 1))
+                runtest(scen, case, fullpath, fstype)
+                teststatus(case, "finished", index, (len(fulllist) - 1))
     
     """Print Test Result"""
     ret = 0
@@ -229,5 +234,5 @@ def qemuimagetest_main(d):
     clean_tmp()
 
     if ret != 0:
-        raise bb.build.FuncFailed("Some testcases fail, pls. check test result and test log!!!")
+        raise bb.build.FuncFailed("Some tests failed. Please check the results file: %s and the log files found in: %s." % (resultfile, d.getVar('TEST_LOG', True)))
 

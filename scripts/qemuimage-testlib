@@ -14,8 +14,6 @@
 # Version 2.
 #
 
-TYPE="ext3"
-
 # The folder to hold all scripts running on targets
 TOOLS="$COREBASE/scripts/qemuimage-tests/tools"
 
@@ -23,7 +21,7 @@ TOOLS="$COREBASE/scripts/qemuimage-tests/tools"
 TOOLCHAIN_PROJECTS="$COREBASE/scripts/qemuimage-tests/toolchain_projects"
 
 # Test Directory on target for testing
-TARGET_TEST_DIR="/opt/test"
+TARGET_TEST_DIR="/tmp/test"
 
 # Global variables for process id
 XTERMPID=0
@@ -146,10 +144,15 @@ EOF`
 # function to run command in $ip_addr via ssh
 Test_SSH()
 {
-	local ip_addr=$1
-	shift
-	local command=$@
-	local time_out=60
+	local ip_addr="$1"
+	local command="$2"
+
+	if [ $# -eq 3 ]; then
+	    local time_out=$3
+	else
+	    local time_out=60
+	fi
+
 	local ret=0
 	local exp_cmd=`cat << EOF
 eval spawn ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$ip_addr "$command"
@@ -306,18 +309,18 @@ Test_Find_Image()
 	extension=""
 	rootfs=""
 
-	while getopts "l:k:a:t:" Option
+	while getopts "l:k:a:t:e:" Option
 	do
 		case $Option in
 			l) where="$OPTARG"
 			   ;;
 			k) kernel="$OPTARG"
-			   extension="bin"
 			   ;;
 			a) arch="$OPTARG"
 			   ;;
 			t) target="$OPTARG"
-			   extension="ext3"
+			   ;;
+			e) extension="$OPTARG"
 			   ;;
 			*) echo "invalid option: -$Option" && return 1
 			   ;;
@@ -387,6 +390,8 @@ Test_Fetch_Target_IP()
 Test_Create_Qemu()
 {
 	local timeout=$1
+	shift
+	local extraargs="$@"
 	local up_time=0
 
 	RUNQEMU=`which runqemu`
@@ -396,11 +401,11 @@ Test_Create_Qemu()
 	fi
 	
 	if [ "$QEMUARCH" = "qemux86" -o "$QEMUARCH" = "qemux86-64" ]; then
-		KERNEL=$(Test_Find_Image -l ${DEPLOY_DIR}/images -k bzImage -a ${QEMUARCH})
+		KERNEL=$(Test_Find_Image -l ${DEPLOY_DIR}/images -k bzImage -a ${QEMUARCH} -e "bin")
 	elif [ "$QEMUARCH" = "qemuarm" -o "$QEMUARCH" = "spitz" -o "$QEMUARCH" = "borzoi" -o "$QEMUARCH" = "akita" -o "$QEMUARCH" = "nokia800" ]; then
 		KERNEL=$(Test_Find_Image -l ${DEPLOY_DIR}/images -k zImage -a ${QEMUARCH})
 	elif [ "$QEMUARCH" = "qemumips" -o "$QEMUARCH" = "qemuppc" ]; then
-		KERNEL=$(Test_Find_Image -l ${DEPLOY_DIR}/images -k vmlinux -a ${QEMUARCH})
+		KERNEL=$(Test_Find_Image -l ${DEPLOY_DIR}/images -k vmlinux -a ${QEMUARCH} -e "bin")
 	fi
 
 	# If there is no kernel image found, return failed directly
@@ -409,7 +414,8 @@ Test_Create_Qemu()
 		return 1
 	fi
 	
-	ROOTFS_IMAGE=$(Test_Find_Image -l ${DEPLOY_DIR}/images -t ${QEMUTARGET} -a ${QEMUARCH})
+	Test_Info "rootfs image extension selected: $ROOTFS_EXT"
+	ROOTFS_IMAGE=$(Test_Find_Image -l ${DEPLOY_DIR}/images -t ${QEMUTARGET} -a ${QEMUARCH} -e "$ROOTFS_EXT")
 
 	# If there is no rootfs image found, return failed directly
 	if [ $? -eq 1 ]; then
@@ -417,7 +423,7 @@ Test_Create_Qemu()
 		return 1
 	fi
 
-	TEST_ROOTFS_IMAGE="${TEST_TMP}/${QEMUTARGET}-${QEMUARCH}-test.ext3"
+	TEST_ROOTFS_IMAGE="${TEST_TMP}/${QEMUTARGET}-${QEMUARCH}-test.${ROOTFS_EXT}"
 	
 	CP=`which cp`
 
@@ -438,8 +444,8 @@ Test_Create_Qemu()
 		export MACHINE=$QEMUARCH
 
 		# Create Qemu in localhost VNC Port 1
-		echo "Running xterm -display ${DISPLAY} -e 'OE_TMPDIR=${OE_TMPDIR} ${RUNQEMU} ${KERNEL} ${TEST_ROOTFS_IMAGE} 2>&1 | tee ${RUNQEMU_LOGFILE} || /bin/sleep 60' &"
-		xterm -display ${DISPLAY} -e "OE_TMPDIR=${OE_TMPDIR} ${RUNQEMU} ${KERNEL} ${TEST_ROOTFS_IMAGE} 2>&1 | tee ${RUNQEMU_LOGFILE} || /bin/sleep 60" &
+		echo "Running xterm -display ${DISPLAY} -e 'OE_TMPDIR=${OE_TMPDIR} ${RUNQEMU} ${KERNEL} ${TEST_ROOTFS_IMAGE} ${extraargs} 2>&1 | tee ${RUNQEMU_LOGFILE} || /bin/sleep 60' &"
+		xterm -display ${DISPLAY} -e "OE_TMPDIR=${OE_TMPDIR} ${RUNQEMU} ${KERNEL} ${TEST_ROOTFS_IMAGE} ${extraargs} 2>&1 | tee ${RUNQEMU_LOGFILE} || /bin/sleep 60" &
 	
 		# Get the pid of the xterm processor, which will be used in Test_Kill_Qemu
 		XTERMPID=$!

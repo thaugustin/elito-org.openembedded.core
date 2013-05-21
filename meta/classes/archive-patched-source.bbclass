@@ -34,7 +34,10 @@ python () {
         d.appendVarFlag('do_configure', 'depends', ' %s:do_archive_patched_sources' %pn)
         build_deps += ' %s:do_archive_patched_sources' %pn
 
-    d.appendVarFlag('do_build', 'depends', build_deps)
+    if bb.data.inherits_class('image', d):
+        d.appendVarFlag('do_rootfs', 'depends', build_deps)
+    else:
+        d.appendVarFlag('do_build', 'depends', build_deps)
 }
 
 ARCHIVE_SSTATE_OUTDIR = "${DEPLOY_DIR}/sources/"

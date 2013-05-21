@@ -17,7 +17,7 @@ class CmdError(bb.BBHandledException):
 
 
 def runcmd(args, dir = None):
-    import commands
+    import pipes
 
     if dir:
         olddir = os.path.abspath(os.curdir)
@@ -27,10 +27,10 @@ def runcmd(args, dir = None):
         # print("cwd: %s -> %s" % (olddir, dir))
 
     try:
-        args = [ commands.mkarg(str(arg)) for arg in args ]
+        args = [ pipes.quote(str(arg)) for arg in args ]
         cmd = " ".join(args)
         # print("cmd: %s" % cmd)
-        (exitstatus, output) = commands.getstatusoutput(cmd)
+        (exitstatus, output) = oe.utils.getstatusoutput(cmd)
         if exitstatus != 0:
             raise CmdError(exitstatus >> 8, output)
         return output
@@ -392,7 +392,7 @@ class UserResolver(Resolver):
         os.chdir(self.patchset.dir)
         try:
             self.patchset.Push(False)
-        except CmdError, v:
+        except CmdError as v:
             # Patch application failed
             patchcmd = self.patchset.Push(True, False, False)
 

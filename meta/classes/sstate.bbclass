@@ -198,7 +198,7 @@ def sstate_install(ss, d):
     # Run the actual file install
     for state in ss['dirs']:
         if os.path.exists(state[1]):
-            oe.path.copytree(state[1], state[2])
+            oe.path.copyhardlinktree(state[1], state[2])
 
     for postinst in (d.getVar('SSTATEPOSTINSTFUNCS', True) or '').split():
         bb.build.exec_func(postinst, d)
@@ -261,7 +261,7 @@ def sstate_installpkg(ss, d):
         # Add sstateinst to each filename in fixmepath, use xargs to efficiently call sed
         sstate_hardcode_cmd = "sed -e 's:^:%s:g' %s | xargs %s" % (sstateinst, fixmefn, sstate_sed_cmd)
 
-        print "Replacing fixme paths in sstate package: %s" % (sstate_hardcode_cmd)
+        bb.note("Replacing fixme paths in sstate package: %s" % (sstate_hardcode_cmd))
         subprocess.call(sstate_hardcode_cmd, shell=True)
 
         # Need to remove this or we'd copy it into the target directory and may 
@@ -408,14 +408,14 @@ def sstate_hardcode_path(d):
     # This has the side effect of making sure the vfs cache is hot
     sstate_hardcode_cmd = "%s | xargs %s | %s | xargs %s %s" % (sstate_scan_cmd, sstate_grep_cmd, sstate_filelist_cmd, xargs_no_empty_run_cmd, sstate_sed_cmd)
 
-    print "Removing hardcoded paths from sstate package: '%s'" % (sstate_hardcode_cmd)
+    bb.note("Removing hardcoded paths from sstate package: '%s'" % (sstate_hardcode_cmd))
     subprocess.call(sstate_hardcode_cmd, shell=True)
 
         # If the fixmefn is empty, remove it..
     if os.stat(fixmefn).st_size == 0:
         os.remove(fixmefn)
     else:
-        print "Replacing absolute paths in fixmepath file: '%s'" % (sstate_filelist_relative_cmd)
+        bb.note("Replacing absolute paths in fixmepath file: '%s'" % (sstate_filelist_relative_cmd))
         subprocess.call(sstate_filelist_relative_cmd, shell=True)
 
 def sstate_package(ss, d):

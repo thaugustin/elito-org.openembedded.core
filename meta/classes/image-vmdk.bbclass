@@ -1,5 +1,5 @@
 
-NOISO = "1"
+#NOISO = "1"
 
 SYSLINUX_ROOT = "root=/dev/hda2 "
 SYSLINUX_PROMPT = "0"
@@ -18,8 +18,7 @@ inherit boot-directdisk
 
 create_vmdk_image () {
 	qemu-img convert -O vmdk ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.hdddirect ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.vmdk
-	ln -s ${IMAGE_NAME}.vmdk ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.vmdk
-
+	ln -sf ${IMAGE_NAME}.vmdk ${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.vmdk
 }
 
 python do_vmdkimg() {
@@ -28,7 +27,6 @@ python do_vmdkimg() {
 
 #addtask vmdkimg after do_bootimg before do_build
 addtask vmdkimg after do_bootdirectdisk before do_build
-do_vmdkimg[nostamp] = "1"
 
 do_vmdkimg[depends] += "qemu-native:do_populate_sysroot" 
 

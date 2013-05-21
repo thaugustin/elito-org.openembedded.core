@@ -226,23 +226,20 @@ python () {
         d.setVar("PACKAGERDEPTASK", "")
 }
 
-def splitdebuginfo(file, debugfile, debugsrcdir, d):
+def splitdebuginfo(file, debugfile, debugsrcdir, sourcefile, d):
     # Function to split a single file into two components, one is the stripped
     # target system binary, the other contains any debugging information. The
     # two files are linked to reference each other.
     #
     # sourcefile is also generated containing a list of debugsources
 
-    import commands, stat, subprocess
+    import stat, subprocess
 
     dvar = d.getVar('PKGD', True)
     objcopy = d.getVar("OBJCOPY", True)
     debugedit = d.expand("${STAGING_LIBDIR_NATIVE}/rpm/bin/debugedit")
     workdir = d.getVar("WORKDIR", True)
     workparentdir = d.getVar("DEBUGSRC_OVERRIDE_PATH", True) or os.path.dirname(os.path.dirname(workdir))
-    sourcefile = d.expand("${WORKDIR}/debugsources.list")
-
-    bb.utils.remove(sourcefile)
 
     # We ignore kernel modules, we don't generate debug info files.
     if file.find("/lib/modules/") != -1 and file.endswith(".ko"):
@@ -284,7 +281,7 @@ def copydebugsources(debugsrcdir, d):
     # The debug src information written out to sourcefile is further procecessed
     # and copied to the destination here.
 
-    import commands, stat, subprocess
+    import stat, subprocess
 
     sourcefile = d.expand("${WORKDIR}/debugsources.list")
     if debugsrcdir and os.path.isfile(sourcefile):
@@ -376,7 +373,6 @@ python package_get_auto_pr() {
             auto_pr=prserv_get_pr_auto(d)
         except Exception as e:
             bb.fatal("Can NOT get PRAUTO, exception %s" %  str(e))
-            return
         if auto_pr is None:
             if d.getVar('PRSERV_LOCKDOWN', True):
                 bb.fatal("Can NOT get PRAUTO from lockdown exported file")
@@ -697,7 +693,7 @@ python fixup_perms () {
 }
 
 python split_and_strip_files () {
-    import commands, stat, errno, subprocess
+    import stat, errno
 
     dvar = d.getVar('PKGD', True)
     pn = d.getVar('PN', True)
@@ -722,6 +718,9 @@ python split_and_strip_files () {
         debuglibdir = ""
         debugsrcdir = "/usr/src/debug"
 
+    sourcefile = d.expand("${WORKDIR}/debugsources.list")
+    bb.utils.remove(sourcefile)
+
     os.chdir(dvar)
 
     # Return type (bits):
@@ -733,7 +732,7 @@ python split_and_strip_files () {
     # 16 - kernel module
     def isELF(path):
         type = 0
-        ret, result = commands.getstatusoutput("file '%s'" % path)
+        ret, result = oe.utils.getstatusoutput("file '%s'" % path)
 
         if ret:
             bb.error("split_and_strip_files: 'file %s' failed" % path)
@@ -778,7 +777,8 @@ python split_and_strip_files () {
                 try:
                     ltarget = cpath.realpath(file, dvar, False)
                     s = cpath.lstat(ltarget)
-                except OSError, (err, strerror):
+                except OSError as e:
+                    (err, strerror) = e.args
                     if err != errno.ENOENT:
                         raise
                     # Skip broken symlinks
@@ -833,7 +833,7 @@ python split_and_strip_files () {
             bb.utils.mkdirhier(os.path.dirname(fpath))
             #bb.note("Split %s -> %s" % (file, fpath))
             # Only store off the hard link reference if we successfully split!
-            splitdebuginfo(file, fpath, debugsrcdir, d)
+            splitdebuginfo(file, fpath, debugsrcdir, sourcefile, d)
 
         # Hardlink our debug symbols to the other hardlink copies
         for file in hardlinks:
@@ -857,7 +857,8 @@ python split_and_strip_files () {
             try:
                 assert(not os.path.islink(fpath))
                 s = os.stat(fpath)
-            except OSError, (err, strerror):
+            except OSError as e:
+                (err, strerror) = e.args
                 if err != errno.ENOENT:
                     raise
                 continue
@@ -1096,7 +1097,8 @@ python emit_pkgdata() {
 
     def get_directory_size(dir):
         if os.listdir(dir):
-            size = int(os.popen('du -sk %s' % dir).readlines()[0].split('\t')[0])
+            with os.popen('du -sk %s' % dir) as f:
+                size = int(f.readlines()[0].split('\t')[0])
         else:
             size = 0
         return size
@@ -1203,7 +1205,7 @@ python emit_pkgdata() {
         g = glob('*')
         if g or allow_empty == "1":
             packagedfile = pkgdatadir + '/runtime/%s.packaged' % pkg
-            file(packagedfile, 'w').close()
+            open(packagedfile, 'w').close()
 
     if bb.data.inherits_class('kernel', d) or bb.data.inherits_class('module-base', d):
         write_extra_runtime_pkgs(variants, packages, pkgdatadir)
@@ -1633,7 +1635,7 @@ def read_libdep_files(d):
         for extension in ".shlibdeps", ".pcdeps", ".clilibdeps":
             depsfile = d.expand("${PKGDEST}/" + pkg + extension)
             if os.access(depsfile, os.R_OK):
-                fd = file(depsfile)
+                fd = open(depsfile)
                 lines = fd.readlines()
                 fd.close()
                 for l in lines:

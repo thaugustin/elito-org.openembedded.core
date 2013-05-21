@@ -1,13 +1,23 @@
 import pipes
 
 sh_quote = pipes.quote
+
+try:
+    # Python 2
+    import commands as cmdstatus
+except ImportError:
+    # Python 3
+    import subprocess as cmdstatus
+
 def read_file(filename):
     try:
-        f = file( filename, "r" )
-    except IOError, reason:
+        f = open( filename, "r" )
+    except IOError as reason:
         return "" # WARNING: can't raise an error now because of the new RDEPENDS handling. This is a bit ugly. :M:
     else:
-        return f.read().strip()
+        data = f.read().strip()
+        f.close()
+        return data
     return None
 
 def ifelse(condition, iftrue = True, iffalse = False):
@@ -126,3 +136,6 @@ def packages_filter_out_system(d):
         if pkg not in blacklist and localepkg not in pkg:
             pkgs.append(pkg)
     return pkgs
+
+def getstatusoutput(cmd):
+    return cmdstatus.getstatusoutput(cmd)

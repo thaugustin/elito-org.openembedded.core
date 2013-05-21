@@ -29,7 +29,7 @@ INITSCRIPT_PACKAGES = "${PN}-httpd ${PN}-syslog ${PN}-udhcpd ${PN}-mdev ${PN}-hw
 INITSCRIPT_NAME_${PN}-httpd = "busybox-httpd"
 INITSCRIPT_NAME_${PN}-hwclock = "hwclock.sh"
 INITSCRIPT_NAME_${PN}-mdev = "mdev"
-INITSCRIPT_PARAMS_${PN}-mdev = "start 06 S ."
+INITSCRIPT_PARAMS_${PN}-mdev = "start 03 S ."
 INITSCRIPT_NAME_${PN}-syslog = "syslog"
 INITSCRIPT_NAME_${PN}-udhcpd = "busybox-udhcpd" 
 
@@ -262,6 +262,7 @@ python do_package_prepend () {
 
         d.appendVar('ALTERNATIVE_%s' % (pn), ' ' + alt_name)
         d.setVarFlag('ALTERNATIVE_LINK_NAME', alt_name, alt_link_name)
+    f.close()
 }
 
 pkg_postinst_${PN} () {

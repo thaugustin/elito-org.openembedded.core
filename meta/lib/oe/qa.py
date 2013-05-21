@@ -72,7 +72,7 @@ class ELFFile:
         return ord(self.data[ELFFile.EI_ABIVERSION])
 
     def abiSize(self):
-	return self.bits
+        return self.bits
 
     def isLittleEndian(self):
         return self.sex == "<"
@@ -93,7 +93,7 @@ class ELFFile:
         import bb.process
         import sys
 
-        if self.objdump_output.has_key(cmd):
+        if cmd in self.objdump_output:
             return self.objdump_output[cmd]
 
         objdump = d.getVar('OBJDUMP', True)
@@ -106,6 +106,6 @@ class ELFFile:
             bb.note("%s %s %s" % (objdump, cmd, self.name))
             self.objdump_output[cmd] = bb.process.run([objdump, cmd, self.name], env=env, shell=False)[0]
             return self.objdump_output[cmd]
-        except Exception, e:
+        except Exception as e:
             bb.note("%s %s %s failed: %s" % (objdump, cmd, self.name, e))
             return ""

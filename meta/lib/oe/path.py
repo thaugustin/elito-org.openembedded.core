@@ -55,7 +55,7 @@ def make_relative_symlink(path):
         depth += 1
 
     if not ancestor:
-        print "make_relative_symlink() Error: unable to find the common ancestor of %s and its target" % path
+        print("make_relative_symlink() Error: unable to find the common ancestor of %s and its target" % path)
         return
 
     base = link.partition(ancestor)[2].strip('/')
@@ -85,20 +85,29 @@ def copytree(src, dst):
     check_output(cmd, shell=True, stderr=subprocess.STDOUT)
 
 def copyhardlinktree(src, dst):
+    """ Make the hard link when possible, otherwise copy. """
     bb.utils.mkdirhier(dst)
-    if os.path.isdir(src):
-        if not len(os.listdir(src)):
-            return	
-        src = src + "/*"
-    cmd = 'cp -al %s %s' % (src, dst)
-    check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    if os.path.isdir(src) and not len(os.listdir(src)):
+        return	
+
+    if (os.stat(src).st_dev ==  os.stat(dst).st_dev):
+        # Need to copy directories only with tar first since cp will error if two 
+        # writers try and create a directory at the same time
+        cmd = 'cd %s; find . -type d -print | tar -cf - -C %s -ps --files-from - | tar -xf - -C %s' % (src, src, dst)
+        check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+        if os.path.isdir(src):
+            src = src + "/*"
+        cmd = 'cp -afl %s %s' % (src, dst)
+        check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    else:
+        copytree(src, dst)
 
 def remove(path, recurse=True):
     """Equivalent to rm -f or rm -rf"""
     for name in glob.glob(path):
         try:
             os.unlink(name)
-        except OSError, exc:
+        except OSError as exc:
             if recurse and exc.errno == errno.EISDIR:
                 shutil.rmtree(name)
             elif exc.errno != errno.ENOENT:
@@ -110,7 +119,7 @@ def symlink(source, destination, force=False):
         if force:
             remove(destination)
         os.symlink(source, destination)
-    except OSError, e:
+    except OSError as e:
         if e.errno != errno.EEXIST or os.readlink(destination) != source:
             raise
 
@@ -238,7 +247,7 @@ def realpath(file, root, use_physdir = True, loop_cnt = 100, assume_dir = False)
             file = __realpath_rel(root, file[(len(root) - 1):], root, loop_cnt, assume_dir)
         else:
             file = __realpath(file, root, loop_cnt, assume_dir)[0]
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ELOOP:
             # make ELOOP more readable; without catching it, there will
             # be printed a backtrace with 100s of OSError exceptions
