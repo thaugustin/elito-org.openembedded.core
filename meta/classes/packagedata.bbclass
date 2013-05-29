@@ -14,9 +14,5 @@ python read_subpackage_metadata () {
                 if sdata[key] != pn:
                     bb.fatal("Recipe %s is trying to create package %s which was already written by recipe %s. This will cause corruption, please resolve this and only provide the package from one recipe or the other or only build one of the recipes." % (pn, pkg, sdata[key]))
                 continue
-
-            if not key.endswith('_' + pkg):
-                continue
-
             d.setVar(key, sdata[key])
 }
