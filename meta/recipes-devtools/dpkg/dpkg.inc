@@ -18,6 +18,9 @@ PARALLEL_MAKE = ""
 
 inherit autotools gettext perlnative pkgconfig
 
+export PERL = "${bindir}/perl"
+PERL_class-native = "${STAGING_BINDIR_NATIVE}/perl-native/perl"
+
 export PERL_LIBDIR = "${libdir}/perl"
 PERL_LIBDIR_class-native = "${libdir}/perl-native/perl"
 
@@ -26,6 +29,7 @@ EXTRA_OECONF = "--without-static-progs \
 		--with-start-stop-daemon \
 		--with-zlib \
 		--with-bz2lib \
+		--without-liblzma \
 		--without-selinux \
 		--without-sgml-doc"
 

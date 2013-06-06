@@ -18,7 +18,8 @@ SRC_URI[md5sum] = "cf31117c5d35af34d4c0702970ad9fb7"
 SRC_URI[sha256sum] = "02285dc429cb2a6687a1b2446e9ee22c1df27f2577225b05be5092395ee7c92c"
 
 # --enable-exportlib is necessary for building dhcp
-EXTRA_OECONF = " --enable-ipv6=no --with-randomdev=/dev/random --disable-threads \
+ENABLE_IPV6 = "--enable-ipv6=${@base_contains('DISTRO_FEATURES', 'ipv6', 'yes', 'no', d)}"
+EXTRA_OECONF = " ${ENABLE_IPV6} --with-randomdev=/dev/random --disable-threads \
                  --disable-devpoll --disable-epoll --with-gost=no \
                  --with-gssapi=no \
                  --sysconfdir=${sysconfdir}/bind \
@@ -39,6 +40,8 @@ FILES_${PN}-dev += "${bindir}/isc-config.h"
 do_install_append() {
 	rm "${D}${bindir}/nslookup"
 	rm "${D}${mandir}/man1/nslookup.1"
+	rmdir "${D}${localstatedir}/run"
+	rmdir --ignore-fail-on-non-empty "${D}${localstatedir}"
 	install -d "${D}${sysconfdir}/bind"
 	install -d "${D}${sysconfdir}/init.d"
 	install -m 644 ${S}/conf/* "${D}${sysconfdir}/bind/"

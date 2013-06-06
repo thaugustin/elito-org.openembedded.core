@@ -108,7 +108,7 @@ static void add_new_directory(char *name, char *path,
 {
 	mkdir(path, mode);
 	chown(path, uid, gid);
-//	printf("Directory: %s %s  UID: %ld  GID %ld  MODE: %ld\n", path, name, uid, gid, mode);
+//	printf("Directory: %s %s  UID: %ld  GID %ld  MODE: %04lo\n", path, name, uid, gid, mode);
 }
 
 static void add_new_device(char *name, char *path, unsigned long uid, 
@@ -116,7 +116,6 @@ static void add_new_device(char *name, char *path, unsigned long uid,
 {
 	int status;
 	struct stat sb;
-	time_t timestamp = time(NULL);
 
 	memset(&sb, 0, sizeof(struct stat));
 	status = lstat(path, &sb);
@@ -127,12 +126,11 @@ static void add_new_device(char *name, char *path, unsigned long uid,
 		 * better match the actual file or strange things will happen.... */
 		if ((mode & S_IFMT) != (sb.st_mode & S_IFMT))
 			error_msg_and_die("%s: file type does not match specified type!", path);
-		timestamp = sb.st_mtime;
 	}
 
-	mknod(name, mode, rdev);
+	mknod(path, mode, rdev);
 	chown(path, uid, gid);
-//	printf("Device: %s %s  UID: %ld  GID: %ld  MODE: %ld  MAJOR: %d  MINOR: %d\n",
+//	printf("Device: %s %s  UID: %ld  GID: %ld  MODE: %04lo  MAJOR: %d  MINOR: %d\n",
 //			path, name, uid, gid, mode, (short)(rdev >> 8), (short)(rdev & 0xff));
 }
 
@@ -147,7 +145,7 @@ static void add_new_file(char *name, char *path, unsigned long uid,
 	} 
 	chmod(path, mode);
 	chown(path, uid, gid);
-//	printf("File: %s %s  UID: %ld  GID: %ld  MODE: %ld\n",
+//	printf("File: %s %s  UID: %ld  GID: %ld  MODE: %04lo\n",
 //			path, name, gid, uid, mode);
 }
 
@@ -158,7 +156,7 @@ static void add_new_fifo(char *name, char *path, unsigned long uid,
 	if (mknod(path, mode, 0))
 		error_msg_and_die("%s: file can not be created with mknod!", path);
 	chown(path, uid, gid);
-//	printf("File: %s %s  UID: %ld  GID: %ld  MODE: %ld\n",
+//	printf("File: %s %s  UID: %ld  GID: %ld  MODE: %04lo\n",
 //			path, name, gid, uid, mode);
 }
 
@@ -198,7 +196,7 @@ static int interpret_table_entry(char *line)
 		error_msg_and_die("Device table entries require absolute paths");
 	}
 	name = xstrdup(path + 1);
-	sprintf(path, "%s/%s\0", rootdir, name);
+	sprintf(path, "%s/%s", rootdir, name);
 
 	switch (type) {
 	case 'd':
@@ -221,11 +219,12 @@ static int interpret_table_entry(char *line)
 			dev_t rdev;
 			char buf[80];
 
-			for (i = start; i < count; i++) {
+			for (i = start; i < start + count; i++) {
 				sprintf(buf, "%s%d", name, i);
+				sprintf(path, "%s/%s%d", rootdir, name, i);
 				/* FIXME:  MKDEV uses illicit insider knowledge of kernel 
 				 * major/minor representation...  */
-				rdev = MKDEV(major, minor + (i * increment - start));
+				rdev = MKDEV(major, minor + (i - start) * increment);
 				add_new_device(buf, path, uid, gid, mode, rdev);
 			}
 		} else {

@@ -13,7 +13,7 @@ EDEPENDS_GL    = "virtual/libgl libdrm"
 EDEPENDS_GLES2 = "virtual/libgles2"
 EDEPENDS_KMS   = "libdrm virtual/egl"
 EDEPENDS_EGL   = "virtual/egl"
-EDEPENDS_X11   = "virtual/libx11 libxcomposite libxfixes libxi"
+EDEPENDS_X11   = "virtual/libx11 libxcomposite libxfixes libxi libxrandr"
 
 # Extra RDEPENDS for PACKAGECONFIG
 # This has to be explictly listed, because cogl dlopens the backends
@@ -40,11 +40,5 @@ PACKAGECONFIG[glx] = "--enable-glx,--disable-glx,${EDEPENDS_GL} ${EDEPENDS_X11}"
 
 # Default to GLX
 PACKAGECONFIG ??= "gl glx"
-
-#Fix up some weirdness in the docs
-do_configure_prepend() {
-        sed -i s:doc/reference/Makefile::g ${S}/configure.ac
-        sed -i s:doc::g ${S}/Makefile.am
-}
 
 FILES_${PN}-examples = "${bindir}/* ${datadir}/cogl/examples-data/*"
