@@ -16,6 +16,7 @@ SRC_URI = "${SOURCEFORGE_MIRROR}/openjade/openjade-${PV}.tar.gz \
            file://makefile.patch \
            file://msggen.pl.patch \
            file://reautoconf.patch \
+           file://chmod-w.patch \
 	   file://user-declared-default-constructor.patch \
            file://fix-regex.patch \
 	   file://no-libtool.patch"
