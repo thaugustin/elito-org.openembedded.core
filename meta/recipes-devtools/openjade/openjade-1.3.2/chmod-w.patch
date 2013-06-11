@@ -1,0 +1,45 @@
+| rm -f grove_inst.cxx
+| /usr/bin/perl ./../instmac.pl grove_inst.m4 >grove_inst.cxx
+| chmod -w grove_inst.cxx
+| chmod: grove_inst.cxx: new permissions are r--rw-r--, not r--r--r--
+| make[2]: *** [grove_inst.cxx] Error 1
+
+Index: openjade-1.3.2/Makefile.comm.in
+===================================================================
+--- openjade-1.3.2.orig/Makefile.comm.in
++++ openjade-1.3.2/Makefile.comm.in
+@@ -53,7 +53,7 @@ CXXDEPGENFLAGS=-MM
+ .m4.cxx:
+ 	rm -f $@
+ 	$(PERL) $(srcdir)/../instmac.pl $< >$@
+-	chmod -w $@
++	chmod a-w $@
+ 
+ %.h %.cxx %.rc: %.msg
+ 	$(PERL) -w $(srcdir)/../msggen.pl $(MSGGENFLAGS) $<
+Index: openjade-1.3.2/config/aclocal.m4
+===================================================================
+--- openjade-1.3.2.orig/config/aclocal.m4
++++ openjade-1.3.2/config/aclocal.m4
+@@ -1016,7 +1016,7 @@ mkdir out
+ # the output directory.  Thus, making CWD read-only will cause this test
+ # to fail, enabling locking or at least warning the user not to do parallel
+ # builds.
+-chmod -w .
++chmod a-w .
+ save_CFLAGS="$CFLAGS"
+ CFLAGS="$CFLAGS -o out/conftest2.$ac_objext"
+ compiler_c_o=no
+Index: openjade-1.3.2/sunfix.sh
+===================================================================
+--- openjade-1.3.2.orig/sunfix.sh
++++ openjade-1.3.2/sunfix.sh
+@@ -5,6 +5,6 @@
+ cd include
+ mv NCVector.h NCVector.h.dist
+ sed -f NCVector.sed Vector.h >NCVector.h
+-chmod -w NCVector.h
++chmod a-w NCVector.h
+ sed -f NCVector.sed Vector.cxx >NCVector.cxx
+-chmod -w NCVector.cxx
++chmod a-w NCVector.cxx
