@@ -39,6 +39,8 @@ python do_prepare_copyleft_sources () {
         local = os.path.normpath(fetch.localpath(u.url))
         if local.endswith('.bb'):
             continue
+        elif local.endswith('/'):
+            local = local[:-1]
 
         if u.mirrortarball:
             tarball_path = os.path.join(dl_dir, u.mirrortarball)
@@ -61,4 +63,5 @@ python do_prepare_copyleft_sources () {
 }
 
 addtask prepare_copyleft_sources after do_fetch before do_build
+do_prepare_copyleft_sources[dirs] = "${WORKDIR}"
 do_build[recrdeptask] += 'do_prepare_copyleft_sources'

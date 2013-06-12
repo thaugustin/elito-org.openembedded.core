@@ -1,7 +1,7 @@
 DESCRIPTION = "Native version of Qt/[X11|Mac|Embedded]"
 DEPENDS = "zlib-native dbus-native"
 SECTION = "libs"
-HOMEPAGE = "http://qt.nokia.com"
+HOMEPAGE = "http://qt-project.org/"
 PROVIDES = "qt4-tools-native"
 
 LICENSE = "LGPLv2.1 | GPLv3"
@@ -25,6 +25,17 @@ SRC_URI = "http://releases.qt-project.org/qt4/source/qt-everywhere-opensource-sr
 S = "${WORKDIR}/qt-everywhere-opensource-src-${PV}"
 
 EXTRA_OECONF = "-prefix ${prefix} \
+                -bindir ${bindir} \
+                -libdir ${libdir} \
+                -datadir ${datadir}/qt4 \
+                -sysconfdir ${sysconfdir}/qt4 \
+                -docdir ${docdir}/qt4 \
+                -headerdir ${includedir}/qt4 \
+                -plugindir ${libdir}/qt4/plugins \
+                -importdir ${libdir}/qt4/imports \
+                -translationdir ${datadir}/qt4/translations \
+                -examplesdir ${bindir}/qt4/examples \
+                -demosdir ${bindir}/qt4/demos \
                 -L ${STAGING_LIBDIR_NATIVE} \
                 -I ${STAGING_INCDIR_NATIVE} \
                 -qt-libjpeg -system-zlib \
@@ -34,7 +45,6 @@ EXTRA_OECONF = "-prefix ${prefix} \
                 -no-nas-sound \
                 -no-nis -no-openssl \
                 -verbose -release \
-                -headerdir ${includedir}/qt4 \
                 -embedded -no-freetype -no-glib -no-iconv \
                 -exceptions -xmlpatterns \
                 -qt3support \
@@ -65,10 +75,12 @@ TOBUILD = "\
   src/testlib \
   src/qt3support \
   src/tools/uic3 \
+  tools/linguist/lconvert \
   tools/linguist/lrelease \
   tools/linguist/lupdate \
   tools/qdbus/qdbuscpp2xml \
   tools/qdbus/qdbusxml2cpp \
+  tools/xmlpatterns \
 "
 
 do_compile() {
@@ -80,7 +92,7 @@ do_compile() {
 do_install() {
 	install -d ${D}${bindir}/
 	install -m 0755 bin/qmake ${D}${bindir}/qmake2
-	for i in moc uic uic3 rcc lrelease lupdate qdbuscpp2xml qdbusxml2cpp; do
+	for i in moc uic uic3 rcc lconvert lrelease lupdate qdbuscpp2xml qdbusxml2cpp xmlpatterns; do
 		install -m 0755 bin/${i} ${D}${bindir}/${i}4
 	done
     
