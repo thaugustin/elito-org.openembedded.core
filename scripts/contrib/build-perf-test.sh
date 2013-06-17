@@ -112,9 +112,9 @@ if [ $reqpass -ne 0 ]; then
 fi
 
 if [ -n "$commit" ]; then
-            echo "git checkout $commit"
+            echo "git checkout -f $commit"
             git pull > /dev/null 2>&1
-            git checkout $commit || exit 1
+            git checkout -f $commit || exit 1
             git pull > /dev/null 2>&1
 fi
 
@@ -144,8 +144,9 @@ log () {
 # Config stuff
 #
 
-rev=$(git rev-parse HEAD) || exit 1
-log "Git revision is $rev"
+branch=`git branch 2>&1 | grep "^* " | tr -d "* "`
+gitcommit=$(git rev-parse HEAD)  || exit 1
+log "Running on $branch:$gitcommit"
 
 source ./oe-init-build-env $OUTDIR/build >/dev/null || exit 1
 cd $OUTDIR/build
@@ -175,14 +176,17 @@ echo "CONNECTIVITY_CHECK_URIS =\"\"" >> conf/local.conf
 
 declare -a TIMES
 time_count=0
+declare -a SIZES
+size_count=0
 
 bbtime () {
-    log "   Timing: bitbake $1"
+    local arg="$@"
+    log "   Timing: bitbake ${arg}"
 
     if [ $verbose -eq 0 ]; then 
-        /usr/bin/time -v -o $resultsfile bitbake "$1" >> $bboutput
+        /usr/bin/time -v -o $resultsfile bitbake ${arg} >> $bboutput
     else
-        /usr/bin/time -v -o $resultsfile bitbake "$1" 
+        /usr/bin/time -v -o $resultsfile bitbake ${arg}
     fi
     ret=$?
     if [ $ret -eq 0 ]; then
@@ -203,18 +207,19 @@ bbtime () {
 
 #we don't time bitbake here
 bbnotime () {
-    log "   Running: bitbake $1"
+    local arg="$@"
+    log "   Running: bitbake ${arg}"
     if [ $verbose -eq 0 ]; then
-        bitbake "$1" >> $bboutput
+        bitbake ${arg} >> $bboutput
     else
-        bitbake "$1" 
+        bitbake ${arg}
     fi
     ret=$?
     if [ $ret -eq 0 ]; then
-        log "   Finished bitbake $1"
+        log "   Finished bitbake ${arg}"
     else
         log "ERROR: exit status was non-zero. Exit.."
-        exit $?
+        exit $ret
     fi
 
 }
@@ -240,8 +245,11 @@ do_sync () {
 }
 
 write_results() {
-    echo -n "`uname -n`,$rev," >> $globalres
+    echo -n "`uname -n`,$branch:$gitcommit,`git describe`," >> $globalres
     for i in "${TIMES[@]}"; do
+        echo -n "$i," >> $globalres
+    done
+    for i in "${SIZES[@]}"; do
         echo -n "$i," >> $globalres
     done
     echo >> $globalres
@@ -271,12 +279,14 @@ write_results() {
 
 test1_p1 () {
     log "Running Test 1, part 1/3: Measure wall clock of bitbake $IMAGE and size of tmp/ dir"
-    bbnotime "$IMAGE -c fetchall"
+    bbnotime $IMAGE -c fetchall
     do_rmtmp
     do_rmsstate
     do_sync
-    bbtime "$IMAGE"
-    log "SIZE of tmp dir is: `du -sh tmp | sed 's/tmp//'`"
+    bbtime $IMAGE
+    s=`du -sh tmp | sed 's/tmp//'`
+    SIZES[(( size_count++ ))]="$s"
+    log "SIZE of tmp dir is: $s"
     log "Buildstats are saved in $OUTDIR/buildstats-test1"
     mv tmp/buildstats $OUTDIR/buildstats-test1
 }
@@ -284,9 +294,9 @@ test1_p1 () {
 
 test1_p2 () {
     log "Running Test 1, part 2/3: bitbake virtual/kernel -c cleansstate and time bitbake virtual/kernel"
-    bbnotime "virtual/kernel -c cleansstate"
+    bbnotime virtual/kernel -c cleansstate
     do_sync
-    bbtime "virtual/kernel"
+    bbtime virtual/kernel
 }
 
 test1_p3 () {
@@ -295,9 +305,11 @@ test1_p3 () {
     do_rmtmp
     do_rmsstate
     do_sync
-    bbtime "$IMAGE"
+    bbtime $IMAGE
     sed -i 's/INHERIT += \"rm_work\"//' conf/local.conf
-    log "SIZE of tmp dir is: `du -sh tmp | sed 's/tmp//'`"
+    s=`du -sh tmp | sed 's/tmp//'`
+    SIZES[(( size_count++ ))]="$s"
+    log "SIZE of tmp dir is: $s"
     log "Buildstats are saved in $OUTDIR/buildstats-test13"
     mv tmp/buildstats $OUTDIR/buildstats-test13
 }
@@ -313,7 +325,7 @@ test2 () {
     log "Running Test 2: Measure wall clock of bitbake $IMAGE -c rootfs with sstate"
     do_rmtmp
     do_sync
-    bbtime "$IMAGE -c rootfs"
+    bbtime $IMAGE -c rootfs
 }
 
 
@@ -330,11 +342,11 @@ test3 () {
     log "Running Test 3: Parsing time metrics (bitbake -p)"
     log "   Removing tmp/cache && cache"
     rm -rf tmp/cache cache
-    bbtime "-p"
+    bbtime -p
     log "   Removing tmp/cache/default-eglibc/"
     rm -rf tmp/cache/default-eglibc/
-    bbtime "-p"
-    bbtime "-p"
+    bbtime -p
+    bbtime -p
 }
 
 

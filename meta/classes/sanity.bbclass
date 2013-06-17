@@ -204,29 +204,6 @@ def check_sanity_version_change(data):
     # Sanity checks to be done when SANITY_VERSION changes
     return ""
 
-def check_pseudo_wrapper():
-    import sys
-    if not sys.argv[0].endswith('/bitbake'):
-        return ""
-
-    import subprocess as sub
-    # Check if bitbake wrapper is being used
-    pseudo_build = os.environ.get( 'PSEUDO_BUILD' )
-    if not pseudo_build:
-        bb.warn("Bitbake has not been run using the bitbake wrapper (scripts/bitbake); this is likely because your PATH has been altered from that normally set up by the oe-init-build-env script. Not using the wrapper may result in failures during package installation, so it is highly recommended that you set your PATH back so that the wrapper script is being executed.")
-
-    if (not pseudo_build) or pseudo_build == '2':
-        # pseudo ought to be working, let's see if it is...
-        p = sub.Popen(['sh', '-c', 'PSEUDO_DISABLED=0 id -u'],stdout=sub.PIPE,stderr=sub.PIPE)
-        out, err = p.communicate()
-        if out.rstrip() != '0':
-            msg = "Pseudo is not functioning correctly, which will cause failures during package installation. Please check your configuration."
-            if pseudo_build == '2':
-                return msg
-            else:
-                bb.warn(msg)
-    return ""
-
 def check_create_long_filename(filepath, pathname):
     testfile = os.path.join(filepath, ''.join([`num`[-1] for num in xrange(1,200)]))
     try:
@@ -359,6 +336,28 @@ def check_gcc_march(sanity_data):
 
     return result
 
+# Tar version 1.24 and onwards handle overwriting symlinks correctly
+# but earlier versions do not; this needs to work properly for sstate
+def check_tar_version(sanity_data, loosever):
+    status, result = oe.utils.getstatusoutput("tar --version")
+    if status != 0:
+        return "Unable to execute tar --version, exit code %s\n" % status
+    version = result.split()[3]
+    if loosever(version) < loosever("1.24"):
+        return "Your version of tar is older than 1.24 and has bugs which will break builds. Please install a newer version of tar.\n"
+    return None
+
+# We use git parameters and functionality only found in 1.7.5 or later
+def check_git_version(sanity_data, loosever):
+    status, result = oe.utils.getstatusoutput("git --version 2> /dev/null")
+    if status != 0:
+        return "Unable to execute git --version, exit code %s\n" % status
+    version = result.split()[2]
+    if loosever(version) < loosever("1.7.5"):
+        return "Your version of git is older than 1.7.5 and has bugs which will break builds. Please install a newer version of git.\n"
+    return None
+
+
 def check_sanity(sanity_data):
     import subprocess
 
@@ -382,11 +381,10 @@ def check_sanity(sanity_data):
 
     messages = ""
 
-    # Check the Python version, we now use Python 2.6 features in
-    # various classes
+    # Check the Python version, we now have a minimum of Python 2.7.3
     import sys
-    if sys.hexversion < 0x020600F0:
-        messages = messages + 'The system requires at least Python 2.6 to run. Please update your Python interpreter.\n'
+    if sys.hexversion < 0x020703F0:
+        messages = messages + 'The system requires at least Python 2.7.3 to run. Please update your Python interpreter.\n'
     # Check the python install is complete. glib-2.0-natives requries
     # xml.parsers.expat
     try:
@@ -408,6 +406,15 @@ def check_sanity(sanity_data):
     else:
         messages = messages + 'Please set a MACHINE in your local.conf or environment\n'
         machinevalid = False
+
+    tarmsg = check_tar_version(sanity_data, LooseVersion)
+    if tarmsg:
+        messages = messages + tarmsg
+
+    gitmsg = check_git_version(sanity_data, LooseVersion)
+    if gitmsg:
+        messages = messages + gitmsg
+
 
     # Check we are using a valid local.conf
     current_conf  = sanity_data.getVar('CONF_VERSION', True)
@@ -519,10 +526,6 @@ def check_sanity(sanity_data):
     if missing != "":
         missing = missing.rstrip(',')
         messages = messages + "Please install the following missing utilities: %s\n" % missing
-
-    pseudo_msg = check_pseudo_wrapper()
-    if pseudo_msg != "":
-        messages = messages + pseudo_msg + '\n'
 
     check_supported_distro(sanity_data)
     if machinevalid:
@@ -669,6 +672,7 @@ def copy_data(e):
     return sanity_data
 
 addhandler check_sanity_eventhandler
+check_sanity_eventhandler[eventmask] = "bb.event.ConfigParsed bb.event.SanityCheck bb.event.NetworkTest"
 python check_sanity_eventhandler() {
     if bb.event.getName(e) == "ConfigParsed" and e.data.getVar("BB_WORKERCONTEXT", True) != "1" and e.data.getVar("DISABLE_SANITY_CHECKS", True) != "1":
         sanity_data = copy_data(e)
