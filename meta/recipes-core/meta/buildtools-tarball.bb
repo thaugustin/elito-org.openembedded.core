@@ -1,4 +1,4 @@
-DESCRIPTION = "SDK type target for building a standalone tarball containing python, chrpath, git and tar. The \
+DESCRIPTION = "SDK type target for building a standalone tarball containing python, chrpath, make, git and tar. The \
                tarball can be used to run bitbake builds on systems which don't meet the usual version requirements."
 SUMMARY = "Standalone tarball for running builds on systems with inadequate software"
 LICENSE = "MIT"
@@ -36,6 +36,7 @@ TOOLCHAIN_HOST_TASK ?= "\
     nativesdk-chrpath \
     nativesdk-tar \
     nativesdk-git \
+    nativesdk-make \
     "
 
 TOOLCHAIN_OUTPUTNAME ?= "${SDK_NAME}-buildtools-nativesdk-standalone-${DISTRO_VERSION}"
@@ -48,8 +49,15 @@ inherit meta
 inherit populate_sdk
 
 create_sdk_files_append () {
-	rm -f ${SDK_OUTPUT}/${SDKPATH}/site-config*
-	
-	cat ${SDK_OUTPUT}/${SDKPATH}/environment-setup* | grep " PATH=\|OECORE_NATIVE_SYSROOT" > ${WORKDIR}/envtmp
-	mv ${WORKDIR}/envtmp ${SDK_OUTPUT}/${SDKPATH}/environment-setup*
+	rm -f ${SDK_OUTPUT}/${SDKPATH}/site-config-*
+	rm -f ${SDK_OUTPUT}/${SDKPATH}/environment-setup-*
+	rm -f ${SDK_OUTPUT}/${SDKPATH}/version-*
+
+	# Generate new (mini) sdk-environment-setup file
+	script=${1:-${SDK_OUTPUT}/${SDKPATH}/environment-setup-${SDK_SYS}}
+	touch $script
+	echo 'export PATH=${SDKPATHNATIVE}${bindir_nativesdk}:$PATH' >> $script
+	echo 'export OECORE_NATIVE_SYSROOT="${SDKPATHNATIVE}"' >> $script
+
+	toolchain_create_sdk_version ${SDK_OUTPUT}/${SDKPATH}/version-${SDK_SYS}
 }

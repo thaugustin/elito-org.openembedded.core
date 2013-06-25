@@ -26,6 +26,7 @@ LIC_FILES_CHKSUM = "file://LICENSE.radeon;md5=e56b405656593a0c97e478513051ea0e \
 SRCREV = "c530a75c1e6a472b0eb9558310b518f0dfcd8860"
 PE = "1"
 PV = "0.0+git${SRCPV}"
+PR = "r1"
 
 SRC_URI = "git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git;protocol=git"
 
@@ -52,10 +53,12 @@ do_install() {
 	( cd ${D}/lib/firmware ; ln -sf ti-connectivity/* . )
 }
 
+
 PACKAGES =+ "${PN}-ralink ${PN}-sd8686 ${PN}-wl12xx ${PN}-vt6656 \
              ${PN}-rtl-license ${PN}-rtl8192cu ${PN}-rtl8192ce ${PN}-rtl8192su \
              ${PN}-broadcom-license ${PN}-bcm4329 ${PN}-bcm4330 ${PN}-bcm4334 \
-             ${PN}-atheros-license ${PN}-ar9170 ${PN}-ar3k ${PN}-ath6k ${PN}-ath9k"
+             ${PN}-atheros-license ${PN}-ar9170 ${PN}-ar3k ${PN}-ath6k ${PN}-ath9k \
+             ${PN}-iwlwifi-licence ${PN}-iwlwifi-6000g2a-5 ${PN}-iwlwifi-6000g2b-6"
 
 FILES_${PN}-atheros-license = "/lib/firmware/LICENCE.atheros_firmware"
 
@@ -166,6 +169,13 @@ FILES_${PN}-bcm4334 = " \
 RDEPENDS_${PN}-bcm4334 += "${PN}-broadcom-license"
 ALTERNATIVE_linux-firmware-bcm4334 = "brcmfmac-sdio.bin"
 ALTERNATIVE_TARGET_linux-firmware-bcm4334[brcmfmac-sdio.bin] = "/lib/firmware/brcm/brcmfmac4334.bin"
+
+RDEPENDS_${PN}-iwlwifi-6000g2a-5 = "${PN}-iwlwifi-licence"
+RDEPENDS_${PN}-iwlwifi-6000g2b-6 = "${PN}-iwlwifi-licence"
+
+FILES_${PN}-iwlwifi-licence =   "/lib/firmware/LICENCE.iwlwifi_firmware"
+FILES_${PN}-iwlwifi-6000g2a-5 = "/lib/firmware/iwlwifi-6000g2a-5.ucode"
+FILES_${PN}-iwlwifi-6000g2b-6 = "/lib/firmware/iwlwifi-6000g2b-6.ucode"
 
 FILES_${PN} += "/lib/firmware/*"
 

@@ -96,6 +96,12 @@ do_install() {
 	install -d ${D}${sysconfdir}/pam.d/     
 	install -m 0644 ${WORKDIR}/pam.d/* ${D}${sysconfdir}/pam.d/
 
-    # The lsb requires unix_chkpwd has setuid permission
-    chmod 4755 ${D}${sbindir}/unix_chkpwd
+	# The lsb requires unix_chkpwd has setuid permission
+	chmod 4755 ${D}${sbindir}/unix_chkpwd
 }
+
+python do_pam_sanity () {
+    if "pam" not in d.getVar("DISTRO_FEATURES", True).split():
+        bb.warn("Building libpam but 'pam' isn't in DISTRO_FEATURES, PAM won't work correctly")
+}
+addtask pam_sanity before do_configure
