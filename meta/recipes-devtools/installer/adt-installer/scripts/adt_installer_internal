@@ -199,7 +199,7 @@ escaped_sdkpath=$(echo $DEFAULT_INSTALL_FOLDER |sed -e "s:[\+\.]:\\\\\\\\\0:g")
 
 # We don't change the script in-place since we may want the user to re-run
 # adt-installer script
-$SUDO sed -e "s:##DEFAULT_INSTALL_DIR##:$escaped_sdkpath:" scripts/relocate_sdk.py > scripts/relocate_sdk_tmp.py
+$SUDO sh -c "sed -e '"s:##DEFAULT_INSTALL_DIR##:$escaped_sdkpath:"' scripts/relocate_sdk.py > scripts/relocate_sdk_tmp.py"
 $SUDO chmod +x scripts/relocate_sdk_tmp.py
 
 dl_path=$(find $OECORE_NATIVE_SYSROOT/lib -name "ld-linux*")
@@ -212,12 +212,19 @@ check_result
 env_setup_script=$(find $NATIVE_INSTALL_DIR/ -name "environment-setup-*")
 $SUDO sed -i -e "s:$DEFAULT_INSTALL_FOLDER:$NATIVE_INSTALL_DIR:g" $env_setup_script
 
-find $OECORE_NATIVE_SYSROOT -type f -exec file '{}' \;|grep ":.*\(ASCII\|script\).*text"|cut -d':' -f1|\
-    xargs $SUDO sed -i -e "s:$DEFAULT_INSTALL_FOLDER:$NATIVE_INSTALL_DIR:g"
+find $OECORE_NATIVE_SYSROOT -type f -exec file '{}' \; | grep ":.*\(ASCII\|script\|source\).*text" | \
+    cut -d':' -f1 | xargs $SUDO sed -i -e "s:$DEFAULT_INSTALL_FOLDER:$NATIVE_INSTALL_DIR:g"
 
 # change all symlinks pointing to /opt/${DISTRO}/${SDK_VERSION}
 for l in $(find $NATIVE_INSTALL_DIR -type l); do
     $SUDO ln -sfn $(readlink $l|sed -e "s:$DEFAULT_INSTALL_FOLDER:$NATIVE_INSTALL_DIR:") $l
+done
+
+# find out all perl scripts in $OECORE_NATIVE_SYSROOT and modify them
+# replacing the host perl with SDK perl.
+for perl_script in $($SUDO grep -m 1 "^#!.*perl" -rl $OECORE_NATIVE_SYSROOT); do
+    $SUDO sed -i -e "s:^#! */usr/bin/perl.*:#! /usr/bin/env perl:g" -e \
+        "s: /usr/bin/perl: /usr/bin/env perl:g" $perl_script
 done
 
 echo_info "\nSuccessfully installed selected native ADT!"
@@ -251,7 +258,7 @@ qemu_type=`echo "$1" | sed -e 's/x86_64/x86-64/'`
 sysroot_image_name="core-image-$target_sysroot_image-qemu$qemu_type.tar.bz2"
     #echo_info "Extracting rootfs: $sysroot_image_name, using pseudo..."
 
-scripts/extract_rootfs $sysroot_image_name $target_sysroot $OECORE_NATIVE_SYSROOT $user_inst_type
+$SUDO scripts/extract_rootfs $sysroot_image_name $target_sysroot $OECORE_NATIVE_SYSROOT $user_inst_type
 check_result
 
 echo_info "Updating environment script with target sysroot location."
