@@ -59,6 +59,10 @@ RDEPENDS_packagegroup-core-basic-utils = "\
     grep \
     makedevs \
     mc \
+    mc-fish \
+    mc-helpers \
+    mc-helpers-perl \
+    mc-helpers-python \
     mktemp \
     ncurses \
     net-tools \
@@ -104,7 +108,7 @@ RDEPENDS_packagegroup-core-multiuser = "\
     cracklib \
     gzip \
     libuser \
-    libpam \
+    ${@base_contains('DISTRO_FEATURES', 'pam', 'libpam', '', d)} \
     shadow \
     sudo \
     "

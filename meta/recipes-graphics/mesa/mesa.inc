@@ -49,10 +49,13 @@ PACKAGECONFIG[egl] = "--enable-egl --with-egl-platforms=${EGL_PLATFORMS}, --disa
 PACKAGECONFIG[openvg] = "--enable-openvg, --disable-openvg"
 
 GALLIUMDRIVERS = "swrast"
-PACKAGECONFIG[gallium] = "--enable-gallium --with-gallium-drivers=${GALLIUMDRIVERS}, --disable-gallium --without-gallium-drivers"
-
-export WANT_LLVM_RELEASE = "3.2"
-PACKAGECONFIG[gallium-llvmpipe] = "--enable-gallium-llvm --enable-gallium-egl --enable-gallium-gbm --with-llvm-shared-libs --with-gallium-drivers=${GALLIUMDRIVERS}, --disable-gallium --without-gallium-drivers, llvm3.2"
+# keep --with-gallium-drivers separate, because when only one of gallium versions is enabled, other 2 were adding --without-gallium-drivers
+PACKAGECONFIG[gallium]      = "--with-gallium-drivers=${GALLIUMDRIVERS}, --without-gallium-drivers"
+PACKAGECONFIG[gallium-egl]  = "--enable-gallium-egl, --disable-gallium-egl"
+PACKAGECONFIG[gallium-gbm]  = "--enable-gallium-gbm, --disable-gallium-gbm"
+MESA_LLVM_RELEASE ?= "3.2"
+PACKAGECONFIG[gallium-llvm] = "--enable-gallium-llvm --with-llvm-shared-libs, --disable-gallium-llvm, llvm${MESA_LLVM_RELEASE}"
+export WANT_LLVM_RELEASE = "${MESA_LLVM_RELEASE}"
 
 # llvmpipe is slow if compiled with -fomit-frame-pointer (e.g. -O2)
 FULL_OPTIMIZATION_append = " -fno-omit-frame-pointer"
@@ -83,6 +86,9 @@ do_install_append () {
     rm -f ${D}${libdir}/egl/*.la
     rm -f ${D}${libdir}/gallium-pipe/*.la
     rm -f ${D}${libdir}/gbm/*.la
+    
+    # it was packaged in libdricore9.1.3-1 and preventing upgrades when debian.bbclass was used 
+    rm -f ${D}${sysconfdir}/drirc
 }
 
 # For the packages that make up the OpenGL interfaces, inject variables so that
