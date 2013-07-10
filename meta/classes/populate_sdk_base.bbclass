@@ -181,7 +181,7 @@ else
 	echo "$target_sdk_dir"
 fi
 
-eval target_sdk_dir=$(printf "%q" "$target_sdk_dir")
+eval target_sdk_dir=$(echo "$target_sdk_dir"|sed 's/ /\\ /g')
 if [ -d "$target_sdk_dir" ]; then
 	target_sdk_dir=$(cd "$target_sdk_dir"; pwd)
 else
@@ -248,7 +248,7 @@ for env_setup_script in `ls $target_sdk_dir/environment-setup-*`; do
 done
 
 # fix dynamic loader paths in all ELF SDK binaries
-native_sysroot=$($SUDO_EXEC cat $env_setup_script |grep OECORE_NATIVE_SYSROOT|cut -d'=' -f2|tr -d '"')
+native_sysroot=$($SUDO_EXEC cat $env_setup_script |grep 'OECORE_NATIVE_SYSROOT='|cut -d'=' -f2|tr -d '"')
 dl_path=$($SUDO_EXEC find $native_sysroot/lib -name "ld-linux*")
 if [ "$dl_path" = "" ] ; then
 	echo "SDK could not be set up. Relocate script unable to find ld-linux.so. Abort!"

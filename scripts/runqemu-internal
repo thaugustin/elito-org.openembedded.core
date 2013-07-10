@@ -50,6 +50,9 @@ else
         "qemuarm")
             mem_size=128
             ;;
+        "qemumicroblaze")
+            mem_size=64
+            ;;
         "qemumips"|"qemumips64")
             mem_size=128
             ;;
@@ -57,6 +60,9 @@ else
             mem_size=128
             ;;
         "qemush4")
+            mem_size=1024
+            ;;
+        "qemuzynq")
             mem_size=1024
             ;;
         *)
@@ -261,6 +267,7 @@ fi
 
 case "$MACHINE" in
     "qemuarm") ;;
+    "qemumicroblaze") ;;
     "qemumips") ;;
     "qemumipsel") ;;
     "qemumips64") ;;
@@ -270,6 +277,7 @@ case "$MACHINE" in
     "qemuarmv7") ;;
     "qemux86") ;;
     "qemux86-64") ;;
+    "qemuzynq") ;;
     "akita") ;;
     "spitz") ;;
     *)
@@ -489,6 +497,26 @@ if [ "$MACHINE" = "akita" ]; then
         raw2flash.akita < $ROOTFS > $ROOTFS.qemuflash
         fi
         QEMUOPTIONS="$QEMU_NETWORK_CMD -M akita -mtdblock $ROOTFS.qemuflash -portrait"
+    fi
+fi
+
+if [ "$MACHINE" = "qemumicroblaze" ]; then
+    QEMU=qemu-system-microblazeel
+    QEMU_SYSTEM_OPTIONS="-M petalogix-ml605 -serial mon:stdio -dtb $KERNEL-$MACHINE.dtb"
+    if [ "${FSTYPE:0:3}" = "ext" -o "${FSTYPE:0:4}" = "cpio" ]; then
+        KERNCMDLINE="earlyprintk root=/dev/ram rw"
+        QEMUOPTIONS="$QEMU_SYSTEM_OPTIONS -initrd $ROOTFS"
+    fi
+fi
+
+if [ "$MACHINE" = "qemuzynq" ]; then
+    QEMU=qemu-system-arm
+    QEMU_SYSTEM_OPTIONS="-M xilinx-zynq-a9 -serial null -serial mon:stdio -dtb $KERNEL-$MACHINE.dtb"
+    # zynq serial ports are named 'ttyPS0' and 'ttyPS1', fixup the default values
+    SCRIPT_KERNEL_OPT=$(echo "$SCRIPT_KERNEL_OPT" | sed 's/console=ttyS/console=ttyPS/g')
+    if [ "${FSTYPE:0:3}" = "ext" -o "${FSTYPE:0:4}" = "cpio" ]; then
+        KERNCMDLINE="earlyprintk root=/dev/ram rw"
+        QEMUOPTIONS="$QEMU_SYSTEM_OPTIONS -initrd $ROOTFS"
     fi
 fi
 
