@@ -26,6 +26,8 @@ SRC_URI = "\
           file://smart-multilib-fixes.patch \
           file://smart-yaml-error.patch \
           file://smart-channelsdir.patch \
+          file://smart-conflict-provider.patch \
+          file://smart-flag-ignore-recommends.patch \
           "
 
 SRC_URI[md5sum] = "573ef32ba177a6b3c4bf7ef04873fcb6"
