@@ -37,6 +37,10 @@ EXTRA_OECONF += "--without-audit \
                  --without-selinux"
 EXTRA_OECONF_libc-uclibc += "--with-nscd=no"
 
+# Build falsely assumes that if --enable-libpam is set, we don't need to link against
+# libcrypt. This breaks chsh.
+BUILD_LDFLAGS += "${@base_contains('DISTRO_FEATURES', 'pam', base_contains('DISTRO_FEATURES', 'libc-crypt',  '-lcrypt', '', d), '', d)}"
+
 PAM_PLUGINS = "libpam-runtime \
                pam-plugin-faildelay \
                pam-plugin-securetty \
@@ -119,11 +123,12 @@ inherit update-alternatives
 
 ALTERNATIVE_PRIORITY = "200"
 
-ALTERNATIVE_${PN} = "passwd chfn newgrp chsh groups chpasswd login vipw vigr"
+ALTERNATIVE_${PN} = "passwd chfn newgrp chsh groups chpasswd login vipw vigr su"
 ALTERNATIVE_LINK_NAME[chpasswd] = "${sbindir}/chpasswd"
 ALTERNATIVE_LINK_NAME[login] = "${base_bindir}/login"
 ALTERNATIVE_LINK_NAME[vipw] = "${base_sbindir}/vipw"
 ALTERNATIVE_LINK_NAME[vigr] = "${base_sbindir}/vigr"
+ALTERNATIVE_LINK_NAME[su] = "${bindir}/su"
 
 pkg_postinst_${PN} () {
 	if [ "x$D" != "x" ]; then

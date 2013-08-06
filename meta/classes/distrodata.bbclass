@@ -71,7 +71,7 @@ python do_distrodata_np() {
         rstatus = localdata.getVar('RECIPE_COLOR', True)
         if rstatus is not None:
                 rstatus = rstatus.replace(',','')
-                
+
         pupver = localdata.getVar('RECIPE_UPSTREAM_VERSION', True)
         if pcurver == pupver:
                 vermatch="1"
@@ -157,7 +157,7 @@ python do_distrodata() {
         rstatus = localdata.getVar('RECIPE_COLOR', True)
         if rstatus is not None:
                 rstatus = rstatus.replace(',','')
-                
+
         pupver = localdata.getVar('RECIPE_UPSTREAM_VERSION', True)
         if pcurver == pupver:
                 vermatch="1"
@@ -408,7 +408,7 @@ python do_checkpkg() {
                                 s = "%s[^\d\"]*?(\d+[\.\-_])+\d+/?" % m.group()
                         else:
                                 s = "(\d+[\.\-_])+\d+/?"
-                                
+
                         searchstr = "[hH][rR][eE][fF]=\"%s\">" % s
 
                         reg = re.compile(searchstr)
@@ -563,7 +563,10 @@ python do_checkpkg() {
                chk_uri = src_uri
         pdesc = localdata.getVar('DESCRIPTION', True)
         pgrp = localdata.getVar('SECTION', True)
-        pversion = localdata.getVar('PV', True)
+        if localdata.getVar('PRSPV', True):
+                pversion = localdata.getVar('PRSPV', True)
+        else:
+                pversion = localdata.getVar('PV', True)
         plicense = localdata.getVar('LICENSE', True)
         psection = localdata.getVar('SECTION', True)
         phome = localdata.getVar('HOMEPAGE', True)
@@ -590,31 +593,41 @@ python do_checkpkg() {
 
         (type, host, path, user, pswd, parm) = bb.decodeurl(uri)
         if type in ['http', 'https', 'ftp']:
-                pcurver = d.getVar('PV', True)
+                if d.getVar('PRSPV', True):
+                    pcurver = d.getVar('PRSPV', True)
+                else:
+                    pcurver = d.getVar('PV', True)
         else:
-                pcurver = d.getVar("SRCREV", True)
+                if d.getVar('PRSPV', True):
+                    pcurver = d.getVar('PRSPV', True)
+                else:
+                    pcurver = d.getVar("SRCREV", True)
+
 
         if type in ['http', 'https', 'ftp']:
                 newver = pcurver
                 altpath = path
                 dirver = "-"
                 curname = "-"
-        
+
                 """
                 match version number amid the path, such as "5.7" in:
-                        http://download.gnome.org/sources/${PN}/5.7/${PN}-${PV}.tar.gz        
+                        http://download.gnome.org/sources/${PN}/5.7/${PN}-${PV}.tar.gz
                 N.B. how about sth. like "../5.7/5.8/..."? Not find such example so far :-P
                 """
                 m = re.search(r"[^/]*(\d+\.)+\d+([\-_]r\d+)*/", path)
                 if m:
                         altpath = path.split(m.group())[0]
                         dirver = m.group().strip("/")
-        
+
                         """use new path and remove param. for wget only param is md5sum"""
                         alturi = bb.encodeurl([type, host, altpath, user, pswd, {}])
                         my_uri = d.getVar('REGEX_URI', True)
                         if my_uri:
-                            newver = d.getVar('PV', True)
+                            if d.getVar('PRSPV', True):
+                                    newver = d.getVar('PRSPV', True)
+                            else:
+                                    newver = d.getVar('PV', True)
                         else:
                             newver = check_new_dir(alturi, dirver, d)
                         altpath = path
@@ -624,7 +637,7 @@ python do_checkpkg() {
                 """Now try to acquire all remote files in current directory"""
                 if not re.match("Err", newver):
                         curname = altpath.split("/")[-1]
-        
+
                         """get remote name by skipping pacakge name"""
                         m = re.search(r"/.*/", altpath)
                         if not m:
@@ -650,7 +663,7 @@ python do_checkpkg() {
                                 pstatus = "UPDATE"
                         else:
                                 pstatus = "MATCH"
-        
+
                 if re.match("Err", newver):
                         pstatus = newver + ":" + altpath + ":" + dirver + ":" + curname
         elif type == 'git':
@@ -736,7 +749,7 @@ python do_checkpkg() {
                                 pupver = latest_pv + tmp3.group('git_prefix') + latest_head
                         else:
                                 if not tmp3:
-                                        bb.plain("#DEBUG# Current version (%s) doesn't match the usual pattern" %pversion)
+                                        bb.plain("#DEBUG# Package %s: current version (%s) doesn't match the usual pattern" %(pname, pversion))
         elif type == 'svn':
                 options = []
                 if user:
@@ -796,7 +809,7 @@ python do_checkpkg() {
                         pmstatus = "MATCH"
                 else:
                         pmstatus = "UPDATE"
-        
+
         psrcuri = psrcuri.split()[0]
         pdepends = "".join(pdepends.split("\t"))
         pdesc = "".join(pdesc.split("\t"))

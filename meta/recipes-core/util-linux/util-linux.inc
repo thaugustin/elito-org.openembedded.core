@@ -122,7 +122,7 @@ do_install () {
 	mkdir -p ${D}${base_bindir}
 
         sbinprogs="agetty ctrlaltdel cfdisk vipw vigr"
-        sbinprogs_a="pivot_root hwclock mkswap mkfs.minix fsck.minix losetup swapon fdisk readprofile fsck blkid blockdev"
+        sbinprogs_a="pivot_root hwclock mkswap mkfs.minix fsck.minix losetup swapon swapoff fdisk readprofile fsck blkid blockdev"
         usrbinprogs_a="chfn chsh hexdump last logger mesg newgrp renice utmpdump wall setsid chrt flock getopt"
         binprogs_a="dmesg kill more umount mount login reset"
 
@@ -146,9 +146,6 @@ do_install () {
 
 	install -d ${D}${sysconfdir}/default/
 	echo 'MOUNTALL="-t nonfs,nosmbfs,noncpfs"' > ${D}${sysconfdir}/default/mountall
-
-	ln -sf swapon.${BPN}   ${D}${base_sbindir}/swapoff.${BPN}
-	rm -f ${D}${sbindir}/swapoff
 
 	rm -f ${D}${bindir}/chkdupexe
 }
@@ -218,3 +215,10 @@ ALTERNATIVE_LINK_NAME[reset] = "${bindir}/reset"
 ALTERNATIVE_TARGET[reset] = "${base_bindir}/reset"
 
 BBCLASSEXTEND = "native nativesdk"
+
+python do_package_prepend () {
+    if '--enable-su' in d.getVar('EXTRA_OECONF', True).split():
+        alt_name = "su"
+        d.setVarFlag('ALTERNATIVE_LINK_NAME', alt_name, '%s/%s' % (d.getVar('bindir', True), alt_name))
+        d.appendVar('ALTERNATIVE_%s' % (d.getVar('PN', True)), ' ' + alt_name)
+}
