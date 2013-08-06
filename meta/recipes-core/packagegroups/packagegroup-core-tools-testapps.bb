@@ -31,9 +31,16 @@ _pkgs_touch = "\
 
 _pkgs_screen = "\
     fstests \
+    owl-video \
 "
 
 _pkgs_x11 = "\
+    mesa-demos \
+    x11perf \
+    xrestop \
+    xwininfo \
+    xprop \
+    xvideo-tests \
 "
 
 _pkgs_alsa = " \
@@ -53,5 +60,4 @@ RDEPENDS_${PN} = "\
     gst-meta-audio \
     ltp \
     connman-client \
-    ${@base_contains('DISTRO_FEATURES', 'x11', "${X11TOOLS}", "", d)} \
     "
