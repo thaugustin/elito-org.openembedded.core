@@ -169,7 +169,7 @@ python buildhistory_emit_pkghistory() {
 
     packagelist = packages.split()
     if not os.path.exists(pkghistdir):
-        os.makedirs(pkghistdir)
+        bb.utils.mkdirhier(pkghistdir)
     else:
         # Remove files for packages that no longer exist
         for item in os.listdir(pkghistdir):
@@ -201,15 +201,15 @@ python buildhistory_emit_pkghistory() {
         # Find out what the last version was
         # Make sure the version did not decrease
         #
-        if d.getVar("BUILDHISTORY_CHECKVERBACKWARDS", True) == "1":
-            lastversion = getlastpkgversion(pkg)
-            if lastversion:
-                last_pkge = lastversion.pkge
-                last_pkgv = lastversion.pkgv
-                last_pkgr = lastversion.pkgr
-                r = bb.utils.vercmp((pkge, pkgv, pkgr), (last_pkge, last_pkgv, last_pkgr))
-                if r < 0:
-                    bb.error("Package version for package %s went backwards which would break package feeds from (%s:%s-%s to %s:%s-%s)" % (pkg, last_pkge, last_pkgv, last_pkgr, pkge, pkgv, pkgr))
+        lastversion = getlastpkgversion(pkg)
+        if lastversion:
+            last_pkge = lastversion.pkge
+            last_pkgv = lastversion.pkgv
+            last_pkgr = lastversion.pkgr
+            r = bb.utils.vercmp((pkge, pkgv, pkgr), (last_pkge, last_pkgv, last_pkgr))
+            if r < 0:
+                msg = "Package version for package %s went backwards which would break package feeds from (%s:%s-%s to %s:%s-%s)" % (pkg, last_pkge, last_pkgv, last_pkgr, pkge, pkgv, pkgr)
+                package_qa_handle_error("version-going-backwards", msg, d)
 
         pkginfo = PackageInfo(pkg)
         # Apparently the version can be different on a per-package basis (see Python)
@@ -268,7 +268,7 @@ def write_pkghistory(pkginfo, d):
 
     pkgpath = os.path.join(pkghistdir, pkginfo.name)
     if not os.path.exists(pkgpath):
-        os.makedirs(pkgpath)
+        bb.utils.mkdirhier(pkgpath)
 
     infofile = os.path.join(pkgpath, "latest")
     with open(infofile, "w") as f:
@@ -579,7 +579,7 @@ python write_srcrev() {
     srcrevs, tag_srcrevs = _get_srcrev_values(d)
     if srcrevs:
         if not os.path.exists(pkghistdir):
-            os.makedirs(pkghistdir)
+            bb.utils.mkdirhier(pkghistdir)
         old_tag_srcrevs = {}
         if os.path.exists(srcrevfile):
             with open(srcrevfile) as f:
