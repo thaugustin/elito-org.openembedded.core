@@ -1,4 +1,4 @@
-DESCRIPTION = "FFmpeg-based GStreamer plug-in"
+SUMMARY = "FFmpeg-based GStreamer plug-in"
 SECTION = "multimedia"
 LICENSE = "GPLv2+ & LGPLv2+ & ( (GPLv2+ & LGPLv2.1+) | (GPLv3+ & LGPLv3+) )"
 LIC_FILES_CHKSUM = "file://COPYING;md5=b234ee4d69f5fce4486a80fdaf4a4263 \
@@ -12,7 +12,7 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=b234ee4d69f5fce4486a80fdaf4a4263 \
                     file://gst-libs/ext/libav/COPYING.LGPLv3;md5=e6a600fd5e1d9cbde2d983680233ad02"
 LICENSE_FLAGS = "commercial"
 HOMEPAGE = "http://www.gstreamer.net/"
-DEPENDS = "gstreamer gst-plugins-base zlib bzip2"
+DEPENDS = "gstreamer gst-plugins-base zlib bzip2 yasm-native"
 
 inherit autotools pkgconfig
 
@@ -27,7 +27,7 @@ SRC_URI = "http://gstreamer.freedesktop.org/src/${BPN}/${BPN}-${PV}.tar.bz2 \
 SRC_URI[md5sum] = "7f5beacaf1312db2db30a026b36888c4"
 SRC_URI[sha256sum] = "76fca05b08e00134e3cb92fa347507f42cbd48ddb08ed3343a912def187fbb62"
 
-PR = "r4"
+PR = "r7"
 
 GSTREAMER_DEBUG ?= "--disable-debug"
 
@@ -45,9 +45,9 @@ FFMPEG_EXTRA_CONFIGURE_COMMON = \
 
 EXTRA_OECONF = "${FFMPEG_EXTRA_CONFIGURE_COMMON}"
 
-# yasm not found, use --disable-yasm for a crippled build for libav
-EXTRA_OECONF_append_x86-64 = " --disable-yasm "
-EXTRA_OECONF_append_x86 = " --disable-yasm "
+PACKAGECONFIG ??= "external-libav"
+PACKAGECONFIG[external-libav] = "--with-system-ffmpeg,,libav"
+PACKAGECONFIG[orc] = "--enable-orc,--disable-orc,orc"
 
 FILES_${PN} += "${libdir}/gstreamer-0.10/*.so"
 FILES_${PN}-dbg += "${libdir}/gstreamer-0.10/.debug"
