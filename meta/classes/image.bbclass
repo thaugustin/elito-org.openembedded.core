@@ -262,6 +262,18 @@ read_only_rootfs_hook () {
 		if [ -x ${IMAGE_ROOTFS}/etc/init.d/populate-volatile.sh ]; then
 			${IMAGE_ROOTFS}/etc/init.d/populate-volatile.sh
 		fi
+		# If we're using openssh and the /etc/ssh directory has no pre-generated keys,
+		# we should configure openssh to use the configuration file /etc/ssh/sshd_config_readonly
+		# and the keys under /var/run/ssh.
+		if [ -d ${IMAGE_ROOTFS}/etc/ssh ]; then
+			if [ -e ${IMAGE_ROOTFS}/etc/ssh/ssh_host_rsa_key ]; then
+				echo "SYSCONFDIR=/etc/ssh" >> ${IMAGE_ROOTFS}/etc/default/ssh
+				echo "SSHD_OPTS=" >> ${IMAGE_ROOTFS}/etc/default/ssh
+			else
+				echo "SYSCONFDIR=/var/run/ssh" >> ${IMAGE_ROOTFS}/etc/default/ssh
+				echo "SSHD_OPTS='-f /etc/ssh/sshd_config_readonly'" >> ${IMAGE_ROOTFS}/etc/default/ssh
+			fi
+		fi
 	fi
 }
 
@@ -297,17 +309,15 @@ fakeroot do_rootfs () {
 	# copy the intercept scripts
 	cp ${COREBASE}/scripts/postinst-intercepts/* ${WORKDIR}/intercept_scripts/
 
-	# If "${IMAGE_ROOTFS}/dev" exists, then the device had been made by
-	# the previous build
-	if [ "${USE_DEVFS}" != "1" -a ! -r "${IMAGE_ROOTFS}/dev" ]; then
+	rootfs_${IMAGE_PKGTYPE}_do_rootfs
+
+	if [ "${USE_DEVFS}" != "1" ]; then
 		for devtable in ${@get_devtable_list(d)}; do
 			# Always return ture since there maybe already one when use the
 			# incremental image generation
 			makedevs -r ${IMAGE_ROOTFS} -D $devtable
 		done
 	fi
-
-	rootfs_${IMAGE_PKGTYPE}_do_rootfs
 
 	# remove unneeded packages/files from the final image
 	rootfs_remove_unneeded

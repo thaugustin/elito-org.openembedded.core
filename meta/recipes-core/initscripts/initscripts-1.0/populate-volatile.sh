@@ -19,7 +19,7 @@ ROOT_DIR=`echo $DIRNAME | sed -ne 's:/etc/.*::p'`
 [ "$ROOTFS_READ_ONLY" = "yes" ] && VOLATILE_ENABLE_CACHE=no
 
 CFGDIR="${ROOT_DIR}/etc/default/volatiles"
-TMPROOT="${ROOT_DIR}/var/tmp"
+TMPROOT="${ROOT_DIR}/var/volatile/tmp"
 COREDEF="00_core"
 
 [ "${VERBOSE}" != "no" ] && echo "Populating volatile Filesystems."
@@ -42,7 +42,7 @@ create_file() {
 			# but these failures should not be logged to make sure the do_rootfs
 			# process doesn't fail. This does no harm, as this script will
 			# run on target to set up the correct files and directories.
-			eval $EXEC > /dev/null 2>&1 &
+			eval $EXEC > /dev/null 2>&1
 		fi
 	}
 }
@@ -72,7 +72,8 @@ link_file() {
 	if [ -L \"$2\" ]; then
 		[ \"\$(readlink -f \"$2\")\" != \"\$(readlink -f \"$1\")\" ] && { rm -f \"$2\"; ln -sf \"$1\" \"$2\"; };
 	elif [ -d \"$2\" ]; then
-		for f in $2/* $2/.[^.]*; do [ -e \$f ] && cp -rf \$f $1; done;
+		cp -a $2/* $1 2>/dev/null;
+		cp -a $2/.[!.]* $1 2>/dev/null;
 		rm -rf \"$2\";
 		ln -sf \"$1\" \"$2\";
 	else
@@ -87,7 +88,7 @@ link_file() {
 	else
 		# For the same reason with create_file(), failures should
 		# not be logged.
-		eval $EXEC > /dev/null 2>&1 &
+		eval $EXEC > /dev/null 2>&1
 	fi
 }
 
@@ -156,7 +157,7 @@ apply_cfgfile() {
 		[ "${TTYPE}" = "l" ] && {
 			TSOURCE="$TLTARGET"
 			[ "${VERBOSE}" != "no" ] && echo "Creating link -${TNAME}- pointing to -${TSOURCE}-."
-			link_file "${TSOURCE}" "${TNAME}" &
+			link_file "${TSOURCE}" "${TNAME}"
 			continue
 		}
 
