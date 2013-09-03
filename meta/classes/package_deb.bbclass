@@ -10,6 +10,10 @@ DPKG_ARCH ?= "${TARGET_ARCH}"
 
 PKGWRITEDIRDEB = "${WORKDIR}/deploy-debs"
 
+APTCONF_TARGET = "${WORKDIR}"
+
+APT_ARGS = "${@['', '--no-install-recommends'][d.getVar("NO_RECOMMENDATIONS", True) == "1"]}"
+
 #
 # Update the Packages index files in ${DEPLOY_DIR_DEB}
 #
@@ -63,8 +67,9 @@ package_install_internal_deb () {
 	local package_linguas="${INSTALL_PACKAGES_LINGUAS_DEB}"
 	local task="${INSTALL_TASK_DEB}"
 
-	rm -f ${STAGING_ETCDIR_NATIVE}/apt/sources.list.rev
-	rm -f ${STAGING_ETCDIR_NATIVE}/apt/preferences
+	mkdir -p ${APTCONF_TARGET}/apt
+	rm -f ${APTCONF_TARGET}/apt/sources.list.rev
+	rm -f ${APTCONF_TARGET}/apt/preferences
 
 	priority=1
 	for arch in $archs; do
@@ -72,15 +77,22 @@ package_install_internal_deb () {
 			continue;
 		fi
 
-		echo "deb file:${DEPLOY_DIR_DEB}/$arch/ ./" >> ${STAGING_ETCDIR_NATIVE}/apt/sources.list.rev
+		echo "deb file:${DEPLOY_DIR_DEB}/$arch/ ./" >> ${APTCONF_TARGET}/apt/sources.list.rev
 		(echo "Package: *"
 		echo "Pin: release l=$arch"
 		echo "Pin-Priority: $(expr 800 + $priority)"
-		echo) >> ${STAGING_ETCDIR_NATIVE}/apt/preferences
+		echo) >> ${APTCONF_TARGET}/apt/preferences
 		priority=$(expr $priority + 5)
 	done
 
-	tac ${STAGING_ETCDIR_NATIVE}/apt/sources.list.rev > ${STAGING_ETCDIR_NATIVE}/apt/sources.list
+	for pkg in ${PACKAGE_EXCLUDE}; do
+		(echo "Package: $pkg"
+		echo "Pin: release *"
+		echo "Pin-Priority: -1"
+		echo) >> ${APTCONF_TARGET}/apt/preferences
+	done
+
+	tac ${APTCONF_TARGET}/apt/sources.list.rev > ${APTCONF_TARGET}/apt/sources.list
 
 	# The params in deb package control don't allow character `_', so
 	# change the arch's `_' to `-' in it.
@@ -88,9 +100,9 @@ package_install_internal_deb () {
 	cat "${STAGING_ETCDIR_NATIVE}/apt/apt.conf.sample" \
 		| sed -e "s#Architecture \".*\";#Architecture \"${dpkg_arch}\";#" \
 		| sed -e "s:#ROOTFS#:${target_rootfs}:g" \
-		> "${STAGING_ETCDIR_NATIVE}/apt/apt-${task}.conf"
+		> "${APTCONF_TARGET}/apt/apt.conf"
 
-	export APT_CONFIG="${STAGING_ETCDIR_NATIVE}/apt/apt-${task}.conf"
+	export APT_CONFIG="${APTCONF_TARGET}/apt/apt.conf"
 
 	mkdir -p ${target_rootfs}/var/lib/dpkg/info
 	mkdir -p ${target_rootfs}/var/lib/dpkg/updates
@@ -102,7 +114,7 @@ package_install_internal_deb () {
 
 	if [ ! -z "${package_linguas}" ]; then
 		for i in ${package_linguas}; do
-			apt-get install $i --force-yes --allow-unauthenticated
+			apt-get ${APT_ARGS} install $i --force-yes --allow-unauthenticated
 			if [ $? -ne 0 ]; then
 				exit 1
 			fi
@@ -111,13 +123,13 @@ package_install_internal_deb () {
 
 	# normal install
 	if [ ! -z "${package_to_install}" ]; then
-		apt-get install ${package_to_install} --force-yes --allow-unauthenticated
+		apt-get ${APT_ARGS} install ${package_to_install} --force-yes --allow-unauthenticated
 		if [ $? -ne 0 ]; then
 			exit 1
 		fi
 
 		# Attempt to correct the probable broken dependencies in place.
-		apt-get -f install
+		apt-get ${APT_ARGS} -f install
 		if [ $? -ne 0 ]; then
 			exit 1
 		fi
@@ -126,7 +138,7 @@ package_install_internal_deb () {
 	rm -f `dirname ${BB_LOGFILE}`/log.do_${task}-attemptonly.${PID}
 	if [ ! -z "${package_attemptonly}" ]; then
 		for i in ${package_attemptonly}; do
-			apt-get install $i --force-yes --allow-unauthenticated >> `dirname ${BB_LOGFILE}`/log.do_${task}-attemptonly.${PID} 2>&1 || true
+			apt-get ${APT_ARGS} install $i --force-yes --allow-unauthenticated >> `dirname ${BB_LOGFILE}`/log.do_${task}-attemptonly.${PID} 2>&1 || true
 		done
 	fi
 
@@ -208,7 +220,7 @@ python do_package_deb () {
         basedir = os.path.join(os.path.dirname(root))
 
         pkgoutdir = os.path.join(outdir, localdata.getVar('PACKAGE_ARCH', True))
-        bb.mkdirhier(pkgoutdir)
+        bb.utils.mkdirhier(pkgoutdir)
 
         os.chdir(root)
         from glob import glob
@@ -224,7 +236,7 @@ python do_package_deb () {
             continue
 
         controldir = os.path.join(root, 'DEBIAN')
-        bb.mkdirhier(controldir)
+        bb.utils.mkdirhier(controldir)
         os.chmod(controldir, 0755)
         try:
             ctrlfile = open(os.path.join(controldir, 'control'), 'w')

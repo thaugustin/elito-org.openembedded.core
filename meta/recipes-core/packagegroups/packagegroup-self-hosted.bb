@@ -38,11 +38,14 @@ RDEPENDS_packagegroup-self-hosted-host-tools = "\
     hdparm \
     iptables \
     lsb \
+    xdg-utils \
     mc \
     mc-fish \
     mc-helpers \
     mc-helpers-perl \
     mc-helpers-python \
+    midori \
+    pcmanfm \
     parted \
     pseudo \
     screen \
@@ -121,7 +124,9 @@ RDEPENDS_packagegroup-self-hosted-extended = "\
     grep \
     groff \
     gzip \
+    settings-daemon \
     hicolor-icon-theme \
+    sato-icon-theme \
     libaio \
     libusb1 \
     libxml2 \
@@ -134,6 +139,7 @@ RDEPENDS_packagegroup-self-hosted-extended = "\
     minicom \
     mtools \
     ncurses \
+    ncurses-terminfo-base \
     neon \
     nfs-utils \
     nfs-utils-client \
@@ -154,24 +160,29 @@ RDEPENDS_packagegroup-self-hosted-extended = "\
     python-core \
     python-curses \
     python-datetime \
+    python-difflib \
     python-distutils \
     python-elementtree \
     python-email \
     python-fcntl \
     python-git \
+    python-json \
     python-logging \
     python-misc \
+    python-mmap \
     python-multiprocessing \
     python-netclient \
     python-netserver \
     python-pickle \
     python-pkgutil \
+    python-pprint \
     python-re \
     python-rpm \
     python-shell \
     python-sqlite3 \
     python-subprocess \
     python-textutils \
+    python-unittest \
     python-unixadmin \
     python-xmlrpc \
     quota \

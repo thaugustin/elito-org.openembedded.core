@@ -14,10 +14,5 @@ SRC_URI = "file://Makefile \
 
 S = "${WORKDIR}"
 
-# Kernel module packages MUST begin with 'kernel-module-', otherwise
-# multilib image generation can fail.
-#
-# The following line is only necessary if the recipe name does not begin
-# with kernel-module-.
-#
-PKG_${PN} = "kernel-module-${PN}"
+# The inherit of module.bbclass will automatically name module packages with
+# "kernel-module-" prefix as required by the oe-core build environment.

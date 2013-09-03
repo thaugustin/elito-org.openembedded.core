@@ -1,5 +1,3 @@
-inherit relocatable
-
 # SDK packages are built either explicitly by the user,
 # or indirectly via dependency.  No need to be in 'world'.
 EXCLUDE_FROM_WORLD = "1"
@@ -13,7 +11,7 @@ CLASSOVERRIDE = "class-nativesdk"
 #
 # Update PACKAGE_ARCH and PACKAGE_ARCHS
 #
-PACKAGE_ARCH = "${SDK_ARCH}-nativesdk"
+PACKAGE_ARCH = "${SDK_ARCH}-${SDKPKGSUFFIX}"
 PACKAGE_ARCHS = "${SDK_PACKAGE_ARCHS}"
 
 #
@@ -89,3 +87,5 @@ addhandler nativesdk_virtclass_handler
 nativesdk_virtclass_handler[eventmask] = "bb.event.RecipePreFinalise"
 
 do_populate_sysroot[stamp-extra-info] = ""
+
+USE_NLS = "${SDKUSE_NLS}"

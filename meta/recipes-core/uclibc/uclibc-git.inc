@@ -1,11 +1,10 @@
-SRCREV="c2c684f88157f8bd0c236c7546f922fbf66b64a1"
+SRCREV="f22cca4722fa66e424562e69f4afa2bca0af871d"
 
 PV = "0.9.33+git${SRCPV}"
-PR = "${INC_PR}.4"
 
 FILESPATH = "${@base_set_filespath([ '${FILE_DIRNAME}/uclibc-git' ], d)}"
 
-SRC_URI = "git://uclibc.org/uClibc.git;branch=master;protocol=git \
+SRC_URI = "git://uclibc.org/uClibc.git;branch=master \
 	file://uClibc.machine \
 	file://uClibc.distro \
 	file://obstack.cfg \

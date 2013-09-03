@@ -15,7 +15,7 @@ INC_PR = "r0"
 
 SRC_URI = "http://directfb.org/downloads/Core/DirectFB-1.6/DirectFB-${PV}.tar.gz \
            file://configurefix.patch \
-           file://mesa9.patch"
+           file://fusion.patch"
 
 S = "${WORKDIR}/DirectFB-${PV}"
 

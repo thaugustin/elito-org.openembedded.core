@@ -358,6 +358,14 @@ EOF
 		smart --data-dir=${target_rootfs}/var/lib/smart config --set rpm-extra-macros._var=${localstatedir}
 		smart --data-dir=${target_rootfs}/var/lib/smart config --set rpm-extra-macros._tmppath=/install/tmp
 		package_write_smart_config ${target_rootfs}
+		# Do the following configurations here, to avoid them being saved for field upgrade
+		if [ "x${NO_RECOMMENDATIONS}" = "x1" ]; then
+			smart --data-dir=$1/var/lib/smart config --set ignore-all-recommends=1
+		fi
+		for i in ${PACKAGE_EXCLUDE}; do
+			smart --data-dir=$1/var/lib/smart flag --set exclude-packages $i
+		done
+
 		# Optional debugging
 		#smart --data-dir=${target_rootfs}/var/lib/smart config --set rpm-log-level=debug
 		#smart --data-dir=${target_rootfs}/var/lib/smart config --set rpm-log-file=/tmp/smart-debug-logfile
@@ -1061,7 +1069,7 @@ python do_package_rpm () {
             clean_licenses = get_licenses(d)
             pkgwritesrpmdir = bb.data.expand('${PKGWRITEDIRSRPM}/${PACKAGE_ARCH_EXTEND}', d)
             pkgwritesrpmdir = pkgwritesrpmdir + '/' + clean_licenses
-            bb.mkdirhier(pkgwritesrpmdir)
+            bb.utils.mkdirhier(pkgwritesrpmdir)
             os.chmod(pkgwritesrpmdir, 0755)
             return pkgwritesrpmdir
             
@@ -1115,7 +1123,7 @@ python do_package_rpm () {
     pkgwritedir = d.expand('${PKGWRITEDIRRPM}/${PACKAGE_ARCH_EXTEND}')
     pkgarch = d.expand('${PACKAGE_ARCH_EXTEND}${TARGET_VENDOR}-${TARGET_OS}')
     magicfile = d.expand('${STAGING_DIR_NATIVE}${datadir_native}/misc/magic.mgc')
-    bb.mkdirhier(pkgwritedir)
+    bb.utils.mkdirhier(pkgwritedir)
     os.chmod(pkgwritedir, 0755)
 
     cmd = rpmbuild

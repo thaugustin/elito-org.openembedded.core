@@ -11,8 +11,8 @@ inherit gzipnative
 LICENSE = "MIT"
 PACKAGES = ""
 DEPENDS += "${MLPREFIX}qemuwrapper-cross ${MLPREFIX}depmodwrapper-cross"
-RDEPENDS += "${IMAGE_INSTALL} ${LINGUAS_INSTALL} ${NORMAL_FEATURE_INSTALL} ${ROOTFS_BOOTSTRAP_INSTALL}"
-RRECOMMENDS += "${NORMAL_FEATURE_INSTALL_OPTIONAL}"
+RDEPENDS += "${PACKAGE_INSTALL} ${LINGUAS_INSTALL}"
+RRECOMMENDS += "${PACKAGE_INSTALL_ATTEMPTONLY}"
 
 INHIBIT_DEFAULT_DEPS = "1"
 
@@ -27,16 +27,6 @@ ROOTFS_BOOTSTRAP_INSTALL = "${@base_contains("IMAGE_FEATURES", "package-manageme
 # packages to install from features
 FEATURE_INSTALL = "${@' '.join(oe.packagegroup.required_packages(oe.data.typed_value('IMAGE_FEATURES', d), d))}"
 FEATURE_INSTALL_OPTIONAL = "${@' '.join(oe.packagegroup.optional_packages(oe.data.typed_value('IMAGE_FEATURES', d), d))}"
-
-# packages to install from features, excluding dev/dbg/doc/ptest
-NORMAL_FEATURE_INSTALL = "${@' '.join(oe.packagegroup.required_packages(normal_groups(d), d))}"
-NORMAL_FEATURE_INSTALL_OPTIONAL = "${@' '.join(oe.packagegroup.optional_packages(normal_groups(d), d))}"
-
-def normal_groups(d):
-    """Return all the IMAGE_FEATURES, with the exception of our special package groups"""
-    extras = set(d.getVarFlags('COMPLEMENTARY_GLOB').keys())
-    features = set(oe.data.typed_value('IMAGE_FEATURES', d))
-    return features.difference(extras)
 
 # Define some very basic feature package groups
 SPLASH ?= "psplash"
@@ -159,7 +149,7 @@ def get_devtable_list(d):
     if devtables == None:
         devtables = 'files/device_table-minimal.txt'
     for devtable in devtables.split():
-        str += " %s" % bb.which(d.getVar('BBPATH', True), devtable)
+        str += " %s" % bb.utils.which(d.getVar('BBPATH', True), devtable)
     return str
 
 IMAGE_CLASSES ?= "image_types"
@@ -277,6 +267,31 @@ read_only_rootfs_hook () {
 	fi
 }
 
+PACKAGE_EXCLUDE ??= ""
+PACKAGE_EXCLUDE[type] = "list"
+
+python rootfs_process_ignore() {
+    excl_pkgs = d.getVar("PACKAGE_EXCLUDE", True).split()
+    inst_pkgs = d.getVar("PACKAGE_INSTALL", True).split()
+    inst_attempt_pkgs = d.getVar("PACKAGE_INSTALL_ATTEMPTONLY", True).split()
+
+    d.setVar('PACKAGE_INSTALL_ORIG', ' '.join(inst_pkgs))
+    d.setVar('PACKAGE_INSTALL_ATTEMPTONLY', ' '.join(inst_attempt_pkgs))
+
+    for pkg in excl_pkgs:
+        if pkg in inst_pkgs:
+            bb.warn("Package %s, set to be excluded, is in %s PACKAGE_INSTALL (%s).  It will be removed from the list." % (pkg, d.getVar('PN', True), inst_pkgs))
+            inst_pkgs.remove(pkg)
+
+        if pkg in inst_attempt_pkgs:
+            bb.warn("Package %s, set to be excluded, is in %s PACKAGE_INSTALL_ATTEMPTONLY (%s).  It will be removed from the list." % (pkg, d.getVar('PN', True), inst_pkgs))
+            inst_attempt_pkgs.remove(pkg)
+
+    d.setVar("PACKAGE_INSTALL", ' '.join(inst_pkgs))
+    d.setVar("PACKAGE_INSTALL_ATTEMPTONLY", ' '.join(inst_attempt_pkgs))
+}
+do_rootfs[prefuncs] += "rootfs_process_ignore"
+
 # We have to delay the runtime_mapping_rename until just before rootfs runs
 # otherwise, the multilib renaming could step in and squash any fixups that
 # may have occurred.
@@ -320,7 +335,7 @@ fakeroot do_rootfs () {
 	fi
 
 	# remove unneeded packages/files from the final image
-	rootfs_remove_unneeded
+	rootfs_uninstall_unneeded
 
 	insert_feed_uris
 
@@ -482,7 +497,7 @@ rootfs_install_complementary() {
     fi
 }
 
-rootfs_remove_unneeded () {
+rootfs_uninstall_unneeded () {
 	if ${@base_contains("IMAGE_FEATURES", "package-management", "false", "true", d)}; then
 		if [ -z "$(delayed_postinsts)" ]; then
 			# All packages were successfully configured.
@@ -491,7 +506,7 @@ rootfs_remove_unneeded () {
 			if [ -e ${IMAGE_ROOTFS}${sysconfdir}/init.d/run-postinsts ]; then
 				remove_run_postinsts=true
 			fi
-			rootfs_remove_packages update-rc.d base-passwd ${ROOTFS_BOOTSTRAP_INSTALL}
+			rootfs_uninstall_packages update-rc.d base-passwd ${ROOTFS_BOOTSTRAP_INSTALL}
 
 			# Need to remove rc.d files for run-postinsts by hand since opkg won't
 			# call postrm scripts in offline root mode.

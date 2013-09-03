@@ -129,7 +129,7 @@ def sstate_install(ss, d):
 
     sharedfiles = []
     shareddirs = []
-    bb.mkdirhier(d.expand("${SSTATE_MANIFESTS}"))
+    bb.utils.mkdirhier(d.expand("${SSTATE_MANIFESTS}"))
 
     d2 = d.createCopy()
     extrainf = d.getVarFlag("do_" + ss['task'], 'stamp-extra-info', True)
@@ -215,7 +215,7 @@ def sstate_installpkg(ss, d):
         # remove dir if it exists, ensure any parent directories do exist
         if os.path.exists(dir):
             oe.path.remove(dir)
-        bb.mkdirhier(dir)
+        bb.utils.mkdirhier(dir)
         oe.path.remove(dir)
 
     sstateinst = d.expand("${WORKDIR}/sstate-install-%s/" % ss['name'])
@@ -281,7 +281,7 @@ def sstate_installpkg(ss, d):
         workdir = d.getVar('WORKDIR', True)
         src = sstateinst + "/" + plain.replace(workdir, '')
         dest = plain
-        bb.mkdirhier(src)
+        bb.utils.mkdirhier(src)
         prepdir(dest)
         os.rename(src, dest)
 
@@ -440,13 +440,14 @@ def sstate_package(ss, d):
         if not link.startswith(tmpdir):
             return
 
-        depth = link.rpartition(tmpdir)[2].count('/')
+        depth = outputpath.rpartition(tmpdir)[2].count('/')
         base = link.partition(tmpdir)[2].strip()
         while depth > 1:
-            base = "../" + base
+            base = "/.." + base
             depth -= 1
+        base = "." + base
 
-        bb.debug(2, "Replacing absolute path %s with relative path %s" % (link, base))
+        bb.debug(2, "Replacing absolute path %s with relative path %s for %s" % (link, base, outputpath))
         os.remove(path)
         os.symlink(base, path)
 
@@ -455,8 +456,8 @@ def sstate_package(ss, d):
     sstatebuild = d.expand("${WORKDIR}/sstate-build-%s/" % ss['name'])
     sstatepkg = d.getVar('SSTATE_PKG', True) + '_'+ ss['name'] + ".tgz"
     bb.utils.remove(sstatebuild, recurse=True)
-    bb.mkdirhier(sstatebuild)
-    bb.mkdirhier(os.path.dirname(sstatepkg))
+    bb.utils.mkdirhier(sstatebuild)
+    bb.utils.mkdirhier(os.path.dirname(sstatepkg))
     for state in ss['dirs']:
         if not os.path.exists(state[1]):
             continue
@@ -464,11 +465,11 @@ def sstate_package(ss, d):
         for walkroot, dirs, files in os.walk(state[1]):
             for file in files:
                 srcpath = os.path.join(walkroot, file)
-                dstpath = srcpath.replace(state[1], sstatebuild + state[0])
+                dstpath = srcpath.replace(state[1], state[2])
                 make_relative_symlink(srcpath, dstpath, d)
             for dir in dirs:
                 srcpath = os.path.join(walkroot, dir)
-                dstpath = srcpath.replace(state[1], sstatebuild + state[0])
+                dstpath = srcpath.replace(state[1], state[2])
                 make_relative_symlink(srcpath, dstpath, d)
         bb.debug(2, "Preparing tree %s for packaging at %s" % (state[1], sstatebuild + state[0]))
         oe.path.copyhardlinktree(state[1], sstatebuild + state[0])
@@ -476,8 +477,8 @@ def sstate_package(ss, d):
     workdir = d.getVar('WORKDIR', True)
     for plain in ss['plaindirs']:
         pdir = plain.replace(workdir, sstatebuild)
-        bb.mkdirhier(plain)
-        bb.mkdirhier(pdir)
+        bb.utils.mkdirhier(plain)
+        bb.utils.mkdirhier(pdir)
         oe.path.copyhardlinktree(plain, pdir)
 
     d.setVar('SSTATE_BUILDDIR', sstatebuild)
@@ -502,7 +503,7 @@ def pstaging_fetch(sstatefetch, sstatepkg, d):
     bb.data.update_data(localdata)
 
     dldir = localdata.expand("${SSTATE_DIR}")
-    bb.mkdirhier(dldir)
+    bb.utils.mkdirhier(dldir)
 
     localdata.delVar('MIRRORS')
     localdata.delVar('FILESPATH')

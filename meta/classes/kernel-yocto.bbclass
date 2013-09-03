@@ -9,7 +9,7 @@ def find_patches(d):
     patches = src_patches(d)
     patch_list=[]
     for p in patches:
-        _, _, local, _, _, _ = bb.decodeurl(p)
+        _, _, local, _, _, _ = bb.fetch.decodeurl(p)
         patch_list.append(local)
 
     return patch_list
@@ -262,6 +262,8 @@ python do_kernel_configcheck() {
     # set the default to 'meta'. Otherwise, kconf_check is not passed a valid
     # meta-series for processing
     kmeta = d.getVar( "KMETA", True ) or "meta"
+    if not os.path.exists(kmeta):
+        kmeta = "." + kmeta
 
     pathprefix = "export PATH=%s:%s; " % (d.getVar('PATH', True), "${S}/scripts/util/")
     cmd = d.expand("cd ${S}; kconf_check -config- %s/meta-series ${S} ${B}" % kmeta)

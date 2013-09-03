@@ -11,6 +11,8 @@ PKGWRITEDIRIPK = "${WORKDIR}/deploy-ipks"
 OPKGBUILDCMD ??= "opkg-build"
 
 OPKG_ARGS = "-f $INSTALL_CONF_IPK -o $INSTALL_ROOTFS_IPK --force_postinstall --prefer-arch-to-version"
+OPKG_ARGS += "${@['', '--no-install-recommends'][d.getVar("NO_RECOMMENDATIONS", True) == "1"]}"
+OPKG_ARGS += "${@['', '--add-exclude ' + ' --add-exclude '.join((d.getVar('PACKAGE_EXCLUDE', True) or "").split())][(d.getVar("PACKAGE_EXCLUDE", True) or "") != ""]}"
 
 OPKGLIBDIR = "${localstatedir}/lib"
 
@@ -251,7 +253,7 @@ python do_package_ipk () {
         basedir = os.path.join(os.path.dirname(root))
         arch = localdata.getVar('PACKAGE_ARCH', True)
         pkgoutdir = "%s/%s" % (outdir, arch)
-        bb.mkdirhier(pkgoutdir)
+        bb.utils.mkdirhier(pkgoutdir)
         os.chdir(root)
         from glob import glob
         g = glob('*')
@@ -266,7 +268,7 @@ python do_package_ipk () {
             continue
 
         controldir = os.path.join(root, 'CONTROL')
-        bb.mkdirhier(controldir)
+        bb.utils.mkdirhier(controldir)
         try:
             ctrlfile = open(os.path.join(controldir, 'control'), 'w')
         except OSError:
