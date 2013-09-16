@@ -4,7 +4,7 @@ inherit populate_sdk_base
 
 TOOLCHAIN_TARGET_TASK += "${PACKAGE_INSTALL}"
 TOOLCHAIN_TARGET_TASK_ATTEMPTONLY += "${PACKAGE_INSTALL_ATTEMPTONLY}"
-POPULATE_SDK_POST_TARGET_COMMAND += "rootfs_install_complementary populate_sdk; "
+POPULATE_SDK_POST_TARGET_COMMAND += "rootfs_install_complementary populate_sdk; rootfs_sysroot_relativelinks; "
 
 inherit gzipnative
 
@@ -130,6 +130,10 @@ python () {
     d.setVar('MULTILIB_VENDORS', ml_vendor_list)
 
     check_image_features(d)
+    initramfs_image = d.getVar('INITRAMFS_IMAGE', True) or ""
+    if initramfs_image != "":
+        d.appendVarFlag('do_build', 'depends', " %s:do_bundle_initramfs" %  d.getVar('PN', True))
+        d.appendVarFlag('do_bundle_initramfs', 'depends', " %s:do_rootfs" % initramfs_image)
 }
 
 #
@@ -480,7 +484,7 @@ rootfs_install_complementary() {
         # Use the magic script to do all the work for us :)
         : > ${WORKDIR}/complementary_pkgs.txt
         for vendor in '${TARGET_VENDOR}' ${MULTILIB_VENDORS} ; do
-            oe-pkgdata-util glob ${TMPDIR}/pkgdata $vendor-${TARGET_OS} ${WORKDIR}/installed_pkgs.txt "$GLOBS" >> ${WORKDIR}/complementary_pkgs.txt
+            oe-pkgdata-util glob ${PKGDATA_DIR} ${WORKDIR}/installed_pkgs.txt "$GLOBS" >> ${WORKDIR}/complementary_pkgs.txt
         done
 
         # Install the packages, if any
@@ -613,6 +617,11 @@ rootfs_trim_schemas () {
 	done
 }
 
+# Make any absolute links in a sysroot relative
+rootfs_sysroot_relativelinks () {
+	sysroot-relativelinks.py ${SDK_OUTPUT}/${SDKTARGETSYSROOT}
+}
+
 EXPORT_FUNCTIONS zap_root_password remove_init_link do_rootfs make_zimage_symlink_relative set_image_autologin rootfs_update_timestamp rootfs_no_x_startup
 
 do_fetch[noexec] = "1"
@@ -629,3 +638,11 @@ do_package_write_deb[noexec] = "1"
 do_package_write_rpm[noexec] = "1"
 
 addtask rootfs before do_build
+# Allow the kernel to be repacked with the initramfs and boot image file as a single file
+do_bundle_initramfs[depends] += "virtual/kernel:do_bundle_initramfs"
+do_bundle_initramfs[nostamp] = "1"
+do_bundle_initramfs[noexec] = "1"
+do_bundle_initramfs () {
+	:
+}
+addtask bundle_initramfs after do_rootfs

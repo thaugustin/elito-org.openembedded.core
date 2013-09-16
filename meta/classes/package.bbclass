@@ -812,8 +812,11 @@ python split_and_strip_files () {
                     elf_file = isELF(file)
                     if elf_file & 1:
                         if elf_file & 2:
-                            msg = "File '%s' from %s was already stripped, this will prevent future debugging!" % (file[len(dvar):], pn)
-                            package_qa_handle_error("already-stripped", msg, d)
+                            if 'already-stripped' in (d.getVar('INSANE_SKIP_' + pn, True) or "").split():
+                                bb.note("Skipping file %s from %s for already-stripped QA test" % (file[len(dvar):], pn))
+                            else:
+                                msg = "File '%s' from %s was already stripped, this will prevent future debugging!" % (file[len(dvar):], pn)
+                                package_qa_handle_error("already-stripped", msg, d)
                             continue
                         # Check if it's a hard link to something else
                         if s.st_nlink > 1:
@@ -1303,17 +1306,8 @@ python package_do_filedeps() {
         d.setVar("FILERPROVIDESFLIST_" + pkg, " ".join(provides_files[pkg]))
 }
 
-def getshlibsdirs(d):
-    dirs = []
-    triplets = (d.getVar("PKGTRIPLETS") or "").split()
-    for t in triplets:
-        dirs.append("${TMPDIR}/pkgdata/" + t + "/shlibs/")
-    return " ".join(dirs)
-getshlibsdirs[vardepsexclude] = "PKGTRIPLETS"
-
-SHLIBSDIRS = "${@getshlibsdirs(d)}"
-SHLIBSDIR = "${TMPDIR}/pkgdata/${PACKAGE_ARCH}${TARGET_VENDOR}-${TARGET_OS}/shlibs"
-SHLIBSWORKDIR = "${PKGDESTWORK}/shlibs"
+SHLIBSDIRS = "${PKGDATA_DIR}/${MLPREFIX}shlibs"
+SHLIBSWORKDIR = "${PKGDESTWORK}/${MLPREFIX}shlibs"
 
 python package_do_shlibs() {
     import re, pipes
@@ -1952,6 +1946,7 @@ do_packagedata[sstate-name] = "packagedata"
 do_packagedata[sstate-inputdirs] = "${PKGDESTWORK}"
 do_packagedata[sstate-outputdirs] = "${PKGDATA_DIR}"
 do_packagedata[sstate-lockfile-shared] = "${PACKAGELOCK}"
+do_packagedata[stamp-extra-info] = "${MACHINE}"
 
 python do_packagedata_setscene () {
     sstate_setscene(d)

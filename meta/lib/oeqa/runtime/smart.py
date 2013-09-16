@@ -12,12 +12,10 @@ def setUpModule():
 
 class SmartTest(oeRuntimeTest):
 
-    longMessage = True
-
     @skipUnlessPassed('test_smart_help')
     def smart(self, command, expected = 0):
         command = 'smart %s' % command
-        status, output = self.target.run(command, 500)
+        status, output = self.target.run(command, 900)
         message = os.linesep.join([command, output])
         self.assertEqual(status, expected, message)
         self.assertFalse("Cannot allocate memory" in output, message)
@@ -61,8 +59,10 @@ class SmartRepoTest(SmartTest):
     def test_smart_channel_add(self):
         image_pkgtype = self.tc.d.getVar('IMAGE_PKGTYPE', True)
         deploy_url = 'http://%s:%s/%s' %(self.tc.qemu.host_ip, self.repo_server.port, image_pkgtype)
+        pkgarchs = self.tc.d.getVar('PACKAGE_ARCHS', True)
         for arch in os.listdir('%s/%s' % (self.repo_server.root_dir, image_pkgtype)):
-            self.smart('channel -y --add {a} type=rpm-md baseurl={u}/{a}'.format(a=arch, u=deploy_url))
+            if arch in pkgarchs:
+                self.smart('channel -y --add {a} type=rpm-md baseurl={u}/{a}'.format(a=arch, u=deploy_url))
         self.smart('update')
 
     def test_smart_channel_help(self):
