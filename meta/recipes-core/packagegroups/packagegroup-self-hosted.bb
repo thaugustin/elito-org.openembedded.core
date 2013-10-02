@@ -44,6 +44,7 @@ RDEPENDS_packagegroup-self-hosted-host-tools = "\
     mc-helpers \
     mc-helpers-perl \
     mc-helpers-python \
+    leafpad \
     midori \
     pcmanfm \
     parted \
@@ -205,6 +206,7 @@ RDEPENDS_packagegroup-self-hosted-extended = "\
     xinetd \
     zip \
     zlib \
+    xz \
     "
 
 
