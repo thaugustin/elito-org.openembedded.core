@@ -147,6 +147,11 @@ do_bundle_initramfs () {
 	fi
 }
 do_bundle_initramfs[nostamp] = "1"
+
+python do_devshell_prepend () {
+    os.environ["LDFLAGS"] = ''
+}
+
 addtask bundle_initramfs after do_compile
 
 kernel_do_compile() {
@@ -293,6 +298,17 @@ kernel_do_install() {
 	fi
 }
 do_install[prefuncs] += "package_get_auto_pr"
+
+
+SSTATEPOSTINSTFUNCS += "kernelscripts_sstate_postinst"
+kernelscripts_sstate_postinst () {
+	if [ "${BB_CURRENTTASK}" = "populate_sysroot" -o "${BB_CURRENTTASK}" = "populate_sysroot_setscene" ]; then
+		( 
+		  cd ${STAGING_KERNEL_DIR}
+		  oe_runmake scripts
+		)
+	fi
+}
 
 sysroot_stage_all_append() {
 	sysroot_stage_dir ${D}${KERNEL_SRC_PATH} ${SYSROOT_DESTDIR}${KERNEL_SRC_PATH}
