@@ -441,7 +441,7 @@ python () {
         extradeps = []
         extrardeps = []
         extraconf = []
-        for flag, flagval in pkgconfigflags.items():
+        for flag, flagval in sorted(pkgconfigflags.items()):
             if flag == "defaultval":
                 continue
             items = flagval.split(",")
