@@ -1,14 +1,13 @@
-eglibc has remove gets starting 2.16
-therefore check for its being there before 
-undefining it.
+ISO C11 removes the specification of gets() from the C language, eglibc 2.16+ removed it
+
+Signed-off-by: Khem Raj <raj.khem@gmail.com>
 
 Upstream-Status: Pending
-Signed-off-by: Khem Raj <raj.khem@gmail.com>
-Index: m4-1.4.17/lib/stdio.in.h
+Index: tar-1.27/gnu/stdio.in.h
 ===================================================================
---- m4-1.4.17.orig/lib/stdio.in.h	2013-10-16 14:41:01.678496227 +0300
-+++ m4-1.4.17/lib/stdio.in.h	2013-10-16 14:41:48.849427839 +0300
-@@ -717,10 +717,12 @@
+--- tar-1.27.orig/gnu/stdio.in.h	2013-06-29 08:54:26.000000000 +0300
++++ tar-1.27/gnu/stdio.in.h	2013-10-16 15:22:46.977204737 +0300
+@@ -710,10 +710,12 @@
  /* It is very rare that the developer ever has full control of stdin,
     so any use of gets warrants an unconditional warning; besides, C11
     removed it.  */
