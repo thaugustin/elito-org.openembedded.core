@@ -56,6 +56,7 @@ FILES_update-alternatives-cworth = "${bindir}/update-alternatives"
 FILES_libopkg-dev = "${libdir}/*.la ${libdir}/*.so ${includedir}/libopkg"
 FILES_libopkg-staticdev = "${libdir}/*.a"
 FILES_libopkg = "${libdir}/*.so.* ${OPKGLIBDIR}/opkg/"
+FILES_${PN} += "${systemd_unitdir}/system/"
 
 do_install_append() {
 	# We need to create the lock directory
@@ -109,4 +110,6 @@ BBCLASSEXTEND = "native nativesdk"
 
 # Define a variable to allow distros to run configure earlier.
 # (for example, to enable loading of ethernet kernel modules before networking starts)
+# note: modifying name or default value for POSTINSTALL_INITPOSITION requires
+# changes in systemd-compat-units.bb
 POSTINSTALL_INITPOSITION ?= "98"
