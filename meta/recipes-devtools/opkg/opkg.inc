@@ -9,7 +9,6 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=94d55d512a9ba36caa9b7df079bae19f \
                     file://src/opkg-cl.c;beginline=1;endline=20;md5=321f658c3f6b6c832e25c8850b5dffba"
 
 PE = "1"
-INC_PR = "r13"
 
 # Werror gives all kinds bounds issuses with gcc 4.3.3
 do_configure_prepend() {
@@ -31,16 +30,19 @@ OPKG_LOCKFILE_class-nativesdk = ""
 target_localstatedir := "${localstatedir}"
 OPKGLIBDIR = "${target_localstatedir}/lib"
 
-SHARED_EXTRA_OECONF = "\
+PACKAGECONFIG ??= ""
+
+PACKAGECONFIG[gpg] = "--enable-gpg,--disable-gpg,gpgme libgpg-error"
+PACKAGECONFIG[curl] = "--enable-curl,--disable-curl,curl"
+PACKAGECONFIG[ssl-curl] = "--enable-ssl-curl,--disable-ssl-curl,curl openssl"
+PACKAGECONFIG[openssl] = "--enable-openssl,--disable-openssl,openssl"
+PACKAGECONFIG[sha256] = "--enable-sha256,--disable-sha256"
+PACKAGECONFIG[pathfinder] = "--enable-pathfinder,--disable-pathfinder,pathfinder"
+
+EXTRA_OECONF = "\
   --with-opkglibdir=${OPKGLIBDIR} \
-  --disable-gpg \
-  --disable-curl \
-  --disable-openssl \
   ${OPKG_LOCKFILE} \
 "
-EXTRA_OECONF_class-target = "${SHARED_EXTRA_OECONF} --disable-ssl-curl --disable-sha256"
-EXTRA_OECONF_class-native = "${SHARED_EXTRA_OECONF}"
-EXTRA_OECONF_class-nativesdk = "${SHARED_EXTRA_OECONF}"
 
 PROVIDES += "virtual/update-alternatives"
 RPROVIDES_update-alternatives-cworth += "update-alternatives"
@@ -71,6 +73,10 @@ do_install_append() {
 			-e 's,@SYSTEMD_UNITDIR@,${systemd_unitdir},g' \
 			${D}${systemd_unitdir}/system/opkg-configure.service
 	fi
+
+	# The installed binary is 'opkg-cl' but people and scripts often expect
+	# it to just be 'opkg'
+	ln -sf opkg-cl ${D}${bindir}/opkg
 }
 
 do_install_append_class-native() {
@@ -98,13 +104,6 @@ rm -f ${sysconfdir}/rcS.d/S${POSTINSTALL_INITPOSITION}run-postinsts
 	chmod 0755 $D${sysconfdir}/rcS.d/S${POSTINSTALL_INITPOSITION}run-postinsts
 fi
 }
-
-inherit update-alternatives
-
-ALTERNATIVE_PRIORITY = "100"
-ALTERNATIVE_${PN} = "opkg"
-ALTERNATIVE_LINK_NAME[opkg] = "${bindir}/opkg"
-ALTERNATIVE_TARGET[opkg] = "${bindir}/opkg-cl"
 
 BBCLASSEXTEND = "native nativesdk"
 
