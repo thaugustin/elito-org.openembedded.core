@@ -175,7 +175,8 @@ def check_conf_exists(fn, data):
     return False
 
 def check_create_long_filename(filepath, pathname):
-    testfile = os.path.join(filepath, ''.join([`num`[-1] for num in xrange(1,200)]))
+    import string, random
+    testfile = os.path.join(filepath, ''.join(random.choice(string.ascii_letters) for x in range(200)))
     try:
         if not os.path.exists(filepath):
             bb.utils.mkdirhier(filepath)
@@ -183,8 +184,9 @@ def check_create_long_filename(filepath, pathname):
         f.close()
         os.remove(testfile)
     except IOError as e:
-        errno, strerror = e.args
-        if errno == 36: # ENAMETOOLONG
+        import errno
+        err, strerror = e.args
+        if err == errno.ENAMETOOLONG:
             return "Failed to create a file with a long name in %s. Please use a filesystem that does not unreasonably limit filename length.\n" % pathname
         else:
             return "Failed to create a file in %s: %s.\n" % (pathname, strerror)
