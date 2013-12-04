@@ -32,6 +32,7 @@ SRC_URI += "\
   file://run-ptest \
   file://CVE-2013-4073_py27.patch \
   file://pypirc-secure.patch \
+  file://parallel-makeinst-create-bindir.patch \
 "
 
 S = "${WORKDIR}/Python-${PV}"
@@ -61,7 +62,7 @@ do_compile() {
         cd -
 
 	# remove hardcoded ccache, see http://bugs.openembedded.net/show_bug.cgi?id=4144
-	sed -i -e s,ccache,'$(CCACHE)', Makefile
+	sed -i -e s,ccache\ ,'$(CCACHE) ', Makefile
 
 	# remove any bogus LD_LIBRARY_PATH
 	sed -i -e s,RUNSHARED=.*,RUNSHARED=, Makefile
