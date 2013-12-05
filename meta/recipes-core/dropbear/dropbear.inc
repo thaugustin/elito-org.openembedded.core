@@ -70,13 +70,10 @@ do_install() {
 				  -e 's,/usr/bin,${bindir},g' \
 				  -e 's,/usr,${prefix},g' > ${D}${sysconfdir}/init.d/dropbear
 	chmod 755 ${D}${sysconfdir}/init.d/dropbear
-	for i in ${DISTRO_FEATURES};
-	do
-		if [ ${i} = "pam" ];  then
-			install -D -m 0644 ${WORKDIR}/dropbear.pam  ${D}${sysconfdir}/pam.d/dropbear
-		fi
-	done
-
+	if [ "${@base_contains('DISTRO_FEATURES', 'pam', 'pam', '', d)}" = "pam" ]; then
+		install -d ${D}${sysconfdir}/pam.d
+		install -m 0644 ${WORKDIR}/dropbear.pam  ${D}${sysconfdir}/pam.d/dropbear
+	fi
 }
 
 inherit update-alternatives
