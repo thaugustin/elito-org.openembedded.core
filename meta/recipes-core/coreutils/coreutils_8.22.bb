@@ -72,7 +72,7 @@ do_install_append() {
 	# for the actual source file.
 	mv ${D}${bindir}/[ ${D}${bindir}/lbracket.${BPN}
 	install -d ${D}${libdir}/coreutils
-	mv ${D}${libexecdir}/coreutils/libstdbuf.so ${D}${libdir}/coreutils
+	[ "${libexecdir}" = "${libdir}" ] || mv ${D}${libexecdir}/coreutils/libstdbuf.so ${D}${libdir}/coreutils
 }
 
 inherit update-alternatives
