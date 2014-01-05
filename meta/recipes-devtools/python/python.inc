@@ -1,4 +1,4 @@
-DESCRIPTION = "The Python Programming Language"
+SUMMARY = "The Python Programming Language"
 HOMEPAGE = "http://www.python.org"
 LICENSE = "PSFv2"
 SECTION = "devel/python"
@@ -22,8 +22,7 @@ PYTHONLSBOPTS_linuxstdbase = "ac_cv_sizeof_off_t=8"
 EXTRA_OECONF = "\
   --with-threads \
   --with-pymalloc \
-  --with-cyclic-gc \
-  --without-cxx \
+  --without-cxx-main \
   --with-signal-module \
   --enable-shared \
   --enable-ipv6=${@base_contains('DISTRO_FEATURES', 'ipv6', 'yes', 'no', d)} \

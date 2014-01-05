@@ -1,4 +1,4 @@
-DESCRIPTION = "SystemTap - script-directed dynamic tracing and performance analysis tool for Linux"
+SUMMARY = "Script-directed dynamic tracing and performance analysis tool for Linux"
 
 require systemtap_git.inc
 
@@ -12,7 +12,7 @@ RDEPENDS_${PN}_class-nativesdk += "python-native"
 
 EXTRA_OECONF += "--with-libelf=${STAGING_DIR_TARGET} --without-rpm \
             --without-nss --without-avahi --without-dyninst \
-            --disable-server --disable-grapher \
+            --disable-server --disable-grapher --enable-prologues \
             ac_cv_prog_have_javac=no \
             ac_cv_prog_have_jar=no "
 

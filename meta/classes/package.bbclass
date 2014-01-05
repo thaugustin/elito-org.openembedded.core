@@ -72,7 +72,7 @@ def legitimize_package_name(s):
     # Remaining package name validity fixes
     return s.lower().replace('_', '-').replace('@', '+').replace(',', '+').replace('/', '-')
 
-def do_split_packages(d, root, file_regex, output_pattern, description, postinst=None, recursive=False, hook=None, extra_depends=None, aux_files_pattern=None, postrm=None, allow_dirs=False, prepend=False, match_path=False, aux_files_pattern_verbatim=None, allow_links=False):
+def do_split_packages(d, root, file_regex, output_pattern, description, postinst=None, recursive=False, hook=None, extra_depends=None, aux_files_pattern=None, postrm=None, allow_dirs=False, prepend=False, match_path=False, aux_files_pattern_verbatim=None, allow_links=False, summary=None):
     """
     Used in .bb files to split up dynamically generated subpackages of a
     given package, usually plugins or modules.
@@ -116,6 +116,8 @@ def do_split_packages(d, root, file_regex, output_pattern, description, postinst
                       package name. Can be a single string item or a list
                       of strings for multiple items. Must include %s.
     allow_links    -- True to allow symlinks to be matched - default False
+    summary        -- Summary to set for each package. Must include %s;
+                      defaults to description if not set.
 
     """
 
@@ -160,6 +162,9 @@ def do_split_packages(d, root, file_regex, output_pattern, description, postinst
 
     if extra_depends == None:
         extra_depends = d.getVar("PN", True)
+
+    if not summary:
+        summary = description
 
     for o in sorted(objs):
         import re, stat
@@ -206,6 +211,7 @@ def do_split_packages(d, root, file_regex, output_pattern, description, postinst
             if extra_depends != '':
                 d.appendVar('RDEPENDS_' + pkg, ' ' + extra_depends)
             d.setVar('DESCRIPTION_' + pkg, description % on)
+            d.setVar('SUMMARY_' + pkg, summary % on)
             if postinst:
                 d.setVar('pkg_postinst_' + pkg, postinst)
             if postrm:
@@ -1933,7 +1939,6 @@ addtask package before do_build after do_install
 
 PACKAGELOCK = "${STAGING_DIR}/package-output.lock"
 SSTATETASKS += "do_package"
-do_package[sstate-name] = "package"
 do_package[cleandirs] = "${PKGDEST} ${PKGDESTWORK}"
 do_package[sstate-plaindirs] = "${PKGD} ${PKGDEST} ${PKGDESTWORK}"
 do_package[sstate-lockfile-shared] = "${PACKAGELOCK}"
@@ -1951,7 +1956,6 @@ do_packagedata () {
 addtask packagedata before do_build after do_package
 
 SSTATETASKS += "do_packagedata"
-do_packagedata[sstate-name] = "packagedata"
 do_packagedata[sstate-inputdirs] = "${PKGDESTWORK}"
 do_packagedata[sstate-outputdirs] = "${PKGDATA_DIR}"
 do_packagedata[sstate-lockfile-shared] = "${PACKAGELOCK}"

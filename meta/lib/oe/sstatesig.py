@@ -103,6 +103,9 @@ def find_siginfo(pn, taskname, taskhashlist, d):
         if key.startswith('virtual:native:'):
             pn = pn + '-native'
 
+    if taskname in ['do_fetch', 'do_unpack', 'do_patch', 'do_populate_lic']:
+        pn.replace("-native", "")
+
     filedates = {}
 
     # First search in stamps dir
@@ -128,7 +131,7 @@ def find_siginfo(pn, taskname, taskhashlist, d):
         else:
             filedates[fullpath] = os.stat(fullpath).st_mtime
 
-    if len(filedates) < 2 and not foundall:
+    if not taskhashlist or (len(filedates) < 2 and not foundall):
         # That didn't work, look in sstate-cache
         hashes = taskhashlist or ['*']
         localdata = bb.data.createCopy(d)
@@ -142,9 +145,7 @@ def find_siginfo(pn, taskname, taskhashlist, d):
             localdata.setVar('BB_TASKHASH', hashval)
             if pn.endswith('-native') or pn.endswith('-crosssdk') or pn.endswith('-cross'):
                 localdata.setVar('SSTATE_EXTRAPATH', "${NATIVELSBSTRING}/")
-            sstatename = d.getVarFlag(taskname, "sstate-name")
-            if not sstatename:
-                sstatename = taskname
+            sstatename = taskname[3:]
             filespec = '%s_%s.*.siginfo' % (localdata.getVar('SSTATE_PKG', True), sstatename)
 
             if hashval != '*':
@@ -152,7 +153,6 @@ def find_siginfo(pn, taskname, taskhashlist, d):
             else:
                 sstatedir = d.getVar('SSTATE_DIR', True)
 
-            filedates = {}
             for root, dirs, files in os.walk(sstatedir):
                 for fn in files:
                     fullpath = os.path.join(root, fn)

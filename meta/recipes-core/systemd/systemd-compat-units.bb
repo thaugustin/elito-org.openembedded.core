@@ -1,7 +1,7 @@
-DESCRIPTION = "Units to make systemd work better with existing sysvinit scripts"
+SUMMARY = "Enhances systemd compatilibity with existing SysVinit scripts"
 
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=3f40d7994397109285ec7b81fdeb3b58"
+LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=4d92cd373abda3937c2bc47fbc49d690"
 
 PR = "r18"
 
@@ -19,10 +19,6 @@ do_install() {
 	install -m 0644 ${WORKDIR}/run-postinsts.service ${D}${systemd_unitdir}/system
 	ln -sf ../run-postinsts.service ${D}${systemd_unitdir}/system/basic.target.wants/
 	ln -sf ../run-postinsts.service ${D}${systemd_unitdir}/system/sysinit.target.wants/
-
-	install -m 0644 ${WORKDIR}/machineid.service ${D}${systemd_unitdir}/system
-	ln -sf ../machineid.service ${D}${systemd_unitdir}/system/sysinit.target.wants/
-	ln -sf ../machineid.service ${D}${systemd_unitdir}/system/basic.target.wants/
 }
 
 SYSTEMD_DISABLED_SYSV_SERVICES = " \
