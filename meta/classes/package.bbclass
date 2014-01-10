@@ -1477,6 +1477,8 @@ python package_do_shlibs() {
         for (old, new) in renames:
             bb.note("Renaming %s to %s" % (old, new))
             os.rename(old, new)
+            pkgfiles[pkg].remove(old)
+	    
         shlibs_file = os.path.join(shlibswork_dir, pkg + ".list")
         shver_file = os.path.join(shlibswork_dir, pkg + ".ver")
         if len(sonames):

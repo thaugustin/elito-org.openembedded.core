@@ -676,12 +676,10 @@ def setscene_depvalid(task, taskdependees, notneeded, d):
 
     bb.debug(2, "Considering setscene task: %s" % (str(taskdependees[task])))
 
-    def isNative(x):
-        return x.endswith("-native")
     def isNativeCross(x):
-        return x.endswith("-native") or x.endswith("-cross") or x.endswith("-cross-initial")
+        return x.endswith("-native") or x.endswith("-cross") or x.endswith("-cross-initial") or x.endswith("-crosssdk") or x.endswith("-crosssdk-initial")
     def isSafeDep(x):
-        if x in ["quilt-native", "autoconf-native", "automake-native", "gnu-config-native", "libtool-native", "pkgconfig-native", "gcc-cross", "binutils-cross", "gcc-cross-initial"]:
+        if x in ["quilt-native", "autoconf-native", "automake-native", "gnu-config-native", "libtool-native", "pkgconfig-native", "gcc-cross", "binutils-cross", "gcc-cross-initial", "gcc-crosssdk", "binutils-crosssdk", "gcc-crosssdk-initial"]:
             return True
         return False
     def isPostInstDep(x):
@@ -712,7 +710,7 @@ def setscene_depvalid(task, taskdependees, notneeded, d):
                 return False
             continue
         # Native/Cross packages don't exist and are noexec anyway
-        if isNativeCross(taskdependees[dep][0]) and taskdependees[dep][1] in ['do_package_write_deb', 'do_package_write_ipk', 'do_package_write_rpm', 'do_packagedata']:
+        if isNativeCross(taskdependees[dep][0]) and taskdependees[dep][1] in ['do_package_write_deb', 'do_package_write_ipk', 'do_package_write_rpm', 'do_packagedata', 'do_package']:
             continue
 
         # Consider sysroot depending on sysroot tasks
