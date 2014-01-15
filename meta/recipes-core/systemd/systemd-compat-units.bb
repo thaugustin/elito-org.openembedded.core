@@ -23,7 +23,6 @@ do_install() {
 
 SYSTEMD_DISABLED_SYSV_SERVICES = " \
   busybox-udhcpc \
-  dnsmasq \
   hwclock \
   networking \
   syslog.busybox \
@@ -42,7 +41,7 @@ pkg_postinst_${PN} () {
 	fi
 
 	for i in ${SYSTEMD_DISABLED_SYSV_SERVICES} ; do
-		if [ \( -e $i -o $i.sh \) -a ! -e $D${sysconfdir}/systemd/system/$i.service ] ; then
+		if [ \( -e $i -o $i.sh \) -a ! \( -e $D${sysconfdir}/systemd/system/$i.service -o  -e $D${systemd_unitdir}/system/$i.service \) ] ; then
 			echo -n "$i: " ; systemctl ${OPTS} mask $i.service
 		fi
 	done ; echo

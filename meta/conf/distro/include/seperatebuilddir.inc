@@ -320,8 +320,6 @@ B_pn-libpcre = "${SEPB}"
 B_pn-libpcre-native = "${SEPB}"
 B_pn-libpng = "${SEPB}"
 B_pn-libpng-native = "${SEPB}"
-# Needs automatic support in cmake.bbclass
-#B_pn-libproxy = "${SEPB}"
 B_pn-libpthread-stubs = "${SEPB}"
 B_pn-libpthread-stubs-native = "${SEPB}"
 B_pn-librsvg = "${SEPB}"
