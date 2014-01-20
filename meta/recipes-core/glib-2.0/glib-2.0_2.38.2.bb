@@ -11,6 +11,8 @@ SRC_URI = "${GNOME_MIRROR}/glib/${SHRT_VER}/glib-${PV}.tar.xz \
            file://glib-2.0-configure-readlink.patch \
            file://run-ptest \
            file://0001-gio-Fix-Werror-format-string-errors-from-mismatched-.patch \
+           file://ptest-dbus.patch \
+           file://ptest-paths.patch \
           "
 
 SRC_URI_append_class-native = " file://glib-gettextize-dir.patch"

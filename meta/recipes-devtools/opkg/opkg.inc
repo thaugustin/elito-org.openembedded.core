@@ -1,6 +1,5 @@
 SUMMARY = "Open Package Manager"
 SUMMARY_libopkg = "Open Package Manager library"
-SUMMARY_update-alternatives-cworth = "Utility for managing the alternatives system"
 SECTION = "base"
 HOMEPAGE = "http://code.google.com/p/opkg/"
 BUGTRACKER = "http://code.google.com/p/opkg/issues/list"
@@ -44,17 +43,13 @@ EXTRA_OECONF = "\
   ${OPKG_LOCKFILE} \
 "
 
-PROVIDES += "virtual/update-alternatives"
-RPROVIDES_update-alternatives-cworth += "update-alternatives"
-RCONFLICTS_update-alternatives-cworth = "update-alternatives-dpkg"
 RDEPENDS_${PN} = "${VIRTUAL-RUNTIME_update-alternatives} opkg-config-base"
 RDEPENDS_${PN}_class-native = ""
 RDEPENDS_${PN}_class-nativesdk = ""
 RREPLACES_${PN} = "opkg-nogpg"
 
-PACKAGES =+ "libopkg-dev libopkg-staticdev libopkg update-alternatives-cworth"
+PACKAGES =+ "libopkg-dev libopkg-staticdev libopkg"
 
-FILES_update-alternatives-cworth = "${bindir}/update-alternatives"
 FILES_libopkg-dev = "${libdir}/*.la ${libdir}/*.so ${includedir}/libopkg"
 FILES_libopkg-staticdev = "${libdir}/*.a"
 FILES_libopkg = "${libdir}/*.so.* ${OPKGLIBDIR}/opkg/"
@@ -79,10 +74,8 @@ do_install_append() {
 	ln -sf opkg-cl ${D}${bindir}/opkg
 }
 
-do_install_append_class-native() {
-	if [ "${PREFERRED_PROVIDER_virtual/update-alternatives-native}" != "${PN}" ]; then
-		rm ${D}${bindir}/update-alternatives
-	fi
+do_install_append() {
+	rm ${D}${bindir}/update-alternatives
 }
 
 pkg_postinst_${PN} () {

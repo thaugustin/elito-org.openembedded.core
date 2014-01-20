@@ -16,8 +16,10 @@ SECTION = "libs"
 BBCLASSEXTEND = "native nativesdk"
 
 DEPENDS = "glib-2.0-native virtual/libiconv libffi zlib"
+DEPENDS_append_class-target = "${@base_contains('DISTRO_FEATURES', 'ptest', ' dbus', '', d)}"
 DEPENDS_class-native = "pkgconfig-native gettext-native libffi-native"
 DEPENDS_class-nativesdk = "nativesdk-libtool nativesdk-libffi nativesdk-zlib ${BPN}-native"
+
 PACKAGES =+ "${PN}-utils ${PN}-bash-completion ${PN}-codegen"
 
 LEAD_SONAME = "libglib-2.0.*"
@@ -78,6 +80,7 @@ RDEPENDS_${PN}-ptest += "\
             tzdata-posix \
             python-pygobject \
             python-dbus \
+            shared-mime-info \
            "
 
 RDEPENDS_${PN}-ptest_append_libc-glibc = "\
@@ -87,6 +90,9 @@ RDEPENDS_${PN}-ptest_append_libc-glibc = "\
             eglibc-charmap-cp1255 \
             eglibc-gconv-utf-32 \
             eglibc-gconv-utf-7 \
+            eglibc-gconv-euc-jp \
+            eglibc-gconv-iso8859-1 \
+            eglibc-gconv-iso8859-15 \
             eglibc-charmap-invariant \
             eglibc-localedata-translit-cjk-variants \
            "
