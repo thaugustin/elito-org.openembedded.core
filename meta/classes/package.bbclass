@@ -364,6 +364,17 @@ def get_package_mapping (pkg, basepkg, d):
 
     return pkg
 
+def get_package_additional_metadata (pkg_type, d):
+    base_key = "PACKAGE_ADD_METADATA"
+    for key in ("%s_%s" % (base_key, pkg_type.upper()), base_key):
+        if d.getVar(key) is None:
+            continue
+        d.setVarFlag(key, "type", "list")
+        if d.getVarFlag(key, "separator") is None:
+            d.setVarFlag(key, "separator", "\\n")
+        metadata_fields = [field.strip() for field in oe.data.typed_value(key, d)]
+        return "\n".join(metadata_fields).strip()
+
 def runtime_mapping_rename (varname, pkg, d):
     #bb.note("%s before: %s" % (varname, d.getVar(varname, True)))
 
@@ -1354,6 +1365,29 @@ python package_do_shlibs() {
     # Take shared lock since we're only reading, not writing
     lf = bb.utils.lockfile(d.expand("${PACKAGELOCK}"))
 
+    def read_shlib_providers():
+        list_re = re.compile('^(.*)\.list$')
+        # Go from least to most specific since the last one found wins
+        for dir in reversed(shlibs_dirs):
+            bb.debug(2, "Reading shlib providers in %s" % (dir))
+            if not os.path.exists(dir):
+                continue
+            for file in os.listdir(dir):
+                m = list_re.match(file)
+                if m:
+                    dep_pkg = m.group(1)
+                    fd = open(os.path.join(dir, file))
+                    lines = fd.readlines()
+                    fd.close()
+                    ver_file = os.path.join(dir, dep_pkg + '.ver')
+                    lib_ver = None
+                    if os.path.exists(ver_file):
+                        fd = open(ver_file)
+                        lib_ver = fd.readline().rstrip()
+                        fd.close()
+                    for l in lines:
+                        shlib_provider[l.rstrip()] = (dep_pkg, lib_ver)
+
     def linux_so(file):
         needs_ldconfig = False
         cmd = d.getVar('OBJDUMP', True) + " -p " + pipes.quote(file) + " 2>/dev/null"
@@ -1365,12 +1399,15 @@ python package_do_shlibs() {
             if m:
                 if m.group(1) not in needed[pkg]:
                     needed[pkg].append(m.group(1))
+                if m.group(1) not in needed_from:
+                    needed_from[m.group(1)] = []
+                needed_from[m.group(1)].append(file)
             m = re.match("\s+SONAME\s+([^\s]*)", l)
             if m:
                 this_soname = m.group(1)
                 if not this_soname in sonames:
                     # if library is private (only used by package) then do not build shlib for it
-                    if not private_libs or -1 == private_libs.find(this_soname):
+                    if not private_libs or this_soname not in private_libs:
                         sonames.append(this_soname)
                 if libdir_re.match(os.path.dirname(file)):
                     needs_ldconfig = True
@@ -1437,6 +1474,10 @@ python package_do_shlibs() {
                                 needed[pkg] = []
                             if name and name not in needed[pkg]:
                                 needed[pkg].append(name)
+                            if name not in needed_from:
+                                needed_from[name] = []
+                            if lafile and lafile not in needed_from[name]:
+                                needed_from[name].append(lafile)
                                 #bb.note("Adding %s for %s" % (name, pkg))
 
     if d.getVar('PACKAGE_SNAP_LIB_SYMLINKS', True) == "1":
@@ -1450,9 +1491,13 @@ python package_do_shlibs() {
         use_ldconfig = False
 
     needed = {}
+    needed_from = {}
     shlib_provider = {}
+    read_shlib_providers()
+
     for pkg in packages.split():
-        private_libs = d.getVar('PRIVATE_LIBS_' + pkg, True) or d.getVar('PRIVATE_LIBS', True)
+        private_libs = d.getVar('PRIVATE_LIBS_' + pkg, True) or d.getVar('PRIVATE_LIBS', True) or ""
+        private_libs = private_libs.split()
         needs_ldconfig = False
         bb.debug(2, "calculating shlib provides for %s" % pkg)
 
@@ -1484,6 +1529,11 @@ python package_do_shlibs() {
         if len(sonames):
             fd = open(shlibs_file, 'w')
             for s in sonames:
+                if s in shlib_provider:
+                    (old_pkg, old_pkgver) = shlib_provider[s]
+                    if old_pkg != pkg:
+                        bb.warn('%s-%s was registered as shlib provider for %s, changing it to %s-%s because it was built later' % (old_pkg, old_pkgver, s, pkg, pkgver))
+                bb.debug(1, 'registering %s-%s as shlib provider for %s' % (pkg, pkgver, s))
                 fd.write(s + '\n')
                 shlib_provider[s] = (pkg, pkgver)
             fd.close()
@@ -1497,27 +1547,7 @@ python package_do_shlibs() {
                 postinst = '#!/bin/sh\n'
             postinst += d.getVar('ldconfig_postinst_fragment', True)
             d.setVar('pkg_postinst_%s' % pkg, postinst)
-
-    list_re = re.compile('^(.*)\.list$')
-    # Go from least to most specific since the last one found wins
-    for dir in reversed(shlibs_dirs):
-        if not os.path.exists(dir):
-            continue
-        for file in os.listdir(dir):
-            m = list_re.match(file)
-            if m:
-                dep_pkg = m.group(1)
-                fd = open(os.path.join(dir, file))
-                lines = fd.readlines()
-                fd.close()
-                ver_file = os.path.join(dir, dep_pkg + '.ver')
-                lib_ver = None
-                if os.path.exists(ver_file):
-                    fd = open(ver_file)
-                    lib_ver = fd.readline().rstrip()
-                    fd.close()
-                for l in lines:
-                    shlib_provider[l.rstrip()] = (dep_pkg, lib_ver)
+        bb.debug(1, 'LIBNAMES: pkg %s sonames %s' % (pkg, sonames))
 
     bb.utils.unlockfile(lf)
 
@@ -1537,10 +1567,18 @@ python package_do_shlibs() {
 
         deps = list()
         for n in needed[pkg]:
+            # if n is in private libraries, don't try to search provider for it
+            # this could cause problem in case some abc.bb provides private
+            # /opt/abc/lib/libfoo.so.1 and contains /usr/bin/abc depending on system library libfoo.so.1
+            # but skipping it is still better alternative than providing own
+            # version and then adding runtime dependency for the same system library
+            if private_libs and n in private_libs:
+                bb.debug(2, '%s: Dependency %s covered by PRIVATE_LIBS' % (pkg, n))
+                continue
             if n in shlib_provider.keys():
                 (dep_pkg, ver_needed) = shlib_provider[n]
 
-                bb.debug(2, '%s: Dependency %s requires package %s' % (pkg, n, dep_pkg))
+                bb.debug(2, '%s: Dependency %s requires package %s (used by files: %s)' % (pkg, n, dep_pkg, needed_from[n]))
 
                 if dep_pkg == pkg:
                     continue
@@ -1552,7 +1590,7 @@ python package_do_shlibs() {
                 if not dep in deps:
                     deps.append(dep)
             else:
-                bb.note("Couldn't find shared library provider for %s" % n)
+                bb.note("Couldn't find shared library provider for %s, used by files: %s" % (n, needed_from[n]))
 
         deps_file = os.path.join(pkgdest, pkg + ".shlibdeps")
         if os.path.exists(deps_file):

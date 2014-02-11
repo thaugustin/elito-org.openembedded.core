@@ -15,7 +15,7 @@ RDEPENDS_${PN} = "\
     nativesdk-qemu \
     nativesdk-qemu-helper \
     nativesdk-pseudo \
-    nativesdk-unfs-server \
+    nativesdk-unfs3 \
     nativesdk-opkg \
     nativesdk-libtool \
     nativesdk-autoconf \
@@ -23,6 +23,7 @@ RDEPENDS_${PN} = "\
     nativesdk-shadow \
     nativesdk-makedevs \
     nativesdk-smartpm \
+    nativesdk-postinst-intercept \
     "
 
 RDEPENDS_${PN}_darwin = "\

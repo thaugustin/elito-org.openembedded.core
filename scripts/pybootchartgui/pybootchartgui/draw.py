@@ -314,6 +314,10 @@ def extents(options, xscale, trace):
                         end = trace.processes[proc][1]
                 processes += 1
 
+	if trace.min is not None and trace.max is not None:
+		start = trace.min
+		end = trace.max
+
 	w = int ((end - start) * sec_w_base * xscale) + 2 * off_x
 	h = proc_h * processes + header_h + 2 * off_y
 
@@ -420,7 +424,7 @@ def render_processes_chart(ctx, options, trace, curr_y, w, h, sec_w):
 	draw_legend_box (ctx, "Install", \
 			 TASK_COLOR_INSTALL, off_x+240, curr_y + 45, leg_s)
 	draw_legend_box (ctx, "Populate Sysroot", \
-			 TASK_COLOR_SYSROOT, off_x+480, curr_y + 45, leg_s)
+			 TASK_COLOR_SYSROOT, off_x+360, curr_y + 45, leg_s)
 	draw_legend_box (ctx, "Package", \
 			 TASK_COLOR_PACKAGE, off_x+480, curr_y + 45, leg_s)
 	draw_legend_box (ctx, "Package Write",
@@ -433,7 +437,7 @@ def render_processes_chart(ctx, options, trace, curr_y, w, h, sec_w):
 
 	y = curr_y+header_h
 
-        offset = min(trace.start.keys())
+        offset = trace.min or min(trace.start.keys())
         for s in sorted(trace.start.keys()):
             for val in sorted(trace.start[s]):
                 if not options.app_options.show_all and \

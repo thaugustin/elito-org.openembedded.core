@@ -185,7 +185,7 @@ DEPENDS = "\
     python-pygobject-native \
     python-pyrex-native \
     python-scons-native \
-    python-setuptools-native \
+    python-distribute-native \
     python-smartpm-native \
     qemu-helper-native \
     qemu-native \
@@ -213,7 +213,7 @@ DEPENDS = "\
     tiff-native \
     tzcode-native \
     u-boot-mkimage-native \
-    unfs-server-native \
+    unfs3-native \
     unifdef-native \
     unzip-native \
     update-rc.d-native \

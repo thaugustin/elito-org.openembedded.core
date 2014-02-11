@@ -2,7 +2,8 @@
 # Sanity check the users setup for common misconfigurations
 #
 
-SANITY_REQUIRED_UTILITIES ?= "patch diffstat makeinfo git bzip2 tar gzip gawk chrpath wget cpio"
+SANITY_REQUIRED_UTILITIES ?= "patch diffstat makeinfo git bzip2 tar \
+    gzip gawk chrpath wget cpio perl"
 
 def bblayers_conf_file(d):
     return os.path.join(d.getVar('TOPDIR', True), 'conf/bblayers.conf')
@@ -200,6 +201,21 @@ def check_path_length(filepath, pathname, limit):
         return "The length of %s is longer than 410, this would cause unexpected errors, please use a shorter path.\n" % pathname
     return ""
 
+def get_filesystem_id(path):
+    status, result = oe.utils.getstatusoutput("stat -f -c '%s' %s" % ("%t", path))
+    if status == 0:
+        return result
+    else:
+        bb.warn("Can't get the filesystem id of: %s" % path)
+        return None
+
+# Check that the path isn't located on nfs.
+def check_not_nfs(path, name):
+    # The nfs' filesystem id is 6969
+    if get_filesystem_id(path) == "6969":
+        return "The %s: %s can't be located on nfs.\n" % (name, path)
+    return ""
+
 def check_connectivity(d):
     # URI's to check can be set in the CONNECTIVITY_CHECK_URIS variable
     # using the same syntax as for SRC_URI. If the variable is not set
@@ -378,6 +394,17 @@ def check_git_version(sanity_data):
         return "Your version of git is older than 1.7.5 and has bugs which will break builds. Please install a newer version of git.\n"
     return None
 
+# Check the required perl modules which may not be installed by default
+def check_perl_modules(sanity_data):
+    ret = ""
+    modules = ( "Text::ParseWords", "Thread::Queue", "Data::Dumper" )
+    for m in modules:
+        status, result = oe.utils.getstatusoutput("perl -e 'use %s' 2> /dev/null" % m)
+        if status != 0:
+            ret += "%s " % m
+    if ret:
+        return "Required perl module(s) not found: %s\n" % ret
+    return None
 
 def sanity_check_conffiles(status, d):
     # Check we are using a valid local.conf
@@ -488,6 +515,7 @@ def check_sanity_version_change(status, d):
     status.addresult(check_make_version(d))
     status.addresult(check_tar_version(d))
     status.addresult(check_git_version(d))
+    status.addresult(check_perl_modules(d))
 
     missing = ""
 
@@ -571,8 +599,11 @@ def check_sanity_version_change(status, d):
     if not oes_bb_conf:
         status.addresult('You are not using the OpenEmbedded version of conf/bitbake.conf. This means your environment is misconfigured, in particular check BBPATH.\n')
 
-    # The length of tmpdir can't be longer than 410
+    # The length of TMPDIR can't be longer than 410
     status.addresult(check_path_length(tmpdir, "TMPDIR", 410))
+
+    # Check that TMPDIR isn't located on nfs
+    status.addresult(check_not_nfs(tmpdir, "TMPDIR"))
 
 def check_sanity_everybuild(status, d):
     # Sanity tests which test the users environment so need to run at each build (or are so cheap

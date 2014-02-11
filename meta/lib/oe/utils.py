@@ -154,3 +154,7 @@ def trim_version(version, num_parts=2):
     parts = version.split(".")
     trimmed = ".".join(parts[:num_parts])
     return trimmed
+
+def cpu_count():
+    import multiprocessing
+    return multiprocessing.cpu_count()

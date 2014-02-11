@@ -60,15 +60,18 @@ def verify_build_env():
     return True
 
 
-def get_line_val(line, key):
+def find_bitbake_env_lines(image_name):
     """
-    Extract the value from the VAR="val" string
+    If image_name is empty, plugins might still be able to use the
+    environment, so set it regardless.
     """
-    if line.startswith(key + "="):
-        stripped_line = line.split('=')[1]
-        stripped_line = stripped_line.replace('\"', '')
-        return stripped_line
-    return None
+    bitbake_env_cmd = "bitbake -e %s" % image_name
+    rc, bitbake_env_lines = exec_cmd(bitbake_env_cmd)
+    if rc != 0:
+        print "Couldn't get '%s' output." % bitbake_env_cmd
+        return None
+
+    return bitbake_env_lines
 
 
 def find_artifacts(image_name):
@@ -76,11 +79,7 @@ def find_artifacts(image_name):
     Gather the build artifacts for the current image (the image_name
     e.g. core-image-minimal) for the current MACHINE set in local.conf
     """
-    bitbake_env_cmd = "bitbake -e %s" % image_name
-    rc, bitbake_env_lines = exec_cmd(bitbake_env_cmd)
-    if rc != 0:
-        print "Couldn't get '%s' output, exiting." % bitbake_env_cmd
-        sys.exit(1)
+    bitbake_env_lines = get_bitbake_env_lines()
 
     rootfs_dir = kernel_dir = hdddir = staging_data_dir = native_sysroot = ""
 
@@ -176,7 +175,7 @@ def list_canned_image_help(scripts_path, fullpath):
 
 def wic_create(args, wks_file, rootfs_dir, bootimg_dir, kernel_dir,
                native_sysroot, hdddir, staging_data_dir, scripts_path,
-               image_output_dir, properties_file, properties=None):
+               image_output_dir, debug, properties_file, properties=None):
     """
     Create image
 
@@ -235,6 +234,9 @@ def wic_create(args, wks_file, rootfs_dir, bootimg_dir, kernel_dir,
     direct_args.insert(0, hdddir)
     direct_args.insert(0, staging_data_dir)
     direct_args.insert(0, "direct")
+
+    if debug:
+        msger.set_loglevel('debug')
 
     cr = creator.Creator()
 

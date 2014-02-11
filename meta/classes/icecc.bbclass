@@ -95,36 +95,39 @@ def use_icc(bb,d):
     if icc_is_allarch(bb, d):
         return "no"
 
-    package_tmp = d.expand('${PN}')
+    pn = d.getVar('PN', True)
 
-    system_class_blacklist = [ "none" ]
+    system_class_blacklist = []
     user_class_blacklist = (d.getVar('ICECC_USER_CLASS_BL') or "none").split()
     package_class_blacklist = system_class_blacklist + user_class_blacklist
 
     for black in package_class_blacklist:
         if bb.data.inherits_class(black, d):
-            #bb.note(package_tmp, ' class ', black, ' found in blacklist, disable icecc')
+            bb.debug(1, "%s: class %s found in blacklist, disable icecc" % (pn, black))
             return "no"
 
-    #"system" package blacklist contains a list of packages that can not distribute compile tasks
-    #for one reason or the other
-    system_package_blacklist = [ "uclibc", "glibc", "gcc", "bind", "u-boot", "dhcp-forwarder", "enchant", "connman", "orbit2" ]
+    # "system" recipe blacklist contains a list of packages that can not distribute compile tasks
+    # for one reason or the other
+    # this is the old list (which doesn't seem to be valid anymore, because I was able to build
+    # all these with icecc enabled)
+    # system_package_blacklist = [ "uclibc", "glibc", "gcc", "bind", "u-boot", "dhcp-forwarder", "enchant", "connman", "orbit2" ]
+    # when adding new entry, please document why (how it failed) so that we can re-evaluate it later
+    # e.g. when there is new version
+    system_package_blacklist = []
     user_package_blacklist = (d.getVar('ICECC_USER_PACKAGE_BL') or "").split()
     user_package_whitelist = (d.getVar('ICECC_USER_PACKAGE_WL') or "").split()
     package_blacklist = system_package_blacklist + user_package_blacklist
 
-    for black in package_blacklist:
-        if black in package_tmp:
-            #bb.note(package_tmp, ' found in blacklist, disable icecc')
-            return "no"
+    if pn in package_blacklist:
+        bb.debug(1, "%s: found in blacklist, disable icecc" % pn)
+        return "no"
 
-    for white in user_package_whitelist:
-        if white in package_tmp:
-            bb.debug(1, package_tmp, " ", d.expand('${PV})'), " found in whitelist, enable icecc")
-            return "yes"
+    if pn in user_package_whitelist:
+        bb.debug(1, "%s: found in whitelist, enable icecc" % pn)
+        return "yes"
 
     if d.getVar('PARALLEL_MAKE') == "":
-        bb.debug(1, package_tmp, " ", d.expand('${PV}'), " has empty PARALLEL_MAKE, disable icecc")
+        bb.debug(1, "%s: has empty PARALLEL_MAKE, disable icecc" % pn)
         return "no"
 
     return "yes"
@@ -142,12 +145,14 @@ def icc_is_native(bb, d):
         bb.data.inherits_class("cross", d) or \
         bb.data.inherits_class("native", d);
 
+# Don't pollute allarch signatures with TARGET_FPU
+icc_version[vardepsexclude] += "TARGET_FPU"
 def icc_version(bb, d):
     if use_icc(bb, d) == "no":
         return ""
 
     parallel = d.getVar('ICECC_PARALLEL_MAKE') or ""
-    if not d.getVar('PARALLEL_MAKE') == "":
+    if not d.getVar('PARALLEL_MAKE') == "" and parallel:
         d.setVar("PARALLEL_MAKE", parallel)
 
     if icc_is_native(bb, d):
@@ -182,6 +187,8 @@ def icc_get_external_tool(bb, d, tool):
     target_prefix = d.expand('${TARGET_PREFIX}')
     return os.path.join(external_toolchain_bindir, '%s%s' % (target_prefix, tool))
 
+# Don't pollute native signatures with target TUNE_PKGARCH through STAGING_BINDIR_TOOLCHAIN
+icc_get_tool[vardepsexclude] += "STAGING_BINDIR_TOOLCHAIN"
 def icc_get_tool(bb, d, tool):
     if icc_is_native(bb, d):
         return bb.utils.which(os.getenv("PATH"), tool)
@@ -251,6 +258,8 @@ set_icecc_env() {
 
     ICECC_CC="${@icc_get_and_check_tool(bb, d, "gcc")}"
     ICECC_CXX="${@icc_get_and_check_tool(bb, d, "g++")}"
+    # cannot use icc_get_and_check_tool here because it assumes as without target_sys prefix
+    ICECC_WHICH_AS="${@bb.utils.which(os.getenv('PATH'), 'as')}"
     if [ ! -x "${ICECC_CC}" -o ! -x "${ICECC_CXX}" ]
     then
         bbwarn "Cannot use icecc: could not get ICECC_CC or ICECC_CXX"
@@ -266,9 +275,12 @@ set_icecc_env() {
     fi
 
     ICECC_AS="`${ICECC_CC} -print-prog-name=as`"
+    # for target recipes should return something like:
+    # /OE/tmp-eglibc/sysroots/x86_64-linux/usr/libexec/arm920tt-oe-linux-gnueabi/gcc/arm-oe-linux-gnueabi/4.8.2/as
+    # and just "as" for native, if it returns "as" in current directory (for whatever reason) use "as" from PATH
     if [ "`dirname "${ICECC_AS}"`" = "." ]
     then
-        ICECC_AS="`which as`"
+        ICECC_AS="${ICECC_WHICH_AS}"
     fi
 
     if [ ! -f "${ICECC_VERSION}.done" ]

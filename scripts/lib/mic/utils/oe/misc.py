@@ -106,3 +106,32 @@ def get_wks_var(key):
 
 def add_wks_var(key, val):
     wks_vars[key] = val
+
+BOOTDD_EXTRA_SPACE = 16384
+IMAGE_EXTRA_SPACE = 10240
+
+__bitbake_env_lines = ""
+
+def set_bitbake_env_lines(bitbake_env_lines):
+    global __bitbake_env_lines
+    __bitbake_env_lines = bitbake_env_lines
+
+def get_bitbake_env_lines():
+    return __bitbake_env_lines
+
+def get_line_val(line, key):
+    """
+    Extract the value from the VAR="val" string
+    """
+    if line.startswith(key + "="):
+        stripped_line = line.split('=')[1]
+        stripped_line = stripped_line.replace('\"', '')
+        return stripped_line
+    return None
+
+def get_bitbake_var(key):
+    for line in __bitbake_env_lines.split('\n'):
+        if (get_line_val(line, key)):
+            val = get_line_val(line, key)
+            return val
+    return None
