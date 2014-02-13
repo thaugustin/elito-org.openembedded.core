@@ -96,27 +96,37 @@ def update_useradd_static_config(d):
                             # is used, and we disable the user_group option.
                             #
                             uaargs.groupname = [uaargs.gid, uaargs.LOGIN][not uaargs.gid or uaargs.user_group]
-                            uaargs.user_group = False
+                            uaargs.groupid = [uaargs.gid, uaargs.groupname][not uaargs.gid]
+                            uaargs.groupid = [field[3], uaargs.groupid][not field[3]]
 
-                            uaargs.gid = [uaargs.gid, uaargs.groupname][not uaargs.gid]
-                            uaargs.gid = [field[3], uaargs.gid][not field[3]]
-
-                            if uaargs.groupname == uaargs.gid:
-                                # Nothing to do...
-                                pass
-                            elif (uaargs.groupname and uaargs.groupname.isdigit()) and (uaargs.gid and uaargs.gid.isdigit()) and (uaargs.groupname != uaargs.gid):
-                                # We want to add a group, but we don't know it's name... so we can't add the group...
-                                # We have to assume the group has previously been added or we'll fail on the adduser...
-                                # Note: specifying the actual gid is very rare in OE, usually the group name is specified.
-                                bb.warn("%s: Changing gid for login %s from (%s) to (%s), verify configuration files!" % (d.getVar('PN', True), uaargs.LOGIN, uaargs.groupname, uaargs.gid))
-                            elif uaargs.groupname and (uaargs.gid and uaargs.gid.isdigit()):
-                               bb.debug(1, "Adding group %s  gid (%s)!" % (uaargs.groupname, uaargs.gid))
-                               groupadd = d.getVar("GROUPADD_PARAM_%s" % pkg, True)
-                               newgroup = "-g %s %s" % (uaargs.gid, uaargs.groupname)
-                               if groupadd:
-                                   d.setVar("GROUPADD_PARAM_%s" % pkg, "%s ; %s" % (groupadd, newgroup))
-                               else:
-                                   d.setVar("GROUPADD_PARAM_%s" % pkg, newgroup)
+                            if not uaargs.gid or uaargs.gid != uaargs.groupid:
+                                if (uaargs.groupid and uaargs.groupid.isdigit()) and (uaargs.groupname and uaargs.groupname.isdigit()) and (uaargs.groupid != uaargs.groupname):
+                                    # We want to add a group, but we don't know it's name... so we can't add the group...
+                                    # We have to assume the group has previously been added or we'll fail on the adduser...
+                                    # Note: specifying the actual gid is very rare in OE, usually the group name is specified.
+                                    bb.warn("%s: Changing gid for login %s from (%s) to (%s), verify configuration files!" % (d.getVar('PN', True), uaargs.LOGIN, uaargs.groupname, uaargs.gid))
+                                elif (uaargs.groupid and not uaargs.groupid.isdigit()) and uaargs.groupid == uaargs.groupname:
+                                    # We don't have a number, so we have to add a name
+                                    bb.debug(1, "Adding group %s!" % (uaargs.groupname))
+                                    uaargs.gid = uaargs.groupid
+                                    uaargs.user_group = False
+                                    groupadd = d.getVar("GROUPADD_PARAM_%s" % pkg, True)
+                                    newgroup = "%s %s" % (['', ' --system'][uaargs.system], uaargs.groupname)
+                                    if groupadd:
+                                        d.setVar("GROUPADD_PARAM_%s" % pkg, "%s ; %s" % (groupadd, newgroup))
+                                    else:
+                                        d.setVar("GROUPADD_PARAM_%s" % pkg, newgroup)
+                                elif uaargs.groupname and (uaargs.groupid and uaargs.groupid.isdigit()):
+                                    # We have a group name and a group number to assign it to
+                                    bb.debug(1, "Adding group %s  gid (%s)!" % (uaargs.groupname, uaargs.groupid))
+                                    uaargs.gid = uaargs.groupid
+                                    uaargs.user_group = False
+                                    groupadd = d.getVar("GROUPADD_PARAM_%s" % pkg, True)
+                                    newgroup = "-g %s %s" % (uaargs.gid, uaargs.groupname)
+                                    if groupadd:
+                                        d.setVar("GROUPADD_PARAM_%s" % pkg, "%s ; %s" % (groupadd, newgroup))
+                                    else:
+                                        d.setVar("GROUPADD_PARAM_%s" % pkg, newgroup)
 
                             uaargs.comment = ["'%s'" % field[4], uaargs.comment][not field[4]]
                             uaargs.home_dir = [field[5], uaargs.home_dir][not field[5]]
@@ -124,8 +134,9 @@ def update_useradd_static_config(d):
                             break
 
             # Should be an error if a specific option is set...
-            if d.getVar('USERADD_ERROR_DYNAMIC', True) == '1' and (not uaargs.uid or not uaargs.gid):
-                raise bb.build.FuncFailed("%s - %s: Username %s does not have a static uid/gid defined." % (d.getVar('PN', True), pkg, uaargs.LOGIN))
+            if d.getVar('USERADD_ERROR_DYNAMIC', True) == '1' and not ((uaargs.uid and uaargs.uid.isdigit()) and uaargs.gid):
+                #bb.error("Skipping recipe %s, package %s which adds username %s does not have a static uid defined." % (d.getVar('PN', True),  pkg, uaargs.LOGIN))
+                raise bb.build.FuncFailed("%s - %s: Username %s does not have a static uid defined." % (d.getVar('PN', True), pkg, uaargs.LOGIN))
 
             # Reconstruct the args...
             newparam  = ['', ' --defaults'][uaargs.defaults]
@@ -212,7 +223,8 @@ def update_useradd_static_config(d):
                             gaargs.gid = field[2]
                             break
 
-            if d.getVar('USERADD_ERROR_DYNAMIC', True) == '1' and not gaargs.gid:
+            if d.getVar('USERADD_ERROR_DYNAMIC', True) == '1' and not (gaargs.gid and gaargs.gid.isdigit()):
+                #bb.error("Skipping recipe %s, package %s which adds groupname %s does not have a static gid defined." % (d.getVar('PN', True),  pkg, gaargs.GROUP))
                 raise bb.build.FuncFailed("%s - %s: Groupname %s does not have a static gid defined." % (d.getVar('PN', True), pkg, gaargs.GROUP))
 
             # Reconstruct the args...

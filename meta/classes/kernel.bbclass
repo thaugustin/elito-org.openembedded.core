@@ -262,9 +262,21 @@ kernel_do_install() {
 	# we clean the scripts dir while leaving the generated config
 	# and include files.
 	#
-	oe_runmake -C $kerneldir CC="${KERNEL_CC}" LD="${KERNEL_LD}" clean
-	make -C $kerneldir _mrproper_scripts
-	find $kerneldir -path $kerneldir/lib -prune -o -path $kerneldir/tools -prune -o -path $kerneldir/scripts -prune -o -name "*.[csS]" -exec rm '{}' \;
+	oe_runmake -C $kerneldir CC="${KERNEL_CC}" LD="${KERNEL_LD}" clean _mrproper_scripts 
+
+	# hide directories that shouldn't have their .c, s and S files deleted
+	for d in tools scripts lib; do
+		mv $kerneldir/$d $kerneldir/.$d
+	done
+
+	# delete .c, .s and .S files, unless we hid a directory as .<dir>. This technique is 
+	# much faster than find -prune and -exec
+	find $kerneldir -not -path '*/\.*' -type f -name "*.[csS]" -delete
+
+	# put the hidden dirs back
+	for d in tools scripts lib; do
+		mv $kerneldir/.$d $kerneldir/$d
+	done
 
 	# As of Linux kernel version 3.0.1, the clean target removes
 	# arch/powerpc/lib/crtsavres.o which is present in
@@ -303,6 +315,8 @@ python sysroot_stage_all () {
     oe.path.copyhardlinktree(d.expand("${D}${KERNEL_SRC_PATH}"), d.expand("${SYSROOT_DESTDIR}${KERNEL_SRC_PATH}"))
 }
 
+KERNEL_CONFIG_COMMAND ?= "oe_runmake_call oldnoconfig || yes '' | oe_runmake oldconfig"
+
 kernel_do_configure() {
 	# fixes extra + in /lib/modules/2.6.37+
 	# $ scripts/setlocalversion . => +
@@ -315,7 +329,7 @@ kernel_do_configure() {
 	if [ -f "${WORKDIR}/defconfig" ] && [ ! -f "${B}/.config" ]; then
 		cp "${WORKDIR}/defconfig" "${B}/.config"
 	fi
-	yes '' | oe_runmake oldconfig
+	eval ${KERNEL_CONFIG_COMMAND}
 }
 
 do_savedefconfig() {
