@@ -64,17 +64,13 @@ IMAGE_CMD_btrfs () {
 
 IMAGE_CMD_squashfs = "mksquashfs ${IMAGE_ROOTFS} ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.squashfs ${EXTRA_IMAGECMD} -noappend"
 IMAGE_CMD_squashfs-xz = "mksquashfs ${IMAGE_ROOTFS} ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.squashfs-xz ${EXTRA_IMAGECMD} -noappend -comp xz"
-IMAGE_CMD_tar = "cd ${IMAGE_ROOTFS} && tar -cvf ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.tar ."
+IMAGE_CMD_tar = "tar -cvf ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.tar -C ${IMAGE_ROOTFS} ."
 
-CPIO_TOUCH_INIT () {
-	if [ ! -L ${IMAGE_ROOTFS}/init ]
-	then
-	touch ${IMAGE_ROOTFS}/init
-	fi
-}
 IMAGE_CMD_cpio () {
-	${CPIO_TOUCH_INIT}
-	cd ${IMAGE_ROOTFS} && (find . | cpio -o -H newc >${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.cpio)
+	if [ ! -L ${IMAGE_ROOTFS}/init ]; then
+		touch ${IMAGE_ROOTFS}/init
+	fi
+	(cd ${IMAGE_ROOTFS} && find . | cpio -o -H newc >${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.cpio)
 }
 
 ELF_KERNEL ?= "${STAGING_DIR_HOST}/usr/src/kernel/${KERNEL_IMAGETYPE}"
@@ -84,6 +80,7 @@ IMAGE_CMD_elf () {
 	test -f ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.elf && rm -f ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.elf
 	mkelfImage --kernel=${ELF_KERNEL} --initrd=${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.cpio.gz --output=${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.rootfs.elf --append='${ELF_APPEND}' ${EXTRA_IMAGECMD}
 }
+IMAGE_TYPEDEP_elf = "cpio.gz"
 
 UBI_VOLNAME ?= "${MACHINE}-rootfs"
 
@@ -150,3 +147,7 @@ DEPLOYABLE_IMAGE_TYPES ?= "hddimg iso"
 
 # Use IMAGE_EXTENSION_xxx to map image type 'xxx' with real image file extension name(s) for Hob
 IMAGE_EXTENSION_live = "hddimg iso"
+
+# The IMAGE_TYPES_MASKED variable will be used to mask out from the IMAGE_FSTYPES,
+# images that will not be built at do_rootfs time: vmdk, hddimg, iso, etc.
+IMAGE_TYPES_MASKED ?= ""

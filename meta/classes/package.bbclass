@@ -126,7 +126,7 @@ def do_split_packages(d, root, file_regex, output_pattern, description, postinst
     # If the root directory doesn't exist, don't error out later but silently do
     # no splitting.
     if not os.path.exists(dvar + root):
-        return
+        return []
 
     ml = d.getVar("MLPREFIX", True)
     if ml:
@@ -235,9 +235,6 @@ python () {
 
         # shlibs requires any DEPENDS to have already packaged for the *.list files
         d.appendVarFlag('do_package', 'deptask', " do_packagedata")
-
-    elif not bb.data.inherits_class('image', d):
-        d.setVar("PACKAGERDEPTASK", "")
 }
 
 def splitdebuginfo(file, debugfile, debugsrcdir, sourcefile, d):
@@ -2004,15 +2001,6 @@ python do_packagedata_setscene () {
     sstate_setscene(d)
 }
 addtask do_packagedata_setscene
-
-# Dummy task to mark when all packaging is complete
-do_package_write () {
-	:
-}
-do_package_write[noexec] = "1"
-PACKAGERDEPTASK = "do_package_write"
-do_build[recrdeptask] += "${PACKAGERDEPTASK}"
-addtask package_write before do_build after do_packagedata
 
 #
 # Helper functions for the package writing classes

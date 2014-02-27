@@ -3,6 +3,8 @@ from oe.utils import execute_pre_post_process
 from oe.utils import contains as base_contains
 from oe.package_manager import *
 from oe.manifest import *
+import oe.path
+import filecmp
 import shutil
 import os
 import subprocess
@@ -185,7 +187,7 @@ class Rootfs(object):
                         self._handle_intercept_failure(registered_pkgs)
 
     def _run_ldconfig(self):
-        if self.d.getVar('LDCONFIGDEPEND', True) is not None:
+        if self.d.getVar('LDCONFIGDEPEND', True):
             bb.note("Executing: ldconfig -r" + self.image_rootfs + "-c new -v")
             self._exec_shell_cmd(['ldconfig', '-r', self.image_rootfs, '-c',
                                   'new', '-v'])
@@ -438,13 +440,71 @@ class OpkgRootfs(Rootfs):
     def __init__(self, d, manifest_dir):
         super(OpkgRootfs, self).__init__(d)
 
-        bb.utils.remove(self.image_rootfs, True)
-        bb.utils.remove(self.d.getVar('MULTILIB_TEMP_ROOTFS', True), True)
         self.manifest = OpkgManifest(d, manifest_dir)
         self.opkg_conf = self.d.getVar("IPKGCONF_TARGET", True)
         self.pkg_archs = self.d.getVar("ALL_MULTILIB_PACKAGE_ARCHS", True)
 
-        self.pm = OpkgPM(d, self.image_rootfs, self.opkg_conf, self.pkg_archs)
+        self.inc_opkg_image_gen = self.d.getVar('INC_IPK_IMAGE_GEN', True) or ""
+        if self._remove_old_rootfs():
+            bb.utils.remove(self.image_rootfs, True)
+            self.pm = OpkgPM(d,
+                             self.image_rootfs,
+                             self.opkg_conf,
+                             self.pkg_archs)
+        else:
+            self.pm = OpkgPM(d,
+                             self.image_rootfs,
+                             self.opkg_conf,
+                             self.pkg_archs)
+            self.pm.recover_packaging_data()
+
+        bb.utils.remove(self.d.getVar('MULTILIB_TEMP_ROOTFS', True), True)
+
+    def _prelink_file(self, root_dir, filename):
+        bb.note('prelink %s in %s' % (filename, root_dir))
+        prelink_cfg = oe.path.join(root_dir,
+                                   self.d.expand('${sysconfdir}/prelink.conf'))
+        if not os.path.exists(prelink_cfg):
+            shutil.copy(self.d.expand('${STAGING_DIR_NATIVE}${sysconfdir_native}/prelink.conf'),
+                        prelink_cfg)
+
+        cmd_prelink = self.d.expand('${STAGING_DIR_NATIVE}${sbindir_native}/prelink')
+        self._exec_shell_cmd([cmd_prelink,
+                              '--root',
+                              root_dir,
+                              '-amR',
+                              '-N',
+                              '-c',
+                              self.d.expand('${sysconfdir}/prelink.conf')])
+
+    '''
+    Compare two files with the same key twice to see if they are equal.
+    If they are not equal, it means they are duplicated and come from
+    different packages.
+    1st: Comapre them directly;
+    2nd: While incremental image creation is enabled, one of the
+         files could be probaly prelinked in the previous image
+         creation and the file has been changed, so we need to
+         prelink the other one and compare them.
+    '''
+    def _file_equal(self, key, f1, f2):
+
+        # Both of them are not prelinked
+        if filecmp.cmp(f1, f2):
+            return True
+
+        if self.image_rootfs not in f1:
+            self._prelink_file(f1.replace(key, ''), f1)
+
+        if self.image_rootfs not in f2:
+            self._prelink_file(f2.replace(key, ''), f2)
+
+        # Both of them are prelinked
+        if filecmp.cmp(f1, f2):
+            return True
+
+        # Not equal
+        return False
 
     """
     This function was reused from the old implementation.
@@ -452,7 +512,6 @@ class OpkgRootfs(Rootfs):
     Lianhao Lu.
     """
     def _multilib_sanity_test(self, dirs):
-        import filecmp
 
         allow_replace = self.d.getVar("MULTILIBRE_ALLOW_REP", True)
         if allow_replace is None:
@@ -476,7 +535,7 @@ class OpkgRootfs(Rootfs):
                         else:
                             if os.path.exists(files[key]) and \
                                os.path.exists(item) and \
-                               not filecmp.cmp(files[key], item):
+                               not self._file_equal(key, files[key], item):
                                 valid = False
                                 bb.fatal("%s duplicate files %s %s is not the same\n" %
                                          (error_prompt, item, files[key]))
@@ -508,6 +567,59 @@ class OpkgRootfs(Rootfs):
 
         self._multilib_sanity_test(dirs)
 
+    '''
+    While ipk incremental image generation is enabled, it will remove the
+    unneeded pkgs by comparing the old full manifest in previous existing
+    image and the new full manifest in the current image.
+    '''
+    def _remove_extra_packages(self, pkgs_initial_install):
+        if self.inc_opkg_image_gen == "1":
+            # Parse full manifest in previous existing image creation session
+            old_full_manifest = self.manifest.parse_full_manifest()
+
+            # Create full manifest for the current image session, the old one
+            # will be replaced by the new one.
+            self.manifest.create_full(self.pm)
+
+            # Parse full manifest in current image creation session
+            new_full_manifest = self.manifest.parse_full_manifest()
+
+            pkg_to_remove = list()
+            for pkg in old_full_manifest:
+                if pkg not in new_full_manifest:
+                    pkg_to_remove.append(pkg)
+
+            if pkg_to_remove != []:
+                bb.note('decremental removed: %s' % ' '.join(pkg_to_remove))
+                self.pm.remove(pkg_to_remove)
+
+    '''
+    Compare with previous existing image creation, if some conditions
+    triggered, the previous old image should be removed.
+    The conditions include any of 'PACKAGE_EXCLUDE, NO_RECOMMENDATIONS
+    and BAD_RECOMMENDATIONS' has been changed.
+    '''
+    def _remove_old_rootfs(self):
+        if self.inc_opkg_image_gen != "1":
+            return True
+
+        vars_list_file = self.d.expand('${T}/vars_list')
+
+        old_vars_list = ""
+        if os.path.exists(vars_list_file):
+            old_vars_list = open(vars_list_file, 'r+').read()
+
+        new_vars_list = '%s:%s:%s\n' % \
+                ((self.d.getVar('BAD_RECOMMENDATIONS', True) or '').strip(),
+                 (self.d.getVar('NO_RECOMMENDATIONS', True) or '').strip(),
+                 (self.d.getVar('PACKAGE_EXCLUDE', True) or '').strip())
+        open(vars_list_file, 'w+').write(new_vars_list)
+
+        if old_vars_list != new_vars_list:
+            return True
+
+        return False
+
     def _create(self):
         pkgs_to_install = self.manifest.parse_initial_manifest()
         opkg_pre_process_cmds = self.d.getVar('OPKG_PREPROCESS_COMMANDS', True)
@@ -524,6 +636,9 @@ class OpkgRootfs(Rootfs):
 
         self.pm.handle_bad_recommendations()
 
+        if self.inc_opkg_image_gen == "1":
+            self._remove_extra_packages(pkgs_to_install)
+
         for pkg_type in self.install_order:
             if pkg_type in pkgs_to_install:
                 # For multilib, we perform a sanity test before final install
@@ -539,6 +654,9 @@ class OpkgRootfs(Rootfs):
 
         execute_pre_post_process(self.d, opkg_post_process_cmds)
         execute_pre_post_process(self.d, rootfs_post_install_cmds)
+
+        if self.inc_opkg_image_gen == "1":
+            self.pm.backup_packaging_data()
 
     def _get_delayed_postinsts(self):
         pkg_list = []

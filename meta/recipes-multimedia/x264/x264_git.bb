@@ -1,4 +1,5 @@
-SUMMARY = "A free software library and application for encoding video streams into the H.264/MPEG-4 AVC format"
+SUMMARY = "H.264/MPEG-4 AVC video encoder"
+DESCRIPTION = "A free software library and application for encoding video streams into the H.264/MPEG-4 AVC format."
 HOMEPAGE = "http://www.videolan.org/developers/x264.html"
 
 LICENSE = "GPLv2"
@@ -22,6 +23,7 @@ inherit lib_package pkgconfig
 X264_DISABLE_ASM = ""
 X264_DISABLE_ASM_armv4 = "--disable-asm"
 X264_DISABLE_ASM_armv5 = "--disable-asm"
+X264_DISABLE_ASM_powerpc = "${@bb.utils.contains("TUNE_FEATURES", "spe", "--disable-asm", "", d)}"
 
 EXTRA_OECONF = '--prefix=${prefix} \
                 --host=${HOST_SYS} \
