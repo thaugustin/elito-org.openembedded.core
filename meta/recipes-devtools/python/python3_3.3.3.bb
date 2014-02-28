@@ -17,6 +17,8 @@ file://110-enable-zlib.patch \
 file://130-readline-setup.patch \
 file://150-fix-setupterm.patch \
 file://0001-h2py-Fix-issue-13032-where-it-fails-with-UnicodeDeco.patch \
+file://fix-ast.h-dependency.patch \
+file://makerace.patch \
 ${DISTRO_SRC_URI} \
 "
 
@@ -58,6 +60,9 @@ TARGET_CC_ARCH_append_armv6 = " -D__SOFTFP__"
 TARGET_CC_ARCH_append_armv7a = " -D__SOFTFP__"
 TARGET_CC_ARCH += "-DNDEBUG -fno-inline"
 EXTRA_OEMAKE += "CROSS_COMPILE=yes"
+
+# No ctypes option for python 3
+PYTHONLSBOPTS = ""
 
 do_configure_prepend() {
 	rm -f ${S}/Makefile.orig
