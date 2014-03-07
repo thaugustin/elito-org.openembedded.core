@@ -444,11 +444,11 @@ def package_qa_check_arch(path,name,d, elf, messages):
 
     # Check the architecture and endiannes of the binary
     if not ((machine == elf.machine()) or \
-        ("virtual/kernel" in provides) and (target_os == "linux-gnux32")):
+        ((("virtual/kernel" in provides) or bb.data.inherits_class("module", d) ) and (target_os == "linux-gnux32"))):
         messages.append("Architecture did not match (%d to %d) on %s" % \
                  (machine, elf.machine(), package_qa_clean_path(path,d)))
     elif not ((bits == elf.abiSize()) or  \
-        ("virtual/kernel" in provides) and (target_os == "linux-gnux32")):
+        ((("virtual/kernel" in provides) or bb.data.inherits_class("module", d) ) and (target_os == "linux-gnux32"))):
         messages.append("Bit size did not match (%d to %d) %s on %s" % \
                  (bits, elf.abiSize(), bpn, package_qa_clean_path(path,d)))
     elif not littleendian == elf.isLittleEndian():
@@ -574,6 +574,19 @@ def package_qa_check_infodir(path, name, d, elf, messages):
 
     if infodir in path:
         messages.append("The /usr/share/info/dir file is not meant to be shipped in a particular package.")
+
+QAPATHTEST[symlink-to-sysroot] = "package_qa_check_symlink_to_sysroot"
+def package_qa_check_symlink_to_sysroot(path, name, d, elf, messages):
+    """
+    Check that the package doesn't contain any absolute symlinks to the sysroot.
+    """
+    if os.path.islink(path):
+        target = os.readlink(path)
+        if os.path.isabs(target):
+            tmpdir = d.getVar('TMPDIR', True)
+            if target.startswith(tmpdir):
+                trimmed = path.replace(os.path.join (d.getVar("PKGDEST", True), name), "")
+                messages.append("Symlink %s in %s points to TMPDIR" % (trimmed, name))
 
 def package_qa_check_license(workdir, d):
     """

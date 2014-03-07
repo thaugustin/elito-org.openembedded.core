@@ -196,7 +196,7 @@ do_kernel_checkout() {
        	# If KMETA is defined, the branch must exist, but a machine branch
 	# can be missing since it may be created later by the tools.
 	if [ -n "${KMETA}" ]; then
-		git branch -a | grep -q ${KMETA}
+		git branch -a --no-color | grep -q ${KMETA}
 		if [ $? -ne 0 ]; then
 			echo "ERROR. The branch '${KMETA}' is required and was not"
 			echo "found. Ensure that the SRC_URI points to a valid linux-yocto"
@@ -214,7 +214,7 @@ do_kernel_checkout() {
 	fi
 
 	# convert any remote branches to local tracking ones
-	for i in `git branch -a | grep remotes | grep -v HEAD`; do
+	for i in `git branch -a --no-color | grep remotes | grep -v HEAD`; do
 		b=`echo $i | cut -d' ' -f2 | sed 's%remotes/origin/%%'`;
 		git show-ref --quiet --verify -- "refs/heads/$b"
 		if [ $? -ne 0 ]; then
@@ -262,6 +262,8 @@ do_kernel_configme() {
 	echo "# Global settings from linux recipe" >> ${B}/.config
 	echo "CONFIG_LOCALVERSION="\"${LINUX_VERSION_EXTENSION}\" >> ${B}/.config
 }
+
+addtask kernel_configme after do_patch
 
 python do_kernel_configcheck() {
     import re, string, sys
@@ -407,4 +409,8 @@ OE_TERMINAL_EXPORTS += "GUILT_BASE KBUILD_OUTPUT"
 GUILT_BASE = "meta"
 KBUILD_OUTPUT = "${B}"
 
-do_diffconfig[depends] += "virtual/kernel:do_kernel_configme"
+python () {
+    # If diffconfig is available, ensure it runs after kernel_configme
+    if 'do_diffconfig' in d:
+        bb.build.addtask('do_diffconfig', None, 'do_kernel_configme', d)
+}

@@ -14,7 +14,7 @@ def create_index(arg):
 
     try:
         bb.note("Executing '%s' ..." % index_cmd)
-        subprocess.check_output(index_cmd, shell=True)
+        subprocess.check_output(index_cmd, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return("Index creation command '%s' failed with return code %d:\n%s" %
                (e.cmd, e.returncode, e.output))
@@ -223,6 +223,7 @@ class PackageManager(object):
         self.d = d
         self.deploy_dir = None
         self.deploy_lock = None
+        self.feed_uris = self.d.getVar('PACKAGE_FEED_URIS', True) or ""
 
     """
     Update the package manager package database.
@@ -262,6 +263,10 @@ class PackageManager(object):
     def list_installed(self, format=None):
         pass
 
+    @abstractmethod
+    def insert_feeds_uris(self):
+        pass
+
     """
     Install complementary packages based upon the list of currently installed
     packages e.g. locales, *-dev, *-dbg, etc. This will only attempt to install
@@ -298,7 +303,7 @@ class PackageManager(object):
                globs]
         try:
             bb.note("Installing complementary packages ...")
-            complementary_pkgs = subprocess.check_output(cmd)
+            complementary_pkgs = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             bb.fatal("Could not compute complementary packages list. Command "
                      "'%s' returned %d:\n%s" %
@@ -358,6 +363,46 @@ class RpmPM(PackageManager):
 
         self.ml_prefix_list, self.ml_os_list = self.indexer.get_ml_prefix_and_os_list(arch_var, os_var)
 
+
+    def insert_feeds_uris(self):
+        if self.feed_uris == "":
+            return
+
+        # List must be prefered to least preferred order
+        default_platform_extra = set()
+        platform_extra = set()
+        bbextendvariant = self.d.getVar('BBEXTENDVARIANT', True) or ""
+        for mlib in self.ml_os_list:
+            for arch in self.ml_prefix_list[mlib]:
+                plt = arch.replace('-', '_') + '-.*-' + self.ml_os_list[mlib]
+                if mlib == bbextendvariant:
+                        default_platform_extra.add(plt)
+                else:
+                        platform_extra.add(plt)
+
+        platform_extra = platform_extra.union(default_platform_extra)
+
+        arch_list = []
+        for canonical_arch in platform_extra:
+            arch = canonical_arch.split('-')[0]
+            if not os.path.exists(os.path.join(self.deploy_dir, arch)):
+                continue
+            arch_list.append(arch)
+
+        uri_iterator = 0
+        channel_priority = 10 + 5 * len(self.feed_uris.split()) * len(arch_list)
+
+        for uri in self.feed_uris.split():
+            for arch in arch_list:
+                bb.note('Note: adding Smart channel url%d%s (%s)' %
+                        (uri_iterator, arch, channel_priority))
+                self._invoke_smart('channel --add url%d-%s type=rpm-md baseurl=%s/rpm/%s -y'
+                                   % (uri_iterator, arch, uri, arch))
+                self._invoke_smart('channel --set url%d-%s priority=%d' %
+                                   (uri_iterator, arch, channel_priority))
+                channel_priority -= 5
+            uri_iterator += 1
+
     '''
     Create configs for rpm and smart, and multilib is supported
     '''
@@ -388,7 +433,9 @@ class RpmPM(PackageManager):
         cmd = "%s %s %s" % (self.smart_cmd, self.smart_opt, args)
         # bb.note(cmd)
         try:
-            complementary_pkgs = subprocess.check_output(cmd, shell=True)
+            complementary_pkgs = subprocess.check_output(cmd,
+                                                         stderr=subprocess.STDOUT,
+                                                         shell=True)
             # bb.note(complementary_pkgs)
             return complementary_pkgs
         except subprocess.CalledProcessError as e:
@@ -570,7 +617,7 @@ class RpmPM(PackageManager):
               self.rpm_cmd,
               self.target_rootfs)
         try:
-            subprocess.check_output(cmd, shell=True)
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
             bb.fatal("Create rpm database failed. Command '%s' "
                      "returned %d:\n%s" % (cmd, e.returncode, e.output))
@@ -694,7 +741,7 @@ class RpmPM(PackageManager):
             cmd = "%s %s install --attempt -y %s" % \
                   (self.smart_cmd, self.smart_opt, ' '.join(pkgs))
         try:
-            output = subprocess.check_output(cmd.split())
+            output = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
             bb.note(output)
         except subprocess.CalledProcessError as e:
             bb.fatal("Unable to install packages. Command '%s' "
@@ -724,7 +771,7 @@ class RpmPM(PackageManager):
 
         try:
             bb.note(cmd)
-            output = subprocess.check_output(cmd, shell=True)
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
             bb.note(output)
         except subprocess.CalledProcessError as e:
             bb.note("Unable to remove packages. Command '%s' "
@@ -768,14 +815,29 @@ class RpmPM(PackageManager):
                             self.image_rpmlib,
                             symlinks=True)
 
+    def _list_pkg_deps(self):
+        cmd = [bb.utils.which(os.getenv('PATH'), "rpmresolve"),
+               "-t", self.image_rpmlib]
+
+        try:
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).strip()
+        except subprocess.CalledProcessError as e:
+            bb.fatal("Cannot get the package dependencies. Command '%s' "
+                     "returned %d:\n%s" % (' '.join(cmd), e.returncode, e.output))
+
+        return output
+
     def list_installed(self, format=None):
+        if format == "deps":
+            return self._list_pkg_deps()
+
         cmd = self.rpm_cmd + ' --root ' + self.target_rootfs
         cmd += ' -D "_dbpath /var/lib/rpm" -qa'
         cmd += " --qf '[%{NAME} %{ARCH} %{VERSION} %{PACKAGEORIGIN}\n]'"
 
         try:
             # bb.note(cmd)
-            tmp_output = subprocess.check_output(cmd, shell=True).strip()
+            tmp_output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).strip()
             self._unlock_rpm_db()
         except subprocess.CalledProcessError as e:
             bb.fatal("Cannot get the installed packages list. Command '%s' "
@@ -827,7 +889,7 @@ class RpmPM(PackageManager):
             # Disable rpmsys channel for the fake install
             self._invoke_smart('channel --disable rpmsys')
 
-            subprocess.check_output(cmd, shell=True)
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
             with open(self.solution_manifest, 'r') as manifest:
                 for pkg in manifest.read().split('\n'):
                     if '@' in pkg:
@@ -869,7 +931,7 @@ class RpmPM(PackageManager):
         cmd = "%s %s query --output %s" %  \
               (self.smart_cmd, self.smart_opt, available_manifest)
         try:
-            subprocess.check_output(cmd, shell=True)
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
             with open(available_manifest, 'r') as manifest:
                 for pkg in manifest.read().split('\n'):
                     if '@' in pkg:
@@ -903,7 +965,7 @@ class RpmPM(PackageManager):
 
         try:
             bb.note(cmd)
-            output = subprocess.check_output(cmd, shell=True).strip()
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).strip()
             bb.note(output)
             os.chmod(saved_dir, 0755)
             self._unlock_rpm_db()
@@ -947,7 +1009,6 @@ class OpkgPM(PackageManager):
 
         self.deploy_dir = self.d.getVar("DEPLOY_DIR_IPK", True)
         self.deploy_lock_file = os.path.join(self.deploy_dir, "deploy.lock")
-
         self.opkg_cmd = bb.utils.which(os.getenv('PATH'), "opkg-cl")
         self.opkg_args = "-f %s -o %s " % (self.config_file, target_rootfs)
         self.opkg_args += self.d.getVar("OPKG_ARGS", True)
@@ -1053,13 +1114,36 @@ class OpkgPM(PackageManager):
                     config_file.write("src oe-%s file:%s\n" %
                                       (arch, pkgs_dir))
 
+    def insert_feeds_uris(self):
+        if self.feed_uris == "":
+            return
+
+        rootfs_config = os.path.join('%s/etc/opkg/base-feeds.conf'
+                                  % self.target_rootfs)
+
+        with open(rootfs_config, "w+") as config_file:
+            uri_iterator = 0
+            for uri in self.feed_uris.split():
+                config_file.write("src/gz url-%d %s/ipk\n" %
+                                  (uri_iterator, uri))
+
+                for arch in self.pkg_archs.split():
+                    if not os.path.exists(os.path.join(self.deploy_dir, arch)):
+                        continue
+                    bb.note('Note: adding opkg channel url-%s-%d (%s)' %
+                        (arch, uri_iterator, uri))
+
+                    config_file.write("src/gz uri-%s-%d %s/ipk/%s\n" %
+                                      (arch, uri_iterator, uri, arch))
+                uri_iterator += 1
+
     def update(self):
         self.deploy_dir_lock()
 
         cmd = "%s %s update" % (self.opkg_cmd, self.opkg_args)
 
         try:
-            subprocess.check_output(cmd.split())
+            subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             self.deploy_dir_unlock()
             bb.fatal("Unable to update the package index files. Command '%s' "
@@ -1084,7 +1168,7 @@ class OpkgPM(PackageManager):
         try:
             bb.note("Installing the following packages: %s" % ' '.join(pkgs))
             bb.note(cmd)
-            output = subprocess.check_output(cmd.split())
+            output = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
             bb.note(output)
         except subprocess.CalledProcessError as e:
             (bb.fatal, bb.note)[attempt_only]("Unable to install packages. "
@@ -1101,7 +1185,7 @@ class OpkgPM(PackageManager):
 
         try:
             bb.note(cmd)
-            output = subprocess.check_output(cmd.split())
+            output = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
             bb.note(output)
         except subprocess.CalledProcessError as e:
             bb.fatal("Unable to remove packages. Command '%s' "
@@ -1134,12 +1218,15 @@ class OpkgPM(PackageManager):
         elif format == "ver":
             cmd = "%s %s status | %s -v" % \
                 (self.opkg_cmd, self.opkg_args, opkg_query_cmd)
+        elif format == "deps":
+            cmd = "%s %s status | %s" % \
+                (self.opkg_cmd, self.opkg_args, opkg_query_cmd)
         else:
             cmd = "%s %s list_installed | cut -d' ' -f1" % \
                 (self.opkg_cmd, self.opkg_args)
 
         try:
-            output = subprocess.check_output(cmd, shell=True).strip()
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).strip()
         except subprocess.CalledProcessError as e:
             bb.fatal("Cannot get the installed packages list. Command '%s' "
                      "returned %d:\n%s" % (cmd, e.returncode, e.output))
@@ -1177,7 +1264,7 @@ class OpkgPM(PackageManager):
                 pkg_info = cmd + pkg
 
                 try:
-                    output = subprocess.check_output(pkg_info.split()).strip()
+                    output = subprocess.check_output(pkg_info.split(), stderr=subprocess.STDOUT).strip()
                 except subprocess.CalledProcessError as e:
                     bb.fatal("Cannot get package info. Command '%s' "
                              "returned %d:\n%s" % (pkg_info, e.returncode, e.output))
@@ -1210,7 +1297,7 @@ class OpkgPM(PackageManager):
 
         cmd = "%s %s update" % (self.opkg_cmd, opkg_args)
         try:
-            subprocess.check_output(cmd, shell=True)
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
             bb.fatal("Unable to update. Command '%s' "
                      "returned %d:\n%s" % (cmd, e.returncode, e.output))
@@ -1220,7 +1307,7 @@ class OpkgPM(PackageManager):
                                                 opkg_args,
                                                 ' '.join(pkgs))
         try:
-            output = subprocess.check_output(cmd, shell=True)
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
             bb.fatal("Unable to dummy install packages. Command '%s' "
                      "returned %d:\n%s" % (cmd, e.returncode, e.output))
@@ -1330,7 +1417,7 @@ class DpkgPM(PackageManager):
                     try:
                         bb.note("Executing %s for package: %s ..." %
                                  (suffix[1].lower(), pkg_name))
-                        subprocess.check_output(p_full)
+                        subprocess.check_output(p_full, stderr=subprocess.STDOUT)
                     except subprocess.CalledProcessError as e:
                         bb.note("%s for package %s failed with %d:\n%s" %
                                 (suffix[1], pkg_name, e.returncode, e.output))
@@ -1348,7 +1435,7 @@ class DpkgPM(PackageManager):
         cmd = "%s update" % self.apt_get_cmd
 
         try:
-            subprocess.check_output(cmd.split())
+            subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             bb.fatal("Unable to update the package index files. Command '%s' "
                      "returned %d:\n%s" % (e.cmd, e.returncode, e.output))
@@ -1366,7 +1453,7 @@ class DpkgPM(PackageManager):
 
         try:
             bb.note("Installing the following packages: %s" % ' '.join(pkgs))
-            subprocess.check_output(cmd.split())
+            subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             (bb.fatal, bb.note)[attempt_only]("Unable to install packages. "
                                               "Command '%s' returned %d:\n%s" %
@@ -1398,7 +1485,7 @@ class DpkgPM(PackageManager):
                    self.target_rootfs, self.target_rootfs, ' '.join(pkgs))
 
         try:
-            subprocess.check_output(cmd.split())
+            subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             bb.fatal("Unable to remove packages. Command '%s' "
                      "returned %d:\n%s" % (e.cmd, e.returncode, e.output))
@@ -1412,6 +1499,26 @@ class DpkgPM(PackageManager):
 
         if result is not None:
             bb.fatal(result)
+
+    def insert_feeds_uris(self):
+        if self.feed_uris == "":
+            return
+
+        sources_conf = os.path.join("%s/etc/apt/sources.list"
+                                    % self.target_rootfs)
+        arch_list = []
+        archs = self.d.getVar('PACKAGE_ARCHS', True)
+        for arch in archs.split():
+            if not os.path.exists(os.path.join(self.deploy_dir, arch)):
+                continue
+            arch_list.append(arch)
+
+        with open(sources_conf, "w+") as sources_file:
+            for uri in self.feed_uris.split():
+                for arch in arch_list:
+                    bb.note('Note: adding dpkg channel at (%s)' % uri)
+                    sources_file.write("deb %s/deb/%s ./\n" %
+                                       (uri, arch))
 
     def _create_configs(self, archs, base_archs):
         base_archs = re.sub("_", "-", base_archs)
@@ -1481,7 +1588,7 @@ class DpkgPM(PackageManager):
         cmd = "%s %s -f install" % (self.apt_get_cmd, self.apt_args)
 
         try:
-            subprocess.check_output(cmd.split())
+            subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             bb.fatal("Cannot fix broken dependencies. Command '%s' "
                      "returned %d:\n%s" % (cmd, e.returncode, e.output))
@@ -1497,11 +1604,13 @@ class DpkgPM(PackageManager):
             cmd.append("-f=${Package} ${Package}_${Version}_${Architecture}.deb ${PackageArch}\n")
         elif format == "ver":
             cmd.append("-f=${Package} ${PackageArch} ${Version}\n")
+        elif format == "deps":
+            cmd.append("-f=Package: ${Package}\nDepends: ${Depends}\nRecommends: ${Recommends}\n\n")
         else:
             cmd.append("-f=${Package}\n")
 
         try:
-            output = subprocess.check_output(cmd).strip()
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).strip()
         except subprocess.CalledProcessError as e:
             bb.fatal("Cannot get the installed packages list. Command '%s' "
                      "returned %d:\n%s" % (' '.join(cmd), e.returncode, e.output))
@@ -1517,6 +1626,17 @@ class DpkgPM(PackageManager):
                     tmp_output += "%s %s %s\n" % (pkg, pkg_file, pkg_arch)
 
             output = tmp_output
+        elif format == "deps":
+            opkg_query_cmd = bb.utils.which(os.getenv('PATH'), "opkg-query-helper.py")
+
+            try:
+                output = subprocess.check_output("echo -e '%s' | %s" %
+                                                 (output, opkg_query_cmd),
+                                                 stderr=subprocess.STDOUT,
+                                                 shell=True)
+            except subprocess.CalledProcessError as e:
+                bb.fatal("Cannot compute packages dependencies. Command '%s' "
+                         "returned %d:\n%s" % (e.cmd, e.returncode, e.output))
 
         return output
 

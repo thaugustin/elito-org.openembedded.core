@@ -24,23 +24,25 @@ class RebuildFromSState(SStateBase):
         return found_targets
 
     def configure_builddir(self, builddir):
-        if os.path.exists(builddir):
-            raise AssertionError("Cannot create build directory at %s: Path allready exists!" % builddir)
-        try:
-            os.mkdir(builddir)
-        except:
-            raise AssertionError("Cannot create %s . Make sure %s exists!" % (dst, os.path.dirname(dst)))
+        os.mkdir(builddir)
+        self.track_for_cleanup(builddir)
         os.mkdir(os.path.join(builddir, 'conf'))
         shutil.copyfile(os.path.join(os.environ.get('BUILDDIR'), 'conf/local.conf'), os.path.join(builddir, 'conf/local.conf'))
+        config = {}
+        config['default_sstate_dir'] = "SSTATE_DIR ?= \"${TOPDIR}/sstate-cache\""
+        config['null_sstate_mirrors'] = "SSTATE_MIRRORS = \"\""
+        config['default_tmp_dir'] = "TMPDIR = \"${TOPDIR}/tmp\""
+        for key in config:
+            ftools.append_file(os.path.join(builddir, 'conf/selftest.inc'), config[key])
         shutil.copyfile(os.path.join(os.environ.get('BUILDDIR'), 'conf/bblayers.conf'), os.path.join(builddir, 'conf/bblayers.conf'))
+        try:
+            shutil.copyfile(os.path.join(os.environ.get('BUILDDIR'), 'conf/auto.conf'), os.path.join(builddir, 'conf/auto.conf'))
+        except:
+            pass
 
     def hardlink_tree(self, src, dst):
-        if os.path.exists(dst):
-            raise AssertionError("Cannot create directory at %s: Path allready exists!" % dst)
-        try:
-            os.mkdir(dst)
-        except:
-            raise AssertionError("Cannot create %s . Make sure %s exists!" % (dst, os.path.dirname(dst)))
+        os.mkdir(dst)
+        self.track_for_cleanup(dst)
         for root, dirs, files in os.walk(src):
             if root == src:
                 continue
@@ -54,9 +56,6 @@ class RebuildFromSState(SStateBase):
             buildB = os.path.join(self.builddir, 'buildB')
         else:
             buildB = buildA
-        self.track_for_cleanup(buildA)
-        self.track_for_cleanup(buildB)
-        self.track_for_cleanup(os.path.join(self.builddir, 'sstate-cache-buildA'))
 
         if rebuild_dependencies:
             rebuild_targets = self.get_dep_targets(primary_targets)
