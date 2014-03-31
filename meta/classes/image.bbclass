@@ -175,7 +175,7 @@ do_rootfs[umask] = "022"
 read_only_rootfs_hook () {
 	if ${@base_contains("DISTRO_FEATURES", "sysvinit", "true", "false", d)}; then
 	        # Tweak the mount option and fs_passno for rootfs in fstab
-		sed -i -e '/^[#[:space:]]*rootfs/{s/defaults/ro/;s/\([[:space:]]*[[:digit:]]\)\([[:space:]]*\)[[:digit:]]$/\1\20/}' ${IMAGE_ROOTFS}/etc/fstab
+		sed -i -e '/^[#[:space:]]*\/dev\/root/{s/defaults/ro/;s/\([[:space:]]*[[:digit:]]\)\([[:space:]]*\)[[:digit:]]$/\1\20/}' ${IMAGE_ROOTFS}/etc/fstab
 	        # Change the value of ROOTFS_READ_ONLY in /etc/default/rcS to yes
 		if [ -e ${IMAGE_ROOTFS}/etc/default/rcS ]; then
 			sed -i 's/ROOTFS_READ_ONLY=no/ROOTFS_READ_ONLY=yes/' ${IMAGE_ROOTFS}/etc/default/rcS
@@ -269,7 +269,7 @@ insert_feed_uris () {
 	done
 }
 
-MULTILIBRE_ALLOW_REP =. "${base_bindir}|${base_sbindir}|${bindir}|${sbindir}|${libexecdir}|${sysconfdir}|${nonarch_base_libdir}/udev|"
+MULTILIBRE_ALLOW_REP =. "${base_bindir}|${base_sbindir}|${bindir}|${sbindir}|${libexecdir}|${sysconfdir}|${nonarch_base_libdir}/udev|/lib/modules/[^/]*/modules.*|"
 MULTILIB_CHECK_FILE = "${WORKDIR}/multilib_check.py"
 MULTILIB_TEMP_ROOTFS = "${WORKDIR}/multilib"
 
@@ -297,6 +297,10 @@ ssh_allow_empty_password () {
 		else
 			printf '\nDROPBEAR_EXTRA_ARGS="-B"\n' >> ${IMAGE_ROOTFS}${sysconfdir}/default/dropbear
 		fi
+	fi
+
+	if [ -d ${IMAGE_ROOTFS}${sysconfdir}/pam.d ] ; then
+		sed -i 's/nullok_secure/nullok/' ${IMAGE_ROOTFS}${sysconfdir}/pam.d/*
 	fi
 }
 
@@ -330,9 +334,9 @@ make_zimage_symlink_relative () {
 }
 
 python write_image_manifest () {
-    from oe.rootfs import list_installed_packages
+    from oe.rootfs import image_list_installed_packages
     with open(d.getVar('IMAGE_MANIFEST', True), 'w+') as image_manifest:
-        image_manifest.write(list_installed_packages(d, 'ver'))
+        image_manifest.write(image_list_installed_packages(d, 'ver'))
 }
 
 # Make login manager(s) enable automatic login.

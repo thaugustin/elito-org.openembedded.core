@@ -179,7 +179,7 @@ python toaster_collect_task_stats() {
             bn = get_bn(e)
             bsdir = os.path.join(e.data.getVar('BUILDSTATS_BASE', True), bn)
             taskdir = os.path.join(bsdir, e.data.expand("${PF}"))
-            fout.write("%s:%s:%s\n" % (e.taskfile, e.taskname, os.path.join(taskdir, e.task)))
+            fout.write("%s:%s:%s:%s\n" % (e.taskfile, e.taskname, os.path.join(taskdir, e.task), e.data.expand("${PN}")))
 
         bb.utils.unlockfile(lock)
 
@@ -222,8 +222,8 @@ python toaster_collect_task_stats() {
         events = []
         with open(os.path.join(e.data.getVar('BUILDSTATS_BASE', True), "toasterstatlist"), "r") as fin:
             for line in fin:
-                (taskfile, taskname, filename) = line.strip().split(":")
-                events.append((taskfile, taskname, _read_stats(filename)))
+                (taskfile, taskname, filename, recipename) = line.strip().split(":")
+                events.append((taskfile, taskname, _read_stats(filename), recipename))
         bb.event.fire(bb.event.MetadataEvent("BuildStatsList", events), e.data)
         os.unlink(os.path.join(e.data.getVar('BUILDSTATS_BASE', True), "toasterstatlist"))
 }
@@ -281,6 +281,17 @@ python toaster_buildhistory_dump() {
 
 }
 
+# dump information related to license manifest path
+
+python toaster_licensemanifest_dump() {
+    deploy_dir_image = d.getVar('DEPLOY_DIR_IMAGE', True);
+    image_name = d.getVar('IMAGE_NAME', True);
+
+    data = { 'deploy_dir_image' : deploy_dir_image, 'image_name' : image_name }
+
+    bb.event.fire(bb.event.MetadataEvent("LicenseManifestPath", data), d)
+}
+
 # set event handlers
 addhandler toaster_layerinfo_dumpdata
 toaster_layerinfo_dumpdata[eventmask] = "bb.event.TreeDataPreparationCompleted"
@@ -293,3 +304,4 @@ toaster_buildhistory_dump[eventmask] = "bb.event.BuildCompleted"
 do_package[postfuncs] += "toaster_package_dumpdata "
 
 do_rootfs[postfuncs] += "toaster_image_dumpdata "
+do_rootfs[postfuncs] += "toaster_licensemanifest_dump "

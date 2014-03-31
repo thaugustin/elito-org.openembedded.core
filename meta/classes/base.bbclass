@@ -31,13 +31,10 @@ def oe_import(d):
         imported = __import__(toimport)
         inject(toimport.split(".", 1)[0], imported)
 
-python oe_import_eh () {
-    oe_import(e.data)
-    e.data.setVar("NATIVELSBSTRING", lsb_distro_identifier(e.data))
-}
+    return ""
 
-addhandler oe_import_eh
-oe_import_eh[eventmask] = "bb.event.ConfigParsed"
+# We need the oe module name space early (before INHERITs get added)
+OE_IMPORTED := "${@oe_import(d)}"
 
 def lsb_distro_identifier(d):
     adjust = d.getVar('LSB_DISTRO_ADJUST', True)
@@ -290,6 +287,7 @@ addhandler base_eventhandler
 base_eventhandler[eventmask] = "bb.event.ConfigParsed bb.event.BuildStarted"
 python base_eventhandler() {
     if isinstance(e, bb.event.ConfigParsed):
+        e.data.setVar("NATIVELSBSTRING", lsb_distro_identifier(e.data))
         e.data.setVar('BB_VERSION', bb.__version__)
         pkgarch_mapping(e.data)
         preferred_ml_updates(e.data)

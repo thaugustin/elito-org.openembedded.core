@@ -156,7 +156,8 @@ do_configure() {
 
 do_install() {
 	install -d ${D}${libdir}
-        oe_runmake PREFIX=${D} install
+	oe_runmake PREFIX=${D} install
+	rm -rf ${D}${includedir}/iconv.h
 }
 
 # build ldd, ldconfig and friends but only for full uclibc

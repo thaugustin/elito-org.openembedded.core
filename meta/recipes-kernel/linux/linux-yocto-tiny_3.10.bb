@@ -5,12 +5,12 @@ KBRANCH = "${KBRANCH_DEFAULT}"
 LINUX_KERNEL_TYPE = "tiny"
 KCONFIG_MODE = "--allnoconfig"
 
-LINUX_VERSION ?= "3.10.32"
+LINUX_VERSION ?= "3.10.34"
 
 KMETA = "meta"
 
-SRCREV_machine ?= "78afd3095c9b37efbbfbfdc25eb3833ef3c6a718"
-SRCREV_meta ?= "7b3b87d4d5e4c41c235da13aaa9f45d5d338e2c6"
+SRCREV_machine ?= "c7739be126930006e3bfbdb2fb070a967abc5e09"
+SRCREV_meta ?= "df3aa753c8826127fb5ad811d56d57168551d6e4"
 
 PV = "${LINUX_VERSION}+git${SRCPV}"
 

@@ -225,6 +225,10 @@ remove_duplicated () {
   # Save the file list which needs to be removed
   local remove_listdir=`mktemp -d` || exit 1
   for suffix in $sstate_suffixes; do
+      if [ "$suffix" = "populate_lic" ] ; then
+          echo "Skipping populate_lic, because removing duplicates doesn't work correctly for them (use --stamps-dir instead)"
+          continue
+      fi
       # Total number of files including .siginfo and .done files
       total_files_suffix=`grep ".*/sstate:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:_]*_$suffix\.tgz.*" $sstate_files_list | wc -l 2>/dev/null`
       total_tgz_suffix=`grep ".*/sstate:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:_]*_$suffix\.tgz$" $sstate_files_list | wc -l 2>/dev/null`
@@ -320,30 +324,32 @@ rm_by_stamps (){
   local cache_list=`mktemp` || exit 1
   local keep_list=`mktemp` || exit 1
   local rm_list=`mktemp` || exit 1
-  local suffixes
   local sums
   local all_sums
 
-  suffixes="populate_sysroot populate_lic package_write_ipk \
-            package_write_rpm package_write_deb package packagedata deploy"
+  # Total number of files including sstate-, .siginfo and .done files
+  total_files=`find $cache_dir -type f -name 'sstate*' | wc -l`
+  # Save all the state file list to a file
+  find $cache_dir -type f -name 'sstate*' | sort -u -o $cache_list
+
+  echo "Figuring out the suffixes in the sstate cache dir ... "
+  local sstate_suffixes="`sed 's%.*/sstate:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^_]*_\([^:]*\)\.tgz.*%\1%g' $cache_list | sort -u`"
+  echo "Done"
+  echo "The following suffixes have been found in the cache dir:"
+  echo $sstate_suffixes
 
   # Figure out all the md5sums in the stamps dir.
   echo "Figuring out all the md5sums in stamps dir ... "
-  for i in $suffixes; do
-      # There is no "\.siginfo" but "_setcene" when it is mirrored
+  for i in $sstate_suffixes; do
+      # There is no "\.sigdata" but "_setcene" when it is mirrored
       # from the SSTATE_MIRRORS, use them to figure out the sum.
       sums=`find $stamps -maxdepth 3 -name "*.do_$i.*" \
         -o -name "*.do_${i}_setscene.*" | \
-        sed -ne 's#.*_setscene\.##p' -e 's#.*\.siginfo\.##p' | \
+        sed -ne 's#.*_setscene\.##p' -e 's#.*\.sigdata\.##p' | \
         sed -e 's#\..*##' | sort -u`
       all_sums="$all_sums $sums"
   done
   echo "Done"
-
-  # Total number of files including sstate-, .siginfo and .done files
-  total_files=`find $cache_dir -name 'sstate*' | wc -l`
-  # Save all the state file list to a file
-  find $cache_dir -name 'sstate*.tgz' | sort -u -o $cache_list
 
   echo "Figuring out the files which will be removed ... "
   for i in $all_sums; do
@@ -355,14 +361,14 @@ rm_by_stamps (){
       sort -u $keep_list -o $keep_list
       to_del=`comm -1 -3 $keep_list $cache_list`
       gen_rmlist $rm_list "$to_del"
-      let total_deleted=`cat $rm_list | wc -w`
+      let total_deleted=`cat $rm_list | sort -u | wc -w`
       if [ $total_deleted -gt 0 ]; then
-          [ $debug -gt 0 ] && cat $rm_list
+          [ $debug -gt 0 ] && cat $rm_list | sort -u
           read_confirm
           if [ "$confirm" = "y" -o "$confirm" = "Y" ]; then
               echo "Removing sstate cache files ... ($total_deleted files)"
               # Remove them one by one to avoid the argument list too long error
-              for i in `cat $rm_list`; do
+              for i in `cat $rm_list | sort -u`; do
                   rm -f $verbose $i
               done
               echo "$total_deleted files have been removed"

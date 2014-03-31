@@ -93,7 +93,19 @@ python do_populate_sysroot () {
     bb.build.exec_func("sysroot_stage_all", d)
     for f in (d.getVar('SYSROOT_PREPROCESS_FUNCS', True) or '').split():
         bb.build.exec_func(f, d)
+    pn = d.getVar("PN", True)
+    multiprov = d.getVar("MULTI_PROVIDER_WHITELIST", True).split()
+    provdir = d.expand("${SYSROOT_DESTDIR}${base_prefix}/sysroot-providers/")
+    bb.utils.mkdirhier(provdir)
+    for p in d.getVar("PROVIDES", True).split():
+        if p in multiprov:
+            continue
+        p = p.replace("/", "_")
+        with open(provdir + p, "w") as f:
+            f.write(pn)
 }
+
+do_populate_sysroot[vardeps] += "${SYSROOT_PREPROCESS_FUNCS}"
 
 SSTATETASKS += "do_populate_sysroot"
 do_populate_sysroot[cleandirs] = "${SYSROOT_DESTDIR}"

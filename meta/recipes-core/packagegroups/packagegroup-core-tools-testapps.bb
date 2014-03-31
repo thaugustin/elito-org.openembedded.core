@@ -29,6 +29,10 @@ GLTOOLS = "\
     piglit \
     "
 
+3GTOOLS = "\
+    ofono-tests \
+    "
+
 _pkgs_touch = "\
     tslib-calibrate \
     tslib-tests \
@@ -57,6 +61,7 @@ RDEPENDS_${PN} = "\
     ${@base_contains('MACHINE_FEATURES', 'screen', '${_pkgs_screen}', '', d)} \
     ${@base_contains('DISTRO_FEATURES',  'x11', '${_pkgs_x11}', '', d)} \
     ${@base_contains('DISTRO_FEATURES', 'opengl', "${GLTOOLS}", "", d)} \
+    ${@base_contains('DISTRO_FEATURES', '3g', "${3GTOOLS}", "", d)} \
     ${@base_contains('MACHINE_FEATURES', 'alsa', '${_pkgs_alsa}', '', d)} \
     blktool \
     lrzsz \
@@ -64,5 +69,7 @@ RDEPENDS_${PN} = "\
     gst-meta-video \
     gst-meta-audio \
     ltp \
+    connman-tools \
+    connman-tests \
     connman-client \
     "

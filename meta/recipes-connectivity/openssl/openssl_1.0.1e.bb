@@ -2,7 +2,7 @@ require openssl.inc
 
 # For target side versions of openssl enable support for OCF Linux driver
 # if they are available.
-DEPENDS += "ocf-linux"
+DEPENDS += "cryptodev-linux"
 
 CFLAG += "-DHAVE_CRYPTODEV -DUSE_CRYPTODEV_DIGESTS"
 
@@ -35,6 +35,9 @@ SRC_URI += "file://configure-targets.patch \
             file://openssl-avoid-NULL-pointer-dereference-in-dh_pub_encode.patch \
             file://initial-aarch64-bits.patch \
             file://find.pl \
+            file://0001-Fix-for-TLS-record-tampering-bug-CVE-2013-4353.patch \
+            file://0001-Fix-DTLS-retransmission-from-previous-session.patch \
+            file://0001-Use-version-in-SSL_METHOD-not-SSL-structure.patch \
            "
 
 SRC_URI[md5sum] = "66bf6f10f060d561929de96f9dfe5b8c"
