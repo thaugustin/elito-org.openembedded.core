@@ -25,8 +25,6 @@ def sanity_conf_update(fn, lines, version_var_name, new_version):
     with open(fn, "w") as f:
         f.write(''.join(lines))
 
-EXPORT_FUNCTIONS bblayers_conf_file sanity_conf_read sanity_conf_find_line sanity_conf_update
-
 # Functions added to this variable MUST throw an exception (or sys.exit()) unless they
 # successfully changed LCONF_VERSION in bblayers.conf
 BBLAYERS_CONF_UPDATE_FUNCS += "oecore_update_bblayers"
@@ -667,14 +665,18 @@ def check_sanity_everybuild(status, d):
     if d.getVar('SDKMACHINE', True):
         if not check_conf_exists("conf/machine-sdk/${SDKMACHINE}.conf", d):
             status.addresult('Specified SDKMACHINE value is not valid\n')
+        elif d.getVar('SDK_ARCH', False) == "${BUILD_ARCH}":
+            status.addresult('SDKMACHINE is set, but SDK_ARCH has not been changed as a result - SDKMACHINE may have been set too late (e.g. in the distro configuration)\n')
 
     check_supported_distro(d)
 
     # Check if DISPLAY is set if TEST_IMAGE is set
     if d.getVar('TEST_IMAGE', True) == '1' or d.getVar('DEFAULT_TEST_SUITES', True):
-        display = d.getVar("BB_ORIGENV", False).getVar("DISPLAY", True)
-        if not display:
-            status.addresult('testimage needs an X desktop to start qemu, please set DISPLAY correctly (e.g. DISPLAY=:1.0)\n')
+        testtarget = d.getVar('TEST_TARGET', True)
+        if testtarget == 'qemu' or testtarget == 'QemuTarget':
+            display = d.getVar("BB_ORIGENV", False).getVar("DISPLAY", True)
+            if not display:
+                status.addresult('testimage needs an X desktop to start qemu, please set DISPLAY correctly (e.g. DISPLAY=:1.0)\n')
 
     omask = os.umask(022)
     if omask & 0755:

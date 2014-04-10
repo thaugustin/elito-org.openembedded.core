@@ -24,7 +24,7 @@ KEXECTOOLS_powerpc ?= ""
 KEXECTOOLS_e5500-64b ?= ""
 KEXECTOOLS_aarch64 ?= ""
 
-GLTOOLS = "\
+X11GLTOOLS = "\
     mesa-demos \
     piglit \
     "
@@ -33,36 +33,32 @@ GLTOOLS = "\
     ofono-tests \
     "
 
-_pkgs_touch = "\
-    tslib-calibrate \
-    tslib-tests \
-"
-
-_pkgs_screen = "\
-    fstests \
-    owl-video \
-"
-
-_pkgs_x11 = "\
+X11TOOLS = "\
     x11perf \
     xrestop \
     xwininfo \
     xprop \
     xvideo-tests \
-"
+    "
 
 _pkgs_alsa = " \
     alsa-utils-amixer \
     alsa-utils-aplay \
-"
+    "
+
+_pkgs_screen = "\
+    fstests \
+    owl-video \
+    "
+
+_pkgs_touch = "\
+    tslib-calibrate \
+    tslib-tests \
+    "
+
+###
 
 RDEPENDS_${PN} = "\
-    ${@base_contains('MACHINE_FEATURES', 'touchscreen', '${_pkgs_touch}', '', d)} \
-    ${@base_contains('MACHINE_FEATURES', 'screen', '${_pkgs_screen}', '', d)} \
-    ${@base_contains('DISTRO_FEATURES',  'x11', '${_pkgs_x11}', '', d)} \
-    ${@base_contains('DISTRO_FEATURES', 'opengl', "${GLTOOLS}", "", d)} \
-    ${@base_contains('DISTRO_FEATURES', '3g', "${3GTOOLS}", "", d)} \
-    ${@base_contains('MACHINE_FEATURES', 'alsa', '${_pkgs_alsa}', '', d)} \
     blktool \
     lrzsz \
     ${KEXECTOOLS} \
@@ -72,4 +68,10 @@ RDEPENDS_${PN} = "\
     connman-tools \
     connman-tests \
     connman-client \
+    ${@base_contains('DISTRO_FEATURES', 'x11', "${X11TOOLS}", "", d)} \
+    ${@base_contains('DISTRO_FEATURES', 'x11 opengl', "${X11GLTOOLS}", "", d)} \
+    ${@base_contains('DISTRO_FEATURES', '3g', "${3GTOOLS}", "", d)} \
+    ${@base_contains('MACHINE_FEATURES', 'touchscreen', '${_pkgs_touch}', '', d)} \
+    ${@base_contains('MACHINE_FEATURES', 'screen', '${_pkgs_screen}', '', d)} \
+    ${@base_contains('MACHINE_FEATURES', 'alsa', '${_pkgs_alsa}', '', d)} \
     "
