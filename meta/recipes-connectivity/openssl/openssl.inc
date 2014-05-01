@@ -30,14 +30,14 @@ export DIRS = "crypto ssl apps"
 export EX_LIBS = "-lgcc -ldl"
 export AS = "${CC} -c"
 
-inherit pkgconfig siteinfo multilib_header
+inherit pkgconfig siteinfo multilib_header ptest
 
 PACKAGES =+ "libcrypto libssl ${PN}-misc openssl-conf"
 FILES_libcrypto = "${base_libdir}/libcrypto${SOLIBS}"
 FILES_libssl = "${libdir}/libssl.so.*"
 FILES_${PN} =+ " ${libdir}/ssl/*"
 FILES_${PN}-misc = "${libdir}/ssl/misc ${bindir}/c_rehash"
-RDEPENDS_${PN}-misc = "${@base_contains('PACKAGECONFIG', 'perl', 'perl', '', d)}"
+RDEPENDS_${PN}-misc = "${@bb.utils.contains('PACKAGECONFIG', 'perl', 'perl', '', d)}"
 FILES_${PN}-dev += "${base_libdir}/libcrypto${SOLIBSDEV}"
 
 # Add the openssl.cnf file to the openssl-conf package.  Make the libcrypto
@@ -47,6 +47,7 @@ FILES_${PN}-dev += "${base_libdir}/libcrypto${SOLIBSDEV}"
 FILES_openssl-conf = "${libdir}/ssl/openssl.cnf"
 CONFFILES_openssl-conf = "${libdir}/ssl/openssl.cnf"
 RRECOMMENDS_libcrypto += "openssl-conf"
+RDEPENDS_${PN}-ptest += "${PN}-misc make"
 
 do_configure_prepend_darwin () {
 	sed -i -e '/version-script=openssl\.ld/d' Configure
@@ -140,6 +141,10 @@ do_compile () {
 	oe_runmake
 }
 
+do_compile_ptest () {
+	oe_runmake buildtest
+}
+
 do_install () {
 	oe_runmake INSTALL_PREFIX="${D}" MANDIR="${mandir}" install
 
@@ -157,7 +162,7 @@ do_install () {
 	cp --dereference -R include/openssl ${D}${includedir}
 
 	oe_multilib_header openssl/opensslconf.h
-	if [ "${@base_contains('PACKAGECONFIG', 'perl', 'perl', '', d)}" = "perl" ]; then
+	if [ "${@bb.utils.contains('PACKAGECONFIG', 'perl', 'perl', '', d)}" = "perl" ]; then
 		install -m 0755 ${S}/tools/c_rehash ${D}${bindir}
 		sed -i -e '1s,.*,#!${bindir}/env perl,' ${D}${bindir}/c_rehash
 		sed -i -e '1s,.*,#!${bindir}/env perl,' ${D}${libdir}/ssl/misc/CA.pl
@@ -167,6 +172,18 @@ do_install () {
 		rm -f ${D}${bindir}/c_rehash
 		rm -f ${D}${libdir}/ssl/misc/CA.pl ${D}${libdir}/ssl/misc/tsget
 	fi
+}
+
+do_install_ptest () {
+	cp -r Makefile test ${D}${PTEST_PATH}
+	mkdir -p ${D}${PTEST_PATH}/apps
+	ln -sf /usr/lib/ssl/misc/CA.sh  ${D}${PTEST_PATH}/apps
+	ln -sf /usr/lib/ssl/openssl.cnf ${D}${PTEST_PATH}/apps
+	ln -sf /usr/bin/openssl         ${D}${PTEST_PATH}/apps
+	cp apps/server2.pem             ${D}${PTEST_PATH}/apps
+	mkdir -p ${D}${PTEST_PATH}/util
+	install util/opensslwrap.sh    ${D}${PTEST_PATH}/util
+	install util/shlib_wrap.sh     ${D}${PTEST_PATH}/util
 }
 
 BBCLASSEXTEND = "native nativesdk"

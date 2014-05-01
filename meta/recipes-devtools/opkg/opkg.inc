@@ -17,7 +17,7 @@ do_configure_prepend() {
 inherit autotools pkgconfig systemd
 
 python () {
-    if not oe.utils.contains('DISTRO_FEATURES', 'sysvinit', True, False, d):
+    if not bb.utils.contains('DISTRO_FEATURES', 'sysvinit', True, False, d):
         pn = d.getVar('PN', True)
         d.setVar('SYSTEMD_SERVICE_%s' % (pn), 'opkg-configure.service')
 }
@@ -59,7 +59,7 @@ do_install_append() {
 	# We need to create the lock directory
 	install -d ${D}${OPKGLIBDIR}/opkg
 
-	if ${@base_contains('DISTRO_FEATURES','sysvinit','false','true',d)};then
+	if ${@bb.utils.contains('DISTRO_FEATURES','sysvinit','false','true',d)};then
 		install -d ${D}${systemd_unitdir}/system
 		install -m 0644 ${WORKDIR}/opkg-configure.service ${D}${systemd_unitdir}/system/
 		sed -i -e 's,@BASE_BINDIR@,${base_bindir},g' \

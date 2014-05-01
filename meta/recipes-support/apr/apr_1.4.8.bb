@@ -26,6 +26,10 @@ OE_BINCONFIG_EXTRA_MANGLE = " -e 's:location=source:location=installed:'"
 # Added to fix some issues with cmake. Refer to https://github.com/bmwcarit/meta-ros/issues/68#issuecomment-19896928
 CACHED_CONFIGUREVARS += "apr_cv_mutex_recursive=yes"
 
+# Also suppress trying to use sctp.
+#
+CACHED_CONFIGUREVARS += "ac_cv_header_netinet_sctp_h=no ac_cv_header_netinet_sctp_uio_h=no"
+
 do_configure_prepend() {
 	cd ${S}
 	./buildconf
@@ -56,7 +60,7 @@ apr_sysroot_preprocess () {
 	cp ${S}/build/apr_rules.mk $d/
 	sed -i s,apr_builddir=.*,apr_builddir=,g $d/apr_rules.mk
 	sed -i s,apr_builders=.*,apr_builders=,g $d/apr_rules.mk
-	sed -i s,LIBTOOL=.*,LIBTOOL=\$\(SHELL\)\ ${HOST_SYS}-libtool,g $d/apr_rules.mk
+	sed -i s,LIBTOOL=.*,LIBTOOL=${HOST_SYS}-libtool,g $d/apr_rules.mk
 	sed -i s,\$\(apr_builders\),${STAGING_DATADIR}/apr/,g $d/apr_rules.mk
 	cp ${S}/build/mkdir.sh $d/
 	cp ${S}/build/make_exports.awk $d/

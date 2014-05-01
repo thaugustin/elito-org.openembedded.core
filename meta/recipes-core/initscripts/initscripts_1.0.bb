@@ -3,7 +3,7 @@ DESCRIPTION = "Initscripts provide the basic system startup initialization scrip
 SECTION = "base"
 LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://COPYING;md5=751419260aa954499f7abaabaa882bbe"
-PR = "r154"
+PR = "r155"
 
 INHIBIT_DEFAULT_DEPS = "1"
 
@@ -41,7 +41,7 @@ KERNEL_VERSION = ""
 
 inherit update-alternatives
 DEPENDS_append = " update-rc.d-native"
-DEPENDS_append = " ${@base_contains('DISTRO_FEATURES','systemd','systemd-systemctl-native','',d)}"
+DEPENDS_append = " ${@bb.utils.contains('DISTRO_FEATURES','systemd','systemd-systemctl-native','',d)}"
 
 PACKAGES =+ "${PN}-functions"
 RDEPENDS_${PN} = "${PN}-functions"
@@ -149,7 +149,7 @@ MASKED_SCRIPTS = " \
   urandom"
 
 pkg_postinst_${PN} () {
-	if ${@base_contains('DISTRO_FEATURES','systemd','true','false',d)}; then
+	if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
 		if [ -n "$D" ]; then
 			OPTS="--root=$D"
 		fi

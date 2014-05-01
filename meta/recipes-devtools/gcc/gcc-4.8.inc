@@ -22,7 +22,6 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=59530bdf33659b29e73d4adb9f9f6552 \
 		   file://COPYING.RUNTIME;md5=fe60d87048567d4fe8c8a0ed2448bcc8"
 
 SRC_URI = "${GNU_MIRROR}/gcc/gcc-${PV}/gcc-${PV}.tar.bz2 \
-	   file://0001-gcc-4.3.1-ARCH_FLAGS_FOR_TARGET.patch \
 	   file://0002-uclibc-conf.patch \
 	   file://0003-gcc-uclibc-locale-ctype_touplow_t.patch \
 	   file://0004-uclibc-locale.patch \
@@ -71,7 +70,6 @@ SRC_URI = "${GNU_MIRROR}/gcc/gcc-${PV}/gcc-${PV}.tar.bz2 \
 	   file://0048-PR58854_fix_arm_apcs_epilogue.patch \
 	   file://0049-Enable-SPE-AltiVec-generation-on-powepc-linux-target.patch \
 	   file://0050-PR-target-58595.patch \
-	   file://0051-fix-unwind-race.patch \
 	  "
 SRC_URI[md5sum] = "a3d7d63b9cb6b6ea049469a0c4a43c9d"
 SRC_URI[sha256sum] = "09dc2276c73424bbbfda1dbddc62bbbf900c9f185acf7f3e1d773ce2d7e3cdc8"

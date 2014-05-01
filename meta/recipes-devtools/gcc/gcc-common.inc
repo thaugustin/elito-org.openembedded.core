@@ -7,6 +7,8 @@ NATIVEDEPS = ""
 
 inherit autotools gettext
 
+BPN = "gcc"
+
 def get_gcc_fpu_setting(bb, d):
     res=[]
 
@@ -35,7 +37,7 @@ def get_gcc_fpu_setting(bb, d):
 get_gcc_fpu_setting[vardepvalue] = "${@get_gcc_fpu_setting(bb, d)}"
 
 def get_gcc_mips_plt_setting(bb, d):
-    if d.getVar('TRANSLATED_TARGET_ARCH', True) in [ 'mips', 'mipsel' ] and oe.utils.contains('DISTRO_FEATURES', 'mplt', True, False, d):
+    if d.getVar('TRANSLATED_TARGET_ARCH', True) in [ 'mips', 'mipsel' ] and bb.utils.contains('DISTRO_FEATURES', 'mplt', True, False, d):
         return "--with-mips-plt"
     return ""
 
@@ -48,7 +50,7 @@ def get_gcc_multiarch_setting(bb, d):
         "sparc":   "--enable-targets=all",
     }
 
-    if oe.utils.contains('DISTRO_FEATURES', 'multiarch', True, False, d):
+    if bb.utils.contains('DISTRO_FEATURES', 'multiarch', True, False, d):
         if target_arch in multiarch_options :
             return multiarch_options[target_arch]
     return ""
@@ -103,17 +105,20 @@ SS = "${TMPDIR}/stamps/work-shared/gcc-${PV}-${PR}"
 do_fetch[stamp-base] = "${SS}"
 do_unpack[stamp-base] = "${SS}"
 do_patch[stamp-base] = "${SS}"
+do_preconfigure[stamp-base] = "${SS}"
 SSCLEAN = "${TMPDIR}/stamps/work-shared/gcc-[0-9]*-*"
 do_fetch[stamp-base-clean] = "${SSCLEAN}"
 do_unpack[stamp-base-clean] = "${SSCLEAN}"
 do_unpack[umask] = "022"
 do_patch[stamp-base-clean] = "${SSCLEAN}"
+do_preconfigure[stamp-base-clean] = "${SSCLEAN}"
 
 # SW means Shared Work directory
 SW = "${TMPDIR}/work-shared/gcc-${PV}-${PR}"
 SSTATE_SWSPEC = "sstate:gcc::${PV}:${PR}::${SSTATE_VERSION}:"
 WORKDIR_task-unpack = "${SW}"
 WORKDIR_task-patch = "${SW}"
+WORKDIR_task-preconfigure = "${SW}"
 
 target_includedir ?= "${includedir}"
 target_libdir ?= "${libdir}"

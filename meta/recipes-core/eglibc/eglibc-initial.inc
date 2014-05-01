@@ -1,12 +1,12 @@
-DEPENDS = "linux-libc-headers virtual/${TARGET_PREFIX}gcc-initial"
+DEPENDS = "linux-libc-headers virtual/${TARGET_PREFIX}gcc-initial libgcc-initial"
 PROVIDES = "virtual/${TARGET_PREFIX}libc-initial"
 
 PACKAGES = ""
 PACKAGES_DYNAMIC = ""
 
-STAGINGCC = "gcc-cross-initial"
-STAGINGCC_class-nativesdk = "gcc-crosssdk-initial"
-TOOLCHAIN_OPTIONS = " --sysroot=${STAGING_DIR_TARGET}"
+STAGINGCC = "gcc-cross-initial-${TARGET_ARCH}"
+STAGINGCC_class-nativesdk = "gcc-crosssdk-initial-${TARGET_ARCH}"
+TOOLCHAIN_OPTIONS = " --sysroot=${STAGING_DIR_TCBOOTSTRAP}"
 
 do_configure () {
 	sed -ie 's,{ (exit 1); exit 1; }; },{ (exit 0); }; },g' ${S}/configure

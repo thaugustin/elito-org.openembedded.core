@@ -70,9 +70,9 @@ class BaseTarget(object):
     def stop(self):
         pass
 
-    @abstractmethod
     def restart(self, params=None):
-        pass
+        self.stop()
+        self.start(params)
 
     def run(self, cmd, timeout=None):
         return self.connection.run(cmd, timeout)
@@ -124,6 +124,7 @@ class QemuTarget(BaseTarget):
             self.server_ip = self.runner.server_ip
             self.connection = SSHControl(ip=self.ip, logfile=self.sshlog)
         else:
+            self.stop()
             raise bb.build.FuncFailed("%s - FAILED to start qemu - check the task log and the boot log" % self.pn)
 
     def stop(self):
@@ -170,6 +171,3 @@ class SimpleRemoteTarget(BaseTarget):
         self.connection = None
         self.ip = None
         self.server_ip = None
-
-    def restart(self, params=None):
-        pass

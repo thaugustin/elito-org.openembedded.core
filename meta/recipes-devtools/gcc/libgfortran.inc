@@ -5,11 +5,9 @@ EXTRA_OECONF_PATHS = " \
     --with-build-sysroot=${STAGING_DIR_TARGET}"
 
 do_configure () {
-	mtarget=`echo ${MULTIMACH_TARGET_SYS} | sed -e s#-${SDKPKGSUFFIX}##`
+	mtarget=`echo ${TARGET_SYS} | sed -e s#-${SDKPKGSUFFIX}##`
 	target=`echo ${TARGET_SYS} | sed -e s#-${SDKPKGSUFFIX}##`
-	#cp -fpPR ${STAGING_INCDIR_NATIVE}/gcc-build-internal-$mtarget/* ${B}
-	(cd ${STAGING_INCDIR_NATIVE}/gcc-build-internal-$mtarget/; find . -print0 | cpio --null -pdlu ${B})
-	(cd ${STAGING_INCDIR_NATIVE}/gcc-build-internal-$mtarget/; find . -type l -print0 | cpio -pd0mLu --no-preserve-owner ${B})
+	hardlinkdir ${STAGING_INCDIR_NATIVE}/gcc-build-internal-$mtarget ${B}
 
 	echo "Configuring libgfortran"
 	rm -rf ${B}/$target/libgfortran/

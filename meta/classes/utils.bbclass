@@ -24,7 +24,7 @@ def base_version_less_or_equal(variable, checkvalue, truevalue, falsevalue, d):
     return oe.utils.version_less_or_equal(variable, checkvalue, truevalue, falsevalue, d)
 
 def base_contains(variable, checkvalues, truevalue, falsevalue, d):
-    return oe.utils.contains(variable, checkvalues, truevalue, falsevalue, d)
+    return bb.utils.contains(variable, checkvalues, truevalue, falsevalue, d)
 
 def base_both_contain(variable1, variable2, checkvalue, d):
     return oe.utils.both_contain(variable1, variable2, checkvalue, d)
@@ -291,6 +291,15 @@ exec -a \`dirname \$realpath\`/$cmdname \`dirname \$realpath\`/$cmdname.real "\$
 END
 	chmod +x $cmd
 }
+
+# Copy files/directories from $1 to $2 but using hardlinks
+# (preserve symlinks)
+hardlinkdir () {
+	from=$1
+	to=$2
+	(cd $from; find . -print0 | cpio --null -pdlu $to)
+}
+
 
 def check_app_exists(app, d):
     app = d.expand(app)

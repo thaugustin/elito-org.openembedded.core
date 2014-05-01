@@ -19,7 +19,7 @@ LANGUAGES ?= "c,c++${FORTRAN}${JAVA}"
 # when linking shared libraries further in the build like (gnutls)
 
 SPECIAL_ARCH_LIST = "powerpc"
-OPTSPACE = '${@base_contains("SPECIAL_ARCH_LIST", "${TARGET_ARCH}", "", "--enable-target-optspace",d)}'
+OPTSPACE = '${@bb.utils.contains("SPECIAL_ARCH_LIST", "${TARGET_ARCH}", "", "--enable-target-optspace",d)}'
 
 EXTRA_OECONF_BASE ?= ""
 EXTRA_OECONF_PATHS ?= ""
@@ -68,11 +68,6 @@ CPPFLAGS = ""
 EXTRA_OECONF_append_powerpc = " --with-long-double-128"
 EXTRA_OECONF_append_powerpc64 = " --with-long-double-128"
 
-# Used by configure to define additional values for FLAGS_FOR_TARGET -
-# passed to all the compilers.
-ARCH_FLAGS_FOR_TARGET = "${TARGET_CC_ARCH}"
-EXTRA_OEMAKE += "ARCH_FLAGS_FOR_TARGET='${ARCH_FLAGS_FOR_TARGET}'"
-
 SYSTEMHEADERS = "${target_includedir}"
 SYSTEMLIBS = "${target_base_libdir}/"
 SYSTEMLIBS1 = "${target_libdir}/"
@@ -98,6 +93,14 @@ _EOF
 	mv ${B}/gcc/defaults.h.new ${B}/gcc/defaults.h
 }
 
+python do_preconfigure () {
+    import subprocess
+    cmd = d.expand('PATH=${PATH} cd ${S} && gnu-configize')
+    subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+}
+addtask do_preconfigure after do_patch before do_configure
+do_preconfigure[depends] += "gnu-config-native:do_populate_sysroot autoconf-native:do_populate_sysroot"
+
 do_configure () {
 	# Setup these vars for cross building only
 	# ... because foo_FOR_TARGET apparently gets misinterpreted inside the
@@ -121,12 +124,11 @@ do_configure () {
 	export CPPFLAGS_FOR_BUILD="${BUILD_CPPFLAGS}"
 	export CXXFLAGS_FOR_BUILD="${BUILD_CXXFLAGS}"
 	export LDFLAGS_FOR_BUILD="${BUILD_LDFLAGS}"
-	export ARCH_FLAGS_FOR_TARGET="${ARCH_FLAGS_FOR_TARGET}"
 	export CFLAGS_FOR_TARGET="${TARGET_CFLAGS}"
 	export CPPFLAGS_FOR_TARGET="${TARGET_CPPFLAGS}"
 	export CXXFLAGS_FOR_TARGET="${TARGET_CXXFLAGS}"
 	export LDFLAGS_FOR_TARGET="${TARGET_LDFLAGS}"
-	(cd ${S} && gnu-configize) || die "failure running gnu-configize"
+
 
 	oe_runconf
 }

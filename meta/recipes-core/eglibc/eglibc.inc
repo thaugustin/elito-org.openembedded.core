@@ -2,8 +2,8 @@ require eglibc-common.inc
 require eglibc-ld.inc
 require eglibc-testing.inc
 
-STAGINGCC = "gcc-cross-initial"
-STAGINGCC_class-nativesdk = "gcc-crosssdk-initial"
+STAGINGCC = "gcc-cross-initial-${TARGET_ARCH}"
+STAGINGCC_class-nativesdk = "gcc-crosssdk-initial-${TARGET_ARCH}"
 PATH_prepend = "${STAGING_BINDIR_TOOLCHAIN}.${STAGINGCC}:"
 
 TOOLCHAIN_OPTIONS = " --sysroot=${STAGING_DIR_TCBOOTSTRAP}"
@@ -12,7 +12,7 @@ TOOLCHAIN_OPTIONS = " --sysroot=${STAGING_DIR_TCBOOTSTRAP}"
 # entire image as -O0, we override it with -O2 here and give a note about it.
 def get_optimization(d):
     selected_optimization = d.getVar("SELECTED_OPTIMIZATION", True)
-    if base_contains("SELECTED_OPTIMIZATION", "-O0", "x", "", d) == "x":
+    if bb.utils.contains("SELECTED_OPTIMIZATION", "-O0", "x", "", d) == "x":
         bb.note("eglibc can't be built with -O0, -O2 will be used instead.")
         return selected_optimization.replace("-O0", "-O2")
     return selected_optimization
@@ -33,7 +33,7 @@ siteconfig_do_siteconfig_gencache_prepend = " \
 "
 
 # nptl needs unwind support in gcc, which can't be built without glibc.
-DEPENDS = "virtual/${TARGET_PREFIX}gcc-initial linux-libc-headers virtual/${TARGET_PREFIX}libc-initial"
+DEPENDS = "virtual/${TARGET_PREFIX}gcc-initial libgcc-initial linux-libc-headers virtual/${TARGET_PREFIX}libc-initial"
 # nptl needs libgcc but dlopens it, so our shlibs code doesn't detect this
 #RDEPENDS_${PN} += "${@['','libgcc']['nptl' in '${GLIBC_ADDONS}']}"
 PROVIDES = "virtual/libc virtual/${TARGET_PREFIX}libc-for-gcc"
