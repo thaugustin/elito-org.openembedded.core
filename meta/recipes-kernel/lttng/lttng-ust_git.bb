@@ -12,6 +12,7 @@ inherit autotools lib_package
 
 DEPENDS = "liburcu util-linux"
 RDEPENDS_${PN}-bin = "python-core"
+export PYTHON
 
 # For backwards compatibility after rename
 RPROVIDES_${PN} = "lttng2-ust"
