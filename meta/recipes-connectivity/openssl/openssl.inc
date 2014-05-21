@@ -32,6 +32,10 @@ export AS = "${CC} -c"
 
 inherit pkgconfig siteinfo multilib_header ptest
 
+# natives don't generally look in base_libdir
+base_libdir_class-native = "${libdir}"
+base_libdir_class-nativesdk = "${libdir}"
+
 PACKAGES =+ "libcrypto libssl ${PN}-misc openssl-conf"
 FILES_libcrypto = "${base_libdir}/libcrypto${SOLIBS}"
 FILES_libssl = "${libdir}/libssl.so.*"
