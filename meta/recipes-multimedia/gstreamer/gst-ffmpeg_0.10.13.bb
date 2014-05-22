@@ -23,6 +23,19 @@ SRC_URI = "http://gstreamer.freedesktop.org/src/${BPN}/${BPN}-${PV}.tar.bz2 \
            file://libav_e500mc.patch \
            file://libav_e5500.patch \
            file://gst-ffmpeg-CVE-2013-3674.patch \
+           file://0001-avformat-mpegtsenc-Check-data-array-size-in-mpegts_w.patch \
+           file://0001-vqavideo-check-chunk-sizes-before-reading-chunks.patch \
+           file://0001-avcodec-msrle-use-av_image_get_linesize-to-calculate.patch \
+           file://0001-huffyuvdec-Skip-len-0-cases.patch \
+           file://0001-huffyuvdec-Check-init_vlc-return-codes.patch \
+           file://0001-alsdec-check-block-length.patch \
+           file://0001-pgssubdec-check-RLE-size-before-copying.-Fix-out-of-.patch \
+           file://0001-atrac3dec-Check-coding-mode-against-channels.patch \
+           file://0001-eamad-fix-out-of-array-accesses.patch \
+           file://0001-mjpegdec-check-SE.patch \
+           file://0001-alac-fix-nb_samples-order-case.patch \
+           file://0001-h264-correct-ref-count-check-and-limit-fix-out-of-ar.patch \
+           file://0001-roqvideodec-check-dimensions-validity.patch \
 "
 
 SRC_URI[md5sum] = "7f5beacaf1312db2db30a026b36888c4"
