@@ -65,6 +65,7 @@ SRC_URI = "${GNU_MIRROR}/gcc/gcc-${PV}/gcc-${PV}.tar.bz2 \
 	   file://0049-Enable-SPE-AltiVec-generation-on-powepc-linux-target.patch \
 	   file://0050-Revert-Use-dbx_reg_number-for-spanning-registers.patch \
            file://0051-eabispe.patch \
+           file://0052-Fix-GCC-targeting-E500-SPE-errors-with-the-_Decimal64-type.patch \
 	  "
 SRC_URI[md5sum] = "9709b49ae0e904cbb0a6a1b62853b556"
 SRC_URI[sha256sum] = "b9b047a97bade9c1c89970bc8e211ff57b7b8998a1730a80a653d329f8ed1257"
@@ -114,21 +115,4 @@ EXTRA_OECONF_PATHS = " \
                       --with-sysroot=${STAGING_DIR_TARGET} \ 
                       --with-build-sysroot=${STAGING_DIR_TARGET}"
 
-do_configure_prepend () {
-        # teach gcc to find correct target includedir when checking libc ssp support
-        mkdir -p ${B}/gcc
-        echo "NATIVE_SYSTEM_HEADER_DIR = ${SYSTEMHEADERS}" > ${B}/gcc/t-oe
-        cat ${S}/gcc/defaults.h | grep -v "\#endif.*GCC_DEFAULTS_H" > ${B}/gcc/defaults.h.new
-        cat >>${B}/gcc/defaults.h.new <<_EOF
-#ifndef STANDARD_STARTFILE_PREFIX_1
-#define STANDARD_STARTFILE_PREFIX_1 "${SYSTEMLIBS}"
-#endif
-#ifndef STANDARD_STARTFILE_PREFIX_2
-#define STANDARD_STARTFILE_PREFIX_2 "${SYSTEMLIBS1}"
-#endif
-#define SYSTEMLIBS_DIR "${SYSTEMLIBS}"
-#endif /* ! GCC_DEFAULTS_H */
-_EOF
-        mv ${B}/gcc/defaults.h.new ${B}/gcc/defaults.h
-}
 
