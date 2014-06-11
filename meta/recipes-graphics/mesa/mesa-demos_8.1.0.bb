@@ -14,7 +14,9 @@ DEPENDS = "virtual/libgl glew"
 SRC_URI = "ftp://ftp.freedesktop.org/pub/mesa/demos/${PV}/${BPN}-${PV}.tar.bz2 \
         file://glut.patch \
         file://egl-mesa-screen-surface-build-fix.patch \
-        file://egl-mesa-screen-surface-query.patch"
+        file://egl-mesa-screen-surface-query.patch \
+        file://0001-mesa-demos-Add-missing-data-files.patch \
+        file://0001-mesa-demos-Use-DEMOS_DATA_DIR-to-locate-data-files.patch"
 
 SRC_URI[md5sum] = "9df33ba69a26bbfbc7c8148602e59542"
 SRC_URI[sha256sum] = "9703fa0646b32a1e68d2abf5628f936f77bf97c69ffcaac90de380820a87a828"
@@ -27,6 +29,8 @@ PACKAGECONFIG ?= "drm osmesa freetype2 gbm egl gles1 gles2 \
 # The Wayland code doesn't work with Wayland 1.0, so disable it for now
 #${@bb.utils.contains('DISTRO_FEATURES', 'wayland', 'wayland', '', d)}"
 
+EXTRA_OECONF = "--with-system-data-files"
+
 PACKAGECONFIG[drm] = "--enable-libdrm,--disable-libdrm,libdrm"
 PACKAGECONFIG[egl] = "--enable-egl,--disable-egl,virtual/egl"
 PACKAGECONFIG[freetype2] = "--enable-freetype2,--disable-freetype2,freetype"
@@ -38,3 +42,12 @@ PACKAGECONFIG[osmesa] = "--enable-osmesa,--disable-osmesa,"
 PACKAGECONFIG[vg] = "--enable-vg,--disable-vg,virtual/libvg"
 PACKAGECONFIG[wayland] = "--enable-wayland,--disable-wayland,virtual/libgl wayland"
 PACKAGECONFIG[x11] = "--enable-x11,--disable-x11,virtual/libx11"
+
+do_install_append () {
+    install -m 0644 ${S}/src/perf/*.frag \
+                    ${S}/src/perf/*.vert \
+                    ${S}/src/glsl/*.frag \
+                    ${S}/src/glsl/*.vert \
+                    ${S}/src/glsl/*.geom \
+                    ${S}/src/glsl/*.glsl ${D}${datadir}/${BPN}
+}

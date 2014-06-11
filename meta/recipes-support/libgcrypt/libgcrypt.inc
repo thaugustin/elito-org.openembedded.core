@@ -12,7 +12,9 @@ DEPENDS = "libgpg-error libcap"
 
 SRC_URI = "ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-${PV}.tar.gz \
            file://add-pkgconfig-support.patch \
-           file://libgcrypt-fix-building-error-with-O2-in-sysroot-path.patch"
+           file://libgcrypt-fix-building-error-with-O2-in-sysroot-path.patch \
+           file://fix-ICE-failure-on-mips-with-option-O-and-g.patch \
+"
 
 inherit autotools-brokensep texinfo binconfig pkgconfig
 
@@ -20,7 +22,7 @@ EXTRA_OECONF = "--disable-asm --with-capabilities"
 
 do_configure_prepend () {
 	# Else these could be used in prefernce to those in aclocal-copy
-	rm ${S}/m4/*.m4
+	rm -f ${S}/m4/*.m4
 }
 
 # libgcrypt.pc is added locally and thus installed here
