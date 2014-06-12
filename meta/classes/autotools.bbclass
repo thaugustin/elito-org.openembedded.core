@@ -32,7 +32,13 @@ export CONFIG_SITE = "${@siteinfo_get_files(d)}"
 acpaths = "default"
 # native + cross depend on gettext-minimal which does not provide
 # autopoint
-EXTRA_AUTORECONF = "${@['','--exclude=autopoint'][oe.utils.inherits(d, 'native', 'cross')]}"
+_exclude_autopoint = "false"
+_exclude_autopoint_class-native = "true"
+_exclude_autopoint_class-cross = "true"
+EXCLUDE_AUTOPOINT ?= "${_exclude_autopoint}"
+EXCLUDE_AUTOPOINT[type] = "boolean"
+EXTRA_AUTORECONF[vardeps] += "EXCLUDE_AUTOPOINT"
+EXTRA_AUTORECONF = "${@['','--exclude=autopoint'][oe.data.typed_value('EXCLUDE_AUTOPOINT', d)]}"
 
 export lt_cv_sys_lib_dlsearch_path_spec = "${libdir} ${base_libdir}"
 
