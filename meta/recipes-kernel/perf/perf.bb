@@ -9,7 +9,7 @@ as well."
 LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://COPYING;md5=d7810fab7487fb0aad327b76f1be7cd7"
 
-PR = "r8"
+PR = "r9"
 
 require perf-features.inc
 
@@ -26,9 +26,6 @@ DEPENDS = "virtual/kernel \
            ${SCRIPTING_DEPENDS} \
            bison flex \
           "
-
-SCRIPTING_RDEPENDS = "${@perf_feature_enabled('perf-scripting', 'perl perl-modules python', '',d)}"
-RDEPENDS_${PN} += "elfutils bash ${SCRIPTING_RDEPENDS}"
 
 PROVIDES = "virtual/perf"
 
@@ -112,7 +109,7 @@ do_install() {
 	unset CFLAGS
 	oe_runmake DESTDIR=${D} install
 	# we are checking for this make target to be compatible with older perf versions
-	if [ "${@perf_feature_enabled('perf-scripting', 1, 0, d)}" = "1" -a $(grep install-python_ext ${S}/tools/perf/Makefile) = "0"]; then
+	if [ "${@perf_feature_enabled('perf-scripting', 1, 0, d)}" = "1" -a $(grep install-python_ext ${S}/tools/perf/Makefile) = "0" ]; then
 		oe_runmake DESTDIR=${D} install-python_ext
 	fi
 }
@@ -153,8 +150,23 @@ python do_package_prepend() {
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 
+
+PACKAGES =+ "${PN}-archive ${PN}-tests ${PN}-perl ${PN}-python"
+
+RDEPENDS_${PN} += "elfutils"
+RDEPENDS_${PN}-archive =+ "bash"
+RDEPENDS_${PN}-python =+ "bash python"
+RDEPENDS_${PN}-perl =+ "bash perl perl-modules"
+
+RSUGGESTS_SCRIPTING = "${@perf_feature_enabled('perf-scripting', '${PN}-perl ${PN}-python', '',d)}"
+RSUGGESTS_${PN} += "${PN}-archive ${PN}-tests ${RSUGGESTS_SCRIPTING}"
+
 FILES_${PN} += "${libexecdir}/perf-core ${exec_prefix}/libexec/perf-core ${libdir}/traceevent"
 FILES_${PN}-dbg += "${libdir}/python*/site-packages/.debug"
-FILES_${PN} += "${libdir}/python*/site-packages"
+FILES_${PN}-archive = "${libdir}/perf/perf-core/perf-archive"
+FILES_${PN}-tests = "${libdir}/perf/perf-core/tests"
+FILES_${PN}-python = "${libdir}/python*/site-packages ${libdir}/perf/perf-core/scripts/python"
+FILES_${PN}-perl = "${libdir}/perf/perf-core/scripts/perl"
+
 
 INHIBIT_PACKAGE_DEBUG_SPLIT="1"
