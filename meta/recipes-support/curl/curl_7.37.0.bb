@@ -11,8 +11,6 @@ DEPENDS_class-nativesdk = "nativesdk-zlib"
 
 SRC_URI = "http://curl.haxx.se/download/curl-${PV}.tar.bz2 \
            file://pkgconfig_fix.patch \
-           file://generate_code_for_disable_manual.patch \
-           file://remove_inappropriate_file_from_rel.patch \
 "
 
 # curl likes to set -g0 in CFLAGS, so we stop it
@@ -20,10 +18,17 @@ SRC_URI = "http://curl.haxx.se/download/curl-${PV}.tar.bz2 \
 #
 SRC_URI += " file://configure_ac.patch"
 
-SRC_URI[md5sum] = "e6d1f9d1b59da5062109ffe14e0569a4"
-SRC_URI[sha256sum] = "1fbe82b89bcd6b7ccda8cb0ff076edc60e911595030e27689f4abd5ef7f3cfcd"
+SRC_URI[md5sum] = "7dda0cc2e4136f78d5801ac347be696b"
+SRC_URI[sha256sum] = "24502492de3168b0556d8e1a06f14f7589e57b204917d602a572e14239b3e09e"
 
 inherit autotools pkgconfig binconfig multilib_header
+
+PACKAGECONFIG ??= "gnutls ${@bb.utils.contains("DISTRO_FEATURES", "ipv6", "ipv6", "", d)}"
+PACKAGECONFIG_class-native = "ipv6 ssl"
+PACKAGECONFIG_class-nativesdk = "ipv6"
+PACKAGECONFIG[ipv6] = "--enable-ipv6,--disable-ipv6,"
+PACKAGECONFIG[ssl] =  "--with-ssl, --without-ssl, ,"
+PACKAGECONFIG[gnutls] =  "--with-gnutls=${STAGING_LIBDIR}/../, --without-gnutls, gnutls,"
 
 EXTRA_OECONF = "--with-zlib=${STAGING_LIBDIR}/../ \
                 --without-libssh2 \
@@ -33,18 +38,7 @@ EXTRA_OECONF = "--with-zlib=${STAGING_LIBDIR}/../ \
                 --disable-ldap \
                 --disable-ldaps \
                 --with-ca-bundle=${sysconfdir}/ssl/certs/ca-certificates.crt \
-                ${CURLGNUTLS} \
                 "
-
-CURLGNUTLS = " --with-gnutls=${STAGING_LIBDIR}/../ --without-ssl"
-CURLGNUTLS_class-native = "--without-gnutls --with-ssl"
-CURLGNUTLS_class-nativesdk = "--without-gnutls --without-ssl"
-
-PACKAGECONFIG ??= "${@bb.utils.contains("DISTRO_FEATURES", "ipv6", "ipv6", "", d)}"
-PACKAGECONFIG_class-native = "ipv6"
-PACKAGECONFIG_class-nativesdk = "ipv6"
-
-PACKAGECONFIG[ipv6] = "--enable-ipv6,--disable-ipv6,"
 
 do_configure_prepend() {
 	sed -i s:OPT_GNUTLS/bin:OPT_GNUTLS:g ${S}/configure.ac

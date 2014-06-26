@@ -90,7 +90,9 @@ if [ ! -b /dev/loop0 ] ; then
 fi
 
 mkdir -p /tmp
-cat /proc/mounts > /etc/mtab
+if [ ! -L /etc/mtab ]; then
+	cat /proc/mounts > /etc/mtab
+fi
 
 disk_size=$(parted /dev/${device} unit mb print | grep Disk | cut -d" " -f 3 | sed -e "s/MB//")
 
@@ -152,8 +154,12 @@ mkdir -p /boot
 # Handling of the target root partition
 mount $rootfs /tgt_root
 mount -o rw,loop,noatime,nodiratime /run/media/$1/$2 /src_root
+
 echo "Copying rootfs files..."
 cp -a /src_root/* /tgt_root
+
+touch /tgt_root/etc/masterimage
+
 if [ -d /tgt_root/etc/ ] ; then
     echo "$bootfs              /boot            ext3       defaults              1  2" >> /tgt_root/etc/fstab
     # We dont want udev to mount our root device while we're booting...
@@ -172,11 +178,16 @@ if [ -f /etc/grub.d/00_header ] ; then
     GRUBCFG="/boot/grub/grub.cfg"
     mkdir -p $(dirname $GRUBCFG)
     cat >$GRUBCFG <<_EOF 
+serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1
+terminal_input --append  serial
+terminal_output --append serial
+set timeout_style=hidden
+set timeout=5
 menuentry "Linux" {
     set root=(hd0,1)
     linux /vmlinuz root=$rootfs $rootwait rw $5 $3 $4 quiet
 }
-_EOF 
+_EOF
     # Add the test label
     echo -ne "\nmenuentry 'test' {\nlinux /test-kernel root=$testfs rw $rootwait quiet\n}\n" >> $GRUBCFG
 
