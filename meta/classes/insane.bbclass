@@ -17,9 +17,6 @@
 #   files under exec_prefix
 
 
-PACKAGE_DEPENDS += "${QADEPENDS}"
-PACKAGEFUNCS += " do_package_qa "
-
 # unsafe-references-in-binaries requires prelink-rtld from
 # prelink-native, but we don't want this DEPENDS for -native builds
 QADEPENDS = "prelink-native"
@@ -829,6 +826,8 @@ python do_package_qa () {
 
     bb.note("DO PACKAGE QA")
 
+    bb.build.exec_func("read_subpackage_metadata", d)
+
     logdir = d.getVar('T', True)
     pkg = d.getVar('PN', True)
 
@@ -855,6 +854,15 @@ python do_package_qa () {
     # Scan the packages...
     pkgdest = d.getVar('PKGDEST', True)
     packages = d.getVar('PACKAGES', True)
+
+    cpath = oe.cachedpath.CachedPath()
+    global pkgfiles
+    pkgfiles = {}
+    for pkg in (packages or "").split():
+        pkgfiles[pkg] = []
+        for walkroot, dirs, files in cpath.walk(pkgdest + "/" + pkg):
+            for file in files:
+                pkgfiles[pkg].append(walkroot + os.sep + file)
 
     # no packages should be scanned
     if not packages:
@@ -910,6 +918,15 @@ python do_package_qa () {
     bb.note("DONE with PACKAGE QA")
 }
 
+addtask do_package_qa after do_package before do_build
+
+SSTATETASKS += "do_package_qa"
+do_package_qa[sstate-inputdirs] = ""
+do_package_qa[sstate-outputdirs] = ""
+python do_package_qa_setscene () {
+    sstate_setscene(d)
+}
+addtask do_package_qa_setscene
 
 python do_qa_staging() {
     bb.note("QA checking staging")
@@ -1019,6 +1036,8 @@ python () {
 
     issues = []
     if (d.getVar('PACKAGES', True) or "").split():
+        for dep in (d.getVar('QADEPENDS', True) or "").split():
+            d.appendVarFlag('do_package_qa', 'depends', " %s:do_populate_sysroot" % dep)
         for var in 'RDEPENDS', 'RRECOMMENDS', 'RSUGGESTS', 'RCONFLICTS', 'RPROVIDES', 'RREPLACES', 'FILES', 'pkg_preinst', 'pkg_postinst', 'pkg_prerm', 'pkg_postrm', 'ALLOW_EMPTY':
             if d.getVar(var):
                 issues.append(var)
