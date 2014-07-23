@@ -13,6 +13,9 @@ EXTRA_OECONF = "--enable-ipv6 --with-ssl=gnutls --disable-rpath --disable-iri \
                 ac_cv_header_uuid_uuid_h=no"
 
 ALTERNATIVE_${PN} = "wget"
+ALTERNATIVE_${PN}_class-nativesdk = ""
 ALTERNATIVE_PRIORITY = "100"
 
 RRECOMMENDS_${PN} += "ca-certificates"
+
+BBCLASSEXTEND += "nativesdk"

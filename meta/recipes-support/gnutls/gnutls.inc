@@ -25,6 +25,7 @@ EXTRA_OECONF="--disable-rpath \
               --with-libpthread-prefix=${STAGING_DIR_HOST}${prefix} \
               --with-libz-prefix=${STAGING_DIR_HOST}${prefix} \
               --disable-guile \
+              --disable-crywrap \
               --without-p11-kit \
               "
 
@@ -42,4 +43,4 @@ FILES_${PN}-xx = "${libdir}/libgnutlsxx.so.*"
 
 LDFLAGS_append_libc-uclibc += " -pthread"
 
-BBCLASSEXTEND = "native"
+BBCLASSEXTEND = "native nativesdk"
