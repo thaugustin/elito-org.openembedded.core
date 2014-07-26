@@ -25,16 +25,15 @@ inherit autotools
 EXTRA_OECONF += "--disable-doc --disable-Werror"
 
 #
-# The .so files populated by libomxil are not intended to be versioned and symlinked.
+# The .so files under ${libdir}/bellagio are not intended to be versioned and symlinked.
 # Make sure they get packaged in the main package.
 #
-FILES_SOLIBSDEV = ""
-FILES_${PN} += "${libdir}/*.so \
-                ${libdir}/bellagio/*.so \
-                ${libdir}/omxloaders/*.so"
+FILES_${PN} += "${libdir}/bellagio/*.so \
+                ${libdir}/omxloaders/*${SOLIBS}"
 FILES_${PN}-staticdev += "${libdir}/bellagio/*.a \
                           ${libdir}/omxloaders/*.a"
 FILES_${PN}-dev += "${libdir}/bellagio/*.la \
-                    ${libdir}/omxloaders/*.la"
+                    ${libdir}/omxloaders/*.la \
+                    ${libdir}/omxloaders/*${SOLIBSDEV}"
 FILES_${PN}-dbg += "${libdir}/bellagio/.debug/ \
                     ${libdir}/omxloaders/.debug/"
