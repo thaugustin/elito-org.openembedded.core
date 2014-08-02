@@ -111,7 +111,7 @@ class Rootfs(object):
                          True, False, self.d):
             delayed_postinsts = self._get_delayed_postinsts()
             if delayed_postinsts is not None:
-                bb.fatal("The following packages could not be configured"
+                bb.fatal("The following packages could not be configured "
                          "offline and rootfs is read-only: %s" %
                          delayed_postinsts)
 
@@ -329,7 +329,8 @@ class RpmRootfs(Rootfs):
 
     @staticmethod
     def _depends_list():
-        return ['DEPLOY_DIR_RPM', 'INC_RPM_IMAGE_GEN', 'RPM_PREPROCESS_COMMANDS', 'RPM_POSTPROCESS_COMMANDS']
+        return ['DEPLOY_DIR_RPM', 'INC_RPM_IMAGE_GEN', 'RPM_PREPROCESS_COMMANDS',
+                'RPM_POSTPROCESS_COMMANDS', 'RPM_PREFER_COLOR']
 
     def _get_delayed_postinsts(self):
         postinst_dir = self.d.expand("${IMAGE_ROOTFS}${sysconfdir}/rpm-postinsts")
