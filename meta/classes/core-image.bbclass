@@ -7,8 +7,8 @@ LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=4d92cd373abda3937c2bc47fbc49d
 
 # IMAGE_FEATURES control content of the core reference images
 # 
-# By default we install packagegroup-core-boot and packagegroup-base packages - this gives us
-# working (console only) rootfs.
+# By default we install packagegroup-core-boot and packagegroup-base-extended packages;
+# this gives us working (console only) rootfs.
 #
 # Available IMAGE_FEATURES:
 #
@@ -30,6 +30,7 @@ LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=4d92cd373abda3937c2bc47fbc49d
 # - dev-pkgs            - development packages (headers, etc.) for all installed packages in the rootfs
 # - dbg-pkgs            - debug symbol packages for all installed packages in the rootfs
 # - doc-pkgs            - documentation packages for all installed packages in the rootfs
+# - ptest-pkgs          - ptest packages for all ptest-enabled recipes
 # - read-only-rootfs    - tweaks an image to support read-only rootfs
 #
 FEATURE_PACKAGES_x11 = "packagegroup-core-x11"

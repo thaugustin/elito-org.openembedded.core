@@ -192,8 +192,8 @@ python autotools_copy_aclocals () {
         if c.endswith("-native"):
             manifest = d.expand("${SSTATE_MANIFESTS}/manifest-${BUILD_ARCH}-%s.populate_sysroot" % c)
         elif c.startswith("nativesdk-"):
-            manifest = d.expand("${SSTATE_MANIFESTS}/manifest-${SDK_ARCH}-%s.populate_sysroot" % c)
-        elif "-cross-" in c or "-crosssdk-" in c:
+            manifest = d.expand("${SSTATE_MANIFESTS}/manifest-${SDK_ARCH}_${SDK_OS}-%s.populate_sysroot" % c)
+        elif "-cross-" in c or "-crosssdk" in c:
             continue
         else:
             manifest = d.expand("${SSTATE_MANIFESTS}/manifest-${MACHINE}-%s.populate_sysroot" % c)
@@ -210,7 +210,7 @@ python autotools_copy_aclocals () {
         if not os.path.exists(t):
             os.symlink(c, t)
 }
-autotools_copy_aclocals[vardepsexclude] += "MACHINE SDK_ARCH BUILD_ARCH BB_TASKDEPDATA"
+autotools_copy_aclocals[vardepsexclude] += "MACHINE SDK_ARCH BUILD_ARCH SDK_OS BB_TASKDEPDATA"
 
 autotools_do_configure() {
 	# WARNING: gross hack follows:
