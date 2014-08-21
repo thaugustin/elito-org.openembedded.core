@@ -47,6 +47,7 @@ class Wic_PartData(Mic_PartData):
         Mic_PartData.__init__(self, *args, **kwargs)
         self.deleteRemovedAttrs()
         self.source = kwargs.get("source", None)
+        self.sourceparams = kwargs.get("sourceparams", None)
         self.rootfs = kwargs.get("rootfs-dir", None)
         self.source_file = ""
         self.size = 0
@@ -56,6 +57,8 @@ class Wic_PartData(Mic_PartData):
 
         if self.source:
             retval += " --source=%s" % self.source
+            if self.sourceparams:
+                retval += " --sourceparams=%s" % self.sourceparams
             if self.rootfs:
                 retval += " --rootfs-dir=%s" % self.rootfs
 
@@ -123,6 +126,11 @@ class Wic_PartData(Mic_PartData):
         Prepare content for individual partitions, depending on
         partition command parameters.
         """
+        self.sourceparams_dict = {}
+
+        if self.sourceparams:
+            self.sourceparams_dict = parse_sourceparams(self.sourceparams)
+
         if not self.source:
             if not self.size:
                 msger.error("The %s partition has a size of zero.  Please specify a non-zero --size for that partition." % self.mountpoint)
@@ -140,16 +148,19 @@ class Wic_PartData(Mic_PartData):
             msger.error("The '%s' --source specified for %s doesn't exist.\n\tSee 'wic list source-plugins' for a list of available --sources.\n\tSee 'wic help source-plugins' for details on adding a new source plugin." % (self.source, self.mountpoint))
 
         self._source_methods = pluginmgr.get_source_plugin_methods(self.source, partition_methods)
-        self._source_methods["do_configure_partition"](self, cr, cr_workdir,
+        self._source_methods["do_configure_partition"](self, self.sourceparams_dict,
+                                                       cr, cr_workdir,
                                                        oe_builddir,
                                                        bootimg_dir,
                                                        kernel_dir,
                                                        native_sysroot)
-        self._source_methods["do_stage_partition"](self, cr, cr_workdir,
+        self._source_methods["do_stage_partition"](self, self.sourceparams_dict,
+                                                   cr, cr_workdir,
                                                    oe_builddir,
                                                    bootimg_dir, kernel_dir,
                                                    native_sysroot)
-        self._source_methods["do_prepare_partition"](self, cr, cr_workdir,
+        self._source_methods["do_prepare_partition"](self, self.sourceparams_dict,
+                                                     cr, cr_workdir,
                                                      oe_builddir,
                                                      bootimg_dir, kernel_dir, rootfs_dir,
                                                      native_sysroot)
@@ -374,7 +385,7 @@ class Wic_PartData(Mic_PartData):
         """
         Prepare an empty ext2/3/4 partition.
         """
-        fs = "%s/fs.%s" % (cr_workdir, self.fstype)
+        fs = "%s/fs_%s.%s" % (cr_workdir, self.label, self.fstype)
 
         dd_cmd = "dd if=/dev/zero of=%s bs=1M seek=%d count=0" % \
             (fs, self.size)
@@ -394,7 +405,7 @@ class Wic_PartData(Mic_PartData):
         """
         Prepare an empty btrfs partition.
         """
-        fs = "%s/fs.%s" % (cr_workdir, self.fstype)
+        fs = "%s/fs_%s.%s" % (cr_workdir, self.label, self.fstype)
 
         dd_cmd = "dd if=/dev/zero of=%s bs=1M seek=%d count=0" % \
             (fs, self.size)
@@ -415,7 +426,7 @@ class Wic_PartData(Mic_PartData):
         """
         Prepare an empty vfat partition.
         """
-        fs = "%s/fs.%s" % (cr_workdir, self.fstype)
+        fs = "%s/fs_%s.%s" % (cr_workdir, self.label, self.fstype)
 
         blocks = self.size * 1024
 
@@ -490,6 +501,9 @@ class Wic_Partition(Mic_Partition):
         # and calculate partition size
         op.add_option("--source", type="string", action="store",
                       dest="source", default=None)
+        # comma-separated list of param=value pairs
+        op.add_option("--sourceparams", type="string", action="store",
+                      dest="sourceparams", default=None)
         # use specified rootfs path to fill the partition
         op.add_option("--rootfs-dir", type="string", action="store",
                       dest="rootfs", default=None)

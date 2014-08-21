@@ -9,7 +9,7 @@ inherit autotools gettext texinfo
 
 BPN = "gcc"
 
-def get_gcc_fpu_setting(bb, d):
+def get_gcc_float_setting(bb, d):
     res=[]
 
     cpu=d.getVar('TARGET_CPU', True)
@@ -34,11 +34,16 @@ def get_gcc_fpu_setting(bb, d):
 
     return ' '.join(res)
 
-get_gcc_fpu_setting[vardepvalue] = "${@get_gcc_fpu_setting(bb, d)}"
+get_gcc_float_setting[vardepvalue] = "${@get_gcc_float_setting(bb, d)}"
 
 def get_gcc_mips_plt_setting(bb, d):
     if d.getVar('TRANSLATED_TARGET_ARCH', True) in [ 'mips', 'mipsel' ] and bb.utils.contains('DISTRO_FEATURES', 'mplt', True, False, d):
         return "--with-mips-plt"
+    return ""
+
+def get_long_double_setting(bb, d):
+    if d.getVar('TRANSLATED_TARGET_ARCH', True) in [ 'powerpc', 'powerpc64' ] and d.getVar('TCLIBC', True) in [ 'uclibc', 'eglibc' ]:
+        return "--with-long-double-128"
     return ""
 
 def get_gcc_multiarch_setting(bb, d):
