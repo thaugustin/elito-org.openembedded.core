@@ -27,6 +27,8 @@ BINCONFIG = "${bindir}/xml2-config"
 
 inherit autotools pkgconfig binconfig-disabled pythonnative ptest
 
+RDEPENDS_${PN}-ptest += "python-core"
+
 RDEPENDS_${PN}-ptest_append_libc-glibc += "eglibc-gconv-ebcdic-us eglibc-gconv-ibm1141"
 
 # We don't DEPEND on binutils for ansidecl.h so ensure we don't use the header
@@ -39,10 +41,11 @@ do_configure_prepend_class-nativesdk () {
 	export PYTHON_SITE_PACKAGES="${PYTHON_SITEPACKAGES_DIR}"
 }
 
+# WARNING: zlib is require for RPM use
 EXTRA_OECONF = "--without-python --without-debug --without-legacy --with-catalog --without-docbook --with-c14n --without-lzma --with-fexceptions"
-EXTRA_OECONF_class-native = "--with-python=${STAGING_BINDIR}/python --without-legacy --without-docbook --with-c14n --without-lzma"
-EXTRA_OECONF_class-nativesdk = "--with-python=${STAGING_BINDIR}/python --without-legacy --without-docbook --with-c14n --without-lzma"
-EXTRA_OECONF_linuxstdbase = "--without-python --with-debug --with-legacy --with-docbook --with-c14n --without-lzma"
+EXTRA_OECONF_class-native = "--with-python=${STAGING_BINDIR}/python --without-legacy --without-docbook --with-c14n --without-lzma --with-zlib"
+EXTRA_OECONF_class-nativesdk = "--with-python=${STAGING_BINDIR}/python --without-legacy --without-docbook --with-c14n --without-lzma --with-zlib"
+EXTRA_OECONF_linuxstdbase = "--without-python --with-debug --with-legacy --with-docbook --with-c14n --without-lzma --with-zlib"
 
 # required for pythong binding
 export HOST_SYS

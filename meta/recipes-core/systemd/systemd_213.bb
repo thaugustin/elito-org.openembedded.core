@@ -30,6 +30,7 @@ SRC_URI = "git://anongit.freedesktop.org/systemd/systemd;branch=master;protocol=
            file://optional_secure_getenv.patch \
            file://uclibc-sysinfo_h.patch \
            file://uclibc-get-physmem.patch \
+           file://0001-util-Including-missing.h-to-get-MAX_HANDLE_SZ.patch \
            file://touchscreen.rules \
            file://00-create-volatile.conf \
            file://init \
@@ -55,6 +56,7 @@ DEPENDS += "libgcrypt"
 PACKAGECONFIG[xz] = "--enable-xz,--disable-xz,xz"
 PACKAGECONFIG[cryptsetup] = "--enable-libcryptsetup,--disable-libcryptsetup,cryptsetup"
 PACKAGECONFIG[microhttpd] = "--enable-microhttpd,--disable-microhttpd,libmicrohttpd"
+PACKAGECONFIG[elfutils] = "--enable-elfutils,--disable-elfutils,elfutils"
 
 CACHED_CONFIGUREVARS = "ac_cv_path_KILL=${base_bindir}/kill"
 

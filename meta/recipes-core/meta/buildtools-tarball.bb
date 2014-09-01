@@ -42,6 +42,7 @@ TOOLCHAIN_HOST_TASK ?= "\
     nativesdk-pigz \
     nativesdk-make \
     nativesdk-wget \
+    nativesdk-ca-certificates \
     "
 
 TOOLCHAIN_OUTPUTNAME ?= "${SDK_NAME}-buildtools-nativesdk-standalone-${DISTRO_VERSION}"
@@ -68,4 +69,6 @@ create_sdk_files_append () {
 	# so instead of exporting the variable, we use a comment here.
 	echo '#OECORE_NATIVE_SYSROOT="${SDKPATHNATIVE}"' >> $script
 	toolchain_create_sdk_version ${SDK_OUTPUT}/${SDKPATH}/version-${SDK_SYS}
+
+	echo 'export GIT_SSL_CAINFO="${SDKPATHNATIVE}${sysconfdir}/ssl/certs/ca-certificates.crt"' >>$script
 }

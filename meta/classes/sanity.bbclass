@@ -150,10 +150,9 @@ def check_toolchain_tune(data, tune, multilib):
             bb.debug(2, "  %s: %s" % (feature, valid_tunes[feature]))
         else:
             tune_errors.append("Feature '%s' is not defined." % feature)
-    whitelist = localdata.getVar("TUNEABI_WHITELIST", True) or ''
-    override = localdata.getVar("TUNEABI_OVERRIDE", True) or ''
+    whitelist = localdata.getVar("TUNEABI_WHITELIST", True)
     if whitelist:
-        tuneabi = localdata.getVar("TUNEABI_tune-%s" % tune, True) or ''
+        tuneabi = localdata.getVar("TUNEABI_tune-%s" % tune, True)
         if not tuneabi:
             tuneabi = tune
         if True not in [x in whitelist.split() for x in tuneabi.split()]:
@@ -265,7 +264,7 @@ def check_connectivity(d):
     # CONNECTIVITY_CHECK_URIS are set
     network_enabled = not d.getVar('BB_NO_NETWORK', True)
     check_enabled = len(test_uris)
-    # Take a copy of the data store and unset MIRRORS and PREMIRROS
+    # Take a copy of the data store and unset MIRRORS and PREMIRRORS
     data = bb.data.createCopy(d)
     data.delVar('PREMIRRORS')
     data.delVar('MIRRORS')
@@ -753,6 +752,44 @@ def check_sanity_everybuild(status, d):
         status.addresult("Error, you have an invalid character (@) in your COREBASE directory path. Please move the installation to a directory which doesn't include any @ characters.")
     if oeroot.find(' ') != -1:
         status.addresult("Error, you have a space in your COREBASE directory path. Please move the installation to a directory which doesn't include a space since autotools doesn't support this.")
+
+    # Check the format of MIRRORS, PREMIRRORS and SSTATE_MIRRORS
+    import re
+    mirror_vars = ['MIRRORS', 'PREMIRRORS', 'SSTATE_MIRRORS']
+    protocols = ['http', 'ftp', 'file', 'https', \
+                 'git', 'gitsm', 'hg', 'osc', 'p4', 'svk', 'svn', \
+                 'bzr', 'cvs']
+    for mirror_var in mirror_vars:
+        mirrors = (d.getVar(mirror_var, True) or '').replace('\\n', '\n').split('\n')
+        for mirror_entry in mirrors:
+            mirror_entry = mirror_entry.strip()
+            if not mirror_entry:
+                # ignore blank lines
+                continue
+
+            try:
+                pattern, mirror = mirror_entry.split()
+            except ValueError:
+                bb.warn('Invalid %s: %s, should be 2 members.' % (mirror_var, mirror_entry.strip()))
+                continue
+
+            decoded = bb.fetch2.decodeurl(pattern)
+            try:
+                pattern_scheme = re.compile(decoded[0])
+            except re.error as exc:
+                bb.warn('Invalid scheme regex (%s) in %s; %s' % (pattern, mirror_var, mirror_entry))
+                continue
+
+            if not any(pattern_scheme.match(protocol) for protocol in protocols):
+                bb.warn('Invalid protocol (%s) in %s: %s' % (decoded[0], mirror_var, mirror_entry))
+                continue
+
+            if not any(mirror.startswith(protocol + '://') for protocol in protocols):
+                bb.warn('Invalid protocol in %s: %s' % (mirror_var, mirror_entry))
+                continue
+
+            if mirror.startswith('file://') and not mirror.startswith('file:///'):
+                bb.warn('Invalid file url in %s: %s, must be absolute path (file:///)' % (mirror_var, mirror_entry))
 
     # Check that TMPDIR hasn't changed location since the last time we were run
     tmpdir = d.getVar('TMPDIR', True)

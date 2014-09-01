@@ -52,6 +52,18 @@ EXCLUDE_FROM_WORLD = "1"
 
 SDK_PACKAGING_FUNC ?= "create_shar"
 
+SDK_MANIFEST = "${SDK_DEPLOY}/${TOOLCHAIN_OUTPUTNAME}.manifest"
+python write_target_sdk_manifest () {
+    from oe.sdk import sdk_list_installed_packages
+    sdkmanifestdir = os.path.dirname(d.getVar("SDK_MANIFEST", True))
+    if not os.path.exists(sdkmanifestdir):
+        bb.utils.mkdirhier(sdkmanifestdir)
+    with open(d.getVar('SDK_MANIFEST', True), 'w') as output:
+        output.write(sdk_list_installed_packages(d, True, 'ver'))
+}
+
+POPULATE_SDK_POST_TARGET_COMMAND_append = " write_target_sdk_manifest ; "
+
 fakeroot python do_populate_sdk() {
     from oe.sdk import populate_sdk
     from oe.manifest import create_manifest, Manifest
@@ -60,6 +72,13 @@ fakeroot python do_populate_sdk() {
     runtime_mapping_rename("TOOLCHAIN_TARGET_TASK", pn, d)
     runtime_mapping_rename("TOOLCHAIN_TARGET_TASK_ATTEMPTONLY", pn, d)
 
+    ld = bb.data.createCopy(d)
+    ld.setVar("PKGDATA_DIR", "${STAGING_DIR}/${SDK_ARCH}-${SDKPKGSUFFIX}${SDK_VENDOR}-${SDK_OS}/pkgdata")
+    runtime_mapping_rename("TOOLCHAIN_HOST_TASK", pn, ld)
+    runtime_mapping_rename("TOOLCHAIN_HOST_TASK_ATTEMPTONLY", pn, ld)
+    d.setVar("TOOLCHAIN_HOST_TASK", ld.getVar("TOOLCHAIN_HOST_TASK", True))
+    d.setVar("TOOLCHAIN_HOST_TASK_ATTEMPTONLY", ld.getVar("TOOLCHAIN_HOST_TASK_ATTEMPTONLY", True))
+    
     # create target/host SDK manifests
     create_manifest(d, manifest_dir=d.getVar('SDK_DIR', True),
                     manifest_type=Manifest.MANIFEST_TYPE_SDK_HOST)

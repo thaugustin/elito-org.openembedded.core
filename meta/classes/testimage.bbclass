@@ -30,8 +30,8 @@ TEST_EXPORT_ONLY ?= "0"
 
 DEFAULT_TEST_SUITES = "ping auto"
 DEFAULT_TEST_SUITES_pn-core-image-minimal = "ping"
-DEFAULT_TEST_SUITES_pn-core-image-sato = "ping ssh df connman syslog xorg scp vnc date rpm smart dmesg python"
-DEFAULT_TEST_SUITES_pn-core-image-sato-sdk = "ping ssh df connman syslog xorg scp vnc date perl ldd gcc rpm smart kernelmodule dmesg python"
+DEFAULT_TEST_SUITES_pn-core-image-sato = "ping ssh df connman syslog xorg scp vnc date rpm smart dmesg python parselogs"
+DEFAULT_TEST_SUITES_pn-core-image-sato-sdk = "ping ssh df connman syslog xorg scp vnc date perl ldd gcc rpm smart kernelmodule dmesg python parselogs"
 DEFAULT_TEST_SUITES_pn-meta-toolchain = "auto"
 TEST_SUITES ?= "${DEFAULT_TEST_SUITES}"
 
@@ -281,6 +281,14 @@ def testsdk_main(d):
             self.filesdir = os.path.join(os.path.dirname(os.path.abspath(oeqa.runtime.__file__)),"files")
             self.sdktestdir = sdktestdir
             self.sdkenv = sdkenv
+            self.imagefeatures = d.getVar("IMAGE_FEATURES", True).split()
+            self.distrofeatures = d.getVar("DISTRO_FEATURES", True).split()
+            manifest = os.path.join(d.getVar("SDK_MANIFEST", True))
+            try:
+                with open(manifest) as f:
+                    self.pkgmanifest = f.read()
+            except IOError as e:
+                bb.fatal("No package manifest file found. Did you build the sdk image?\n%s" % e)
 
     # test context
     tc = TestContext()

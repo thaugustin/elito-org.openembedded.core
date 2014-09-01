@@ -7,6 +7,7 @@ import multiprocessing
 import re
 import bb
 import tempfile
+import oe.utils
 
 
 # this can be used by all PM backends to create the index files in parallel
@@ -116,16 +117,7 @@ class RpmIndexer(Indexer):
             bb.note("There are no packages in %s" % self.deploy_dir)
             return
 
-        nproc = multiprocessing.cpu_count()
-        pool = bb.utils.multiprocessingpool(nproc)
-        results = list(pool.imap(create_index, index_cmds))
-        pool.close()
-        pool.join()
-
-        for result in results:
-            if result is not None:
-                return(result)
-
+        oe.utils.multiprocess_exec(index_cmds, create_index)
 
 class OpkgIndexer(Indexer):
     def write_index(self):
@@ -161,15 +153,7 @@ class OpkgIndexer(Indexer):
             bb.note("There are no packages in %s!" % self.deploy_dir)
             return
 
-        nproc = multiprocessing.cpu_count()
-        pool = bb.utils.multiprocessingpool(nproc)
-        results = list(pool.imap(create_index, index_cmds))
-        pool.close()
-        pool.join()
-
-        for result in results:
-            if result is not None:
-                return(result)
+        oe.utils.multiprocess_exec(index_cmds, create_index)
 
 
 class DpkgIndexer(Indexer):
@@ -210,15 +194,7 @@ class DpkgIndexer(Indexer):
             bb.note("There are no packages in %s" % self.deploy_dir)
             return
 
-        nproc = multiprocessing.cpu_count()
-        pool = bb.utils.multiprocessingpool(nproc)
-        results = list(pool.imap(create_index, index_cmds))
-        pool.close()
-        pool.join()
-
-        for result in results:
-            if result is not None:
-                return(result)
+        oe.utils.multiprocess_exec(index_cmds, create_index)
 
 
 class PkgsList(object):
@@ -567,7 +543,7 @@ class RpmPM(PackageManager):
         self.install_dir = os.path.join(self.target_rootfs, "install")
         self.rpm_cmd = bb.utils.which(os.getenv('PATH'), "rpm")
         self.smart_cmd = bb.utils.which(os.getenv('PATH'), "smart")
-        self.smart_opt = "--data-dir=" + os.path.join(target_rootfs,
+        self.smart_opt = "--quiet --data-dir=" + os.path.join(target_rootfs,
                                                       'var/lib/smart')
         self.scriptlet_wrapper = self.d.expand('${WORKDIR}/scriptlet_wrapper')
         self.solution_manifest = self.d.expand('${T}/saved/%s_solution' %

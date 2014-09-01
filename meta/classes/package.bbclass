@@ -375,6 +375,9 @@ def get_package_additional_metadata (pkg_type, d):
 def runtime_mapping_rename (varname, pkg, d):
     #bb.note("%s before: %s" % (varname, d.getVar(varname, True)))
 
+    if bb.data.inherits_class('packagegroup', d):
+        return
+
     new_depends = {}
     deps = bb.utils.explode_dep_versions2(d.getVar(varname, True) or "")
     for depend in deps:
@@ -930,13 +933,7 @@ python split_and_strip_files () {
         for f in kernmods:
             sfiles.append((f, 16, strip))
 
-
-        import multiprocessing
-        nproc = multiprocessing.cpu_count()
-        pool = bb.utils.multiprocessingpool(nproc)
-        processed = list(pool.imap(oe.package.runstrip, sfiles))
-        pool.close()
-        pool.join()
+        oe.utils.multiprocess_exec(sfiles, oe.package.runstrip)
 
     #
     # End of strip
@@ -1313,12 +1310,7 @@ python package_do_filedeps() {
         for files in chunks(pkgfiles[pkg], 100):
             pkglist.append((pkg, files, rpmdeps, pkgdest))
 
-    import multiprocessing
-    nproc = multiprocessing.cpu_count()
-    pool =  bb.utils.multiprocessingpool(nproc)
-    processed = list(pool.imap(oe.package.filedeprunner, pkglist))
-    pool.close()
-    pool.join()
+    processed = oe.utils.multiprocess_exec( pkglist, oe.package.filedeprunner)
 
     provides_files = {}
     requires_files = {}
@@ -1940,9 +1932,9 @@ python do_package () {
     # Optimisations
     ###########################################################################
 
-    # Contunually rexpanding complex expressions is inefficient, particularly when
-    # we write to the datastore and invalidate the expansion cache. This code 
-    # pre-expands some frequently used variables
+    # Continually expanding complex expressions is inefficient, particularly
+    # when we write to the datastore and invalidate the expansion cache. This
+    # code pre-expands some frequently used variables
 
     def expandVar(x, d):
         d.setVar(x, d.getVar(x, True))
@@ -2031,7 +2023,4 @@ def mapping_rename_hook(d):
     runtime_mapping_rename("RDEPENDS", pkg, d)
     runtime_mapping_rename("RRECOMMENDS", pkg, d)
     runtime_mapping_rename("RSUGGESTS", pkg, d)
-    runtime_mapping_rename("RPROVIDES", pkg, d)
-    runtime_mapping_rename("RREPLACES", pkg, d)
-    runtime_mapping_rename("RCONFLICTS", pkg, d)
 

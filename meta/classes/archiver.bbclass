@@ -136,7 +136,7 @@ python do_ar_original() {
     bb.note('Archiving the original source...')
     fetch = bb.fetch2.Fetch([], d)
     for url in fetch.urls:
-        local = fetch.localpath(url)
+        local = fetch.localpath(url).rstrip("/");
         if os.path.isfile(local):
             shutil.copy(local, ar_outdir)
         elif os.path.isdir(local):
@@ -146,7 +146,12 @@ python do_ar_original() {
             fetch.unpack(tmpdir, (url,))
 
             os.chdir(tmpdir)
-            tarname = os.path.join(ar_outdir, basename + '.tar.gz')
+            # We split on '+' to chuck any annoying AUTOINC+ in the revision.
+            try:
+                src_rev = bb.fetch2.get_srcrev(d).split('+')[-1][:10]
+            except:
+                src_rev = 'NOREV'
+            tarname = os.path.join(ar_outdir, basename + '.' + src_rev + '.tar.gz')
             tar = tarfile.open(tarname, 'w:gz')
             tar.add('.')
             tar.close()

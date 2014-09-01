@@ -72,9 +72,24 @@ libpam_suffix = "suffix${@get_multilib_bit(d)}"
 RPROVIDES_${PN} += "${PN}-${libpam_suffix}"
 RPROVIDES_${PN}-runtime += "${PN}-runtime-${libpam_suffix}"
 
-RDEPENDS_${PN}-runtime = "${PN}-${libpam_suffix} pam-plugin-deny-${libpam_suffix} pam-plugin-permit-${libpam_suffix} pam-plugin-warn-${libpam_suffix} pam-plugin-unix-${libpam_suffix}"
-RDEPENDS_${PN}-xtests = "${PN}-${libpam_suffix} pam-plugin-access-${libpam_suffix} pam-plugin-debug-${libpam_suffix} pam-plugin-cracklib-${libpam_suffix} pam-plugin-pwhistory-${libpam_suffix} pam-plugin-succeed-if-${libpam_suffix} pam-plugin-time-${libpam_suffix} coreutils"
-#RRECOMMENDS_${PN} = "${PN}-runtime-${libpam_suffix}"
+RDEPENDS_${PN}-runtime = "${PN}-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-deny-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-permit-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-warn-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-unix-${libpam_suffix} \
+    "
+RDEPENDS_${PN}-xtests = "${PN}-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-access-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-debug-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-cracklib-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-pwhistory-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-succeed-if-${libpam_suffix} \
+    ${MLPREFIX}pam-plugin-time-${libpam_suffix} \
+    coreutils bash"
+
+# FIXME: Native suffix breaks here, disable it for now
+RRECOMMENDS_${PN} = "${PN}-runtime-${libpam_suffix}"
+RRECOMMENDS_${PN}_class-native = ""
 
 python populate_packages_prepend () {
     def pam_plugin_append_file(pn, dir, file):
@@ -87,13 +102,12 @@ python populate_packages_prepend () {
     def pam_plugin_hook(file, pkg, pattern, format, basename):
         pn = d.getVar('PN', True)
         libpam_suffix = d.getVar('libpam_suffix', True)
-        mlprefix = d.getVar('MLPREFIX', True) or ''
 
         rdeps = d.getVar('RDEPENDS_' + pkg, True)
         if rdeps:
-            rdeps = rdeps + " " + mlprefix + pn + "-" + libpam_suffix
+            rdeps = rdeps + " " + pn + "-" + libpam_suffix
         else:
-            rdeps = mlprefix + pn + "-" + libpam_suffix
+            rdeps = pn + "-" + libpam_suffix
         d.setVar('RDEPENDS_' + pkg, rdeps)
 
         provides = d.getVar('RPROVIDES_' + pkg, True)
@@ -103,13 +117,15 @@ python populate_packages_prepend () {
             provides = pkg + "-" + libpam_suffix
         d.setVar('RPROVIDES_' + pkg, provides)
 
+    mlprefix = d.getVar('MLPREFIX', True) or ''
     dvar = bb.data.expand('${WORKDIR}/package', d, True)
     pam_libdir = d.expand('${base_libdir}/security')
     pam_sbindir = d.expand('${sbindir}')
     pam_filterdir = d.expand('${base_libdir}/security/pam_filter')
+    pam_pkgname = mlprefix + 'pam-plugin%s'
 
-    do_split_packages(d, pam_libdir, '^pam(.*)\.so$', 'pam-plugin%s', 'PAM plugin for %s', hook=pam_plugin_hook, extra_depends='')
-    mlprefix = d.getVar('MLPREFIX', True) or ''
+    do_split_packages(d, pam_libdir, '^pam(.*)\.so$', pam_pkgname,
+                      'PAM plugin for %s', hook=pam_plugin_hook, extra_depends='')
     pam_plugin_append_file('%spam-plugin-unix' % mlprefix, pam_sbindir, 'unix_chkpwd')
     pam_plugin_append_file('%spam-plugin-unix' % mlprefix, pam_sbindir, 'unix_update')
     pam_plugin_append_file('%spam-plugin-tally' % mlprefix, pam_sbindir, 'pam_tally')
