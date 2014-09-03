@@ -1,15 +1,15 @@
-require recipes-kernel/linux/linux-yocto.inc
-
-KBRANCH = "standard/tiny/base"
+KBRANCH ?= "standard/tiny/base"
 LINUX_KERNEL_TYPE = "tiny"
 KCONFIG_MODE = "--allnoconfig"
 
-LINUX_VERSION ?= "3.14.13"
+require recipes-kernel/linux/linux-yocto.inc
+
+LINUX_VERSION ?= "3.14.17"
 
 KMETA = "meta"
 
-SRCREV_machine ?= "d2f8bdb8818bf2b83ac75b6b5e8428be61242d19"
-SRCREV_meta ?= "3c987080bc943b8eae37fb6672368bb74978e484"
+SRCREV_machine ?= "5a47bbc4c3c2472f3746a8cf1485db7134cf9245"
+SRCREV_meta ?= "ccad961c4cb6be245ed198bd2c17c27ab33cfcd7"
 
 PV = "${LINUX_VERSION}+git${SRCPV}"
 

@@ -1,7 +1,7 @@
+KBRANCH ?= "standard/tiny/base"
+
 require recipes-kernel/linux/linux-yocto.inc
 
-KBRANCH_DEFAULT = "standard/tiny/base"
-KBRANCH = "${KBRANCH_DEFAULT}"
 LINUX_KERNEL_TYPE = "tiny"
 KCONFIG_MODE = "--allnoconfig"
 

@@ -6,6 +6,8 @@ PV = "2.5+git${SRCPV}"
 SRC_URI = "git://sourceware.org/git/systemtap.git \
            file://docproc-build-fix.patch \
            file://obsolete_automake_macros.patch \
+           file://system_map_location.patch \
+           file://tapset-linux-sendfile-syscall.patch \
           "
 
 # systemtap doesn't support mips
