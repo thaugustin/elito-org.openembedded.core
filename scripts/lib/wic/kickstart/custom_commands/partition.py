@@ -184,7 +184,7 @@ class Wic_PartData(Mic_PartData):
         Prepare content for a rootfs partition i.e. create a partition
         and fill it from a /rootfs dir.
 
-        Currently handles ext2/3/4 and btrfs.
+        Currently handles ext2/3/4, btrfs and vfat.
         """
         pseudo = "export PSEUDO_PREFIX=%s/usr;" % native_sysroot
         pseudo += "export PSEUDO_LOCALSTATEDIR=%s/../pseudo;" % rootfs_dir
@@ -308,8 +308,8 @@ class Wic_PartData(Mic_PartData):
 
         extra_blocks = self.get_extra_block_count(blocks)
 
-        if extra_blocks < BOOTDD_EXTRA_SPACE:
-            extra_blocks = BOOTDD_EXTRA_SPACE
+        if extra_blocks < IMAGE_EXTRA_SPACE:
+            extra_blocks = IMAGE_EXTRA_SPACE
 
         blocks += extra_blocks
 
@@ -318,9 +318,11 @@ class Wic_PartData(Mic_PartData):
 
         # Ensure total sectors is an integral number of sectors per
         # track or mcopy will complain. Sectors are 512 bytes, and we
-        # generate images with 32 sectors per track. This calculation is
-        # done in blocks, thus the mod by 16 instead of 32.
-        blocks += (16 - (blocks % 16))
+        # generate images with 32 sectors per track. This calculation
+        # is done in blocks, thus the mod by 16 instead of 32. Apply
+        # sector count fix only when needed.
+        if blocks % 16 != 0:
+            blocks += (16 - (blocks % 16))
 
         dosfs_cmd = "mkdosfs -n boot -S 512 -C %s %d" % (rootfs, blocks)
         exec_native_cmd(dosfs_cmd, native_sysroot)

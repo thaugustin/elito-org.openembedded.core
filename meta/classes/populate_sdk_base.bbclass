@@ -51,6 +51,7 @@ PID = "${@os.getpid()}"
 EXCLUDE_FROM_WORLD = "1"
 
 SDK_PACKAGING_FUNC ?= "create_shar"
+SDK_POST_INSTALL_COMMAND ?= ""
 
 SDK_MANIFEST = "${SDK_DEPLOY}/${TOOLCHAIN_OUTPUTNAME}.manifest"
 python write_target_sdk_manifest () {
@@ -87,25 +88,8 @@ fakeroot python do_populate_sdk() {
 
     populate_sdk(d)
 
-    # Handle multilibs in the SDK environment, siteconfig, etc files...
-    localdata = bb.data.createCopy(d)
-
-    # make sure we only use the WORKDIR value from 'd', or it can change
-    localdata.setVar('WORKDIR', d.getVar('WORKDIR', True))
-
-    # make sure we only use the SDKTARGETSYSROOT value from 'd'
-    localdata.setVar('SDKTARGETSYSROOT', d.getVar('SDKTARGETSYSROOT', True))
-
     # Process DEFAULTTUNE
-    bb.build.exec_func("create_sdk_files", localdata)
-
-    variants = d.getVar("MULTILIB_VARIANTS", True) or ""
-    for item in variants.split():
-        # Load overrides from 'd' to avoid having to reset the value...
-        overrides = d.getVar("OVERRIDES", False) + ":virtclass-multilib-" + item
-        localdata.setVar("OVERRIDES", overrides)
-        bb.data.update_data(localdata)
-        bb.build.exec_func("create_sdk_files", localdata)
+    bb.build.exec_func("create_sdk_files", d)
 
     bb.build.exec_func("tar_sdk", d)
 
@@ -113,14 +97,6 @@ fakeroot python do_populate_sdk() {
 }
 
 fakeroot create_sdk_files() {
-	# Setup site file for external use
-	toolchain_create_sdk_siteconfig ${SDK_OUTPUT}/${SDKPATH}/site-config-${REAL_MULTIMACH_TARGET_SYS}
-
-	toolchain_create_sdk_env_script ${SDK_OUTPUT}/${SDKPATH}/environment-setup-${REAL_MULTIMACH_TARGET_SYS}
-
-	# Add version information
-	toolchain_create_sdk_version ${SDK_OUTPUT}/${SDKPATH}/version-${REAL_MULTIMACH_TARGET_SYS}
-
 	cp ${COREBASE}/scripts/relocate_sdk.py ${SDK_OUTPUT}/${SDKPATH}/
 
 	# Replace the ##DEFAULT_INSTALL_DIR## with the correct pattern.
@@ -142,10 +118,16 @@ fakeroot create_shar() {
 	# copy in the template shar extractor script
 	cp ${COREBASE}/meta/files/toolchain-shar-template.sh ${SDK_DEPLOY}/${TOOLCHAIN_OUTPUTNAME}.sh
 
+	cat << "EOF" > ${T}/post_install_command
+${SDK_POST_INSTALL_COMMAND}
+EOF
+	sed -i -e '/@SDK_POST_INSTALL_COMMAND@/r ${T}/post_install_command' ${SDK_DEPLOY}/${TOOLCHAIN_OUTPUTNAME}.sh
+
 	# substitute variables
 	sed -i -e 's#@SDK_ARCH@#${SDK_ARCH}#g' \
 		-e 's#@SDKPATH@#${SDKPATH}#g' \
 		-e 's#@REAL_MULTIMACH_TARGET_SYS@#${REAL_MULTIMACH_TARGET_SYS}#g' \
+		-e '/@SDK_POST_INSTALL_COMMAND@/d' \
 		${SDK_DEPLOY}/${TOOLCHAIN_OUTPUTNAME}.sh
 
 	# add execution permission

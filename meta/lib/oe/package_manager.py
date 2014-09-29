@@ -210,7 +210,7 @@ class PkgsList(object):
 
 
 class RpmPkgsList(PkgsList):
-    def __init__(self, d, rootfs_dir, arch_var=None, os_var=None, rpm_version=5):
+    def __init__(self, d, rootfs_dir, arch_var=None, os_var=None):
         super(RpmPkgsList, self).__init__(d, rootfs_dir)
 
         self.rpm_cmd = bb.utils.which(os.getenv('PATH'), "rpm")
@@ -219,7 +219,14 @@ class RpmPkgsList(PkgsList):
         self.ml_prefix_list, self.ml_os_list = \
             RpmIndexer(d, rootfs_dir).get_ml_prefix_and_os_list(arch_var, os_var)
 
-        self.rpm_version = rpm_version
+        # Determine rpm version
+        cmd = "%s --version" % self.rpm_cmd
+        try:
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+        except subprocess.CalledProcessError as e:
+            bb.fatal("Getting rpm version failed. Command '%s' "
+                     "returned %d:\n%s" % (cmd, e.returncode, e.output))
+        self.rpm_version = int(output.split()[-1].split('.')[0])
 
     '''
     Translate the RPM/Smart format names to the OE multilib format names
@@ -564,17 +571,9 @@ class RpmPM(PackageManager):
         if not os.path.exists(self.d.expand('${T}/saved')):
             bb.utils.mkdirhier(self.d.expand('${T}/saved'))
 
-        # Determine rpm version
-        cmd = "%s --version" % self.rpm_cmd
-        try:
-            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
-        except subprocess.CalledProcessError as e:
-            bb.fatal("Getting rpm version failed. Command '%s' "
-                     "returned %d:\n%s" % (cmd, e.returncode, e.output))
-        self.rpm_version = int(output.split()[-1].split('.')[0])
-
         self.indexer = RpmIndexer(self.d, self.deploy_dir)
-        self.pkgs_list = RpmPkgsList(self.d, self.target_rootfs, arch_var, os_var, self.rpm_version)
+        self.pkgs_list = RpmPkgsList(self.d, self.target_rootfs, arch_var, os_var)
+        self.rpm_version = self.pkgs_list.rpm_version
 
         self.ml_prefix_list, self.ml_os_list = self.indexer.get_ml_prefix_and_os_list(arch_var, os_var)
 
@@ -820,17 +819,17 @@ class RpmPM(PackageManager):
                            self.d.getVar('localstatedir', True))
         cmd = 'config --set rpm-extra-macros._tmppath=/install/tmp'
 
-        prefer_color = self.d.getVar('RPM_PREFER_COLOR', True)
+        prefer_color = self.d.getVar('RPM_PREFER_ELF_ARCH', True)
         if prefer_color:
-            if prefer_color not in ['0', '1', '2', '3']:
-                bb.fatal("Invalid RPM_PREFER_COLOR: %s, it should be one of:\n"
+            if prefer_color not in ['0', '1', '2', '4']:
+                bb.fatal("Invalid RPM_PREFER_ELF_ARCH: %s, it should be one of:\n"
                         "\t1: ELF32 wins\n"
                         "\t2: ELF64 wins\n"
-                        "\t3: ELF64 N32 wins (mips64 or mips64el only)" %
+                        "\t4: ELF64 N32 wins (mips64 or mips64el only)" %
                         prefer_color)
-            if prefer_color == "3" and self.d.getVar("TUNE_ARCH", True) not in \
+            if prefer_color == "4" and self.d.getVar("TUNE_ARCH", True) not in \
                                     ['mips64', 'mips64el']:
-                bb.fatal("RPM_PREFER_COLOR = \"3\" is for mips64 or mips64el "
+                bb.fatal("RPM_PREFER_ELF_ARCH = \"4\" is for mips64 or mips64el "
                          "only.")
             self._invoke_smart('config --set rpm-extra-macros._prefer_color=%s'
                         % prefer_color)
