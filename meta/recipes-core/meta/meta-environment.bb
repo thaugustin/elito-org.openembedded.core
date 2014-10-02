@@ -6,14 +6,14 @@ PR = "r8"
 
 EXCLUDE_FROM_WORLD = "1"
 
-REAL_MULTIMACH_TARGET_SYS := "${TUNE_PKGARCH}${TARGET_VENDOR}-${TARGET_OS}"
+REAL_MULTIMACH_TARGET_SYS = "${TUNE_PKGARCH}${TARGET_VENDOR}-${TARGET_OS}"
 
 inherit toolchain-scripts
 TOOLCHAIN_NEED_CONFIGSITE_CACHE += "zlib"
 
 SDK_DIR = "${WORKDIR}/sdk"
 SDK_OUTPUT = "${SDK_DIR}/image"
-SDKTARGETSYSROOT = "${SDKPATH}/sysroots/${TARGET_SYS}"
+SDKTARGETSYSROOT = "${SDKPATH}/sysroots/${REAL_MULTIMACH_TARGET_SYS}"
 
 inherit cross-canadian
 
@@ -29,6 +29,7 @@ python do_generate_content() {
 
     # make sure we only use the SDKTARGETSYSROOT value from 'd'
     localdata.setVar('SDKTARGETSYSROOT', d.getVar('SDKTARGETSYSROOT', True))
+    localdata.setVar('libdir', d.getVar('target_libdir', False))
 
     # Process DEFAULTTUNE
     bb.build.exec_func("create_sdk_files", localdata)
