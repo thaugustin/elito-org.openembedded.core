@@ -1243,10 +1243,6 @@ python emit_pkgdata() {
         sf.write('%s_%s: %d\n' % ('PKGSIZE', pkg, total_size))
         sf.close()
 
-        # Symlinks needed for reverse lookups (from the final package name)
-        subdata_sym = pkgdatadir + "/runtime-reverse/%s" % pkgval
-        oe.path.symlink("../runtime/%s" % pkg, subdata_sym, True)
-        
         # Symlinks needed for rprovides lookup
         if rprov:
             for p in rprov.strip().split():
@@ -1261,6 +1257,10 @@ python emit_pkgdata() {
         os.chdir(root)
         g = glob('*')
         if g or allow_empty == "1":
+            # Symlinks needed for reverse lookups (from the final package name)
+            subdata_sym = pkgdatadir + "/runtime-reverse/%s" % pkgval
+            oe.path.symlink("../runtime/%s" % pkg, subdata_sym, True)
+
             packagedfile = pkgdatadir + '/runtime/%s.packaged' % pkg
             open(packagedfile, 'w').close()
 
