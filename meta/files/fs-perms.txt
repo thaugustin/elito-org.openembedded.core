@@ -57,7 +57,7 @@ ${localstatedir}/local		0755	root	root	false - - -
 
 # Special permissions from base-files
 # Set 1777
-/tmp			link	${localstatedir}/tmp
+/tmp				01777	root	root	false - - -
 ${localstatedir}/volatile/tmp	01777	root	root	false - - -
 
 # Set 755-lsb
