@@ -10,29 +10,13 @@ inherit autotools gettext texinfo
 BPN = "gcc"
 
 def get_gcc_float_setting(bb, d):
-    res=[]
-
-    cpu=d.getVar('TARGET_CPU', True)
-    if cpu:
-        res.append('--with-cpu=' + cpu)
-
-    abi=d.getVar('TARGET_ABI', True)
-    if abi:
-        res.append('--with-abi=' + abi)
-
-    fpu=d.getVar('TARGET_FPU', True)
-
-    if fpu == 'hardfp':
-        fpu = 'hard'
-    elif d.getVar('ARMPKGSFX_EABI', True) == "hf" and  d.getVar('TRANSLATED_TARGET_ARCH', True) == "arm":
-        fpu = 'hard'
-
-    if fpu in [ 'soft', 'softfp', 'hard' ]:
-        res.append("--with-float=" + fpu)
-    elif fpu in ['ppc-efd']:
-        res.append("--enable-e500-double")
-
-    return ' '.join(res)
+    if d.getVar('ARMPKGSFX_EABI', True) == "hf" and d.getVar('TRANSLATED_TARGET_ARCH', True) == "arm":
+        return "--with-float=hard"
+    if d.getVar('TARGET_FPU', True) in [ 'soft' ]:
+        return "--with-float=soft"
+    if d.getVar('TARGET_FPU', True) in [ 'ppc-efd' ]:
+        return "--enable-e500_double"
+    return ""
 
 get_gcc_float_setting[vardepvalue] = "${@get_gcc_float_setting(bb, d)}"
 
