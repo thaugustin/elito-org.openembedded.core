@@ -7,13 +7,14 @@ SRC_URI = "http://www.cups.org/software/${PV}/${BP}-source.tar.bz2 \
            file://use_echo_only_in_init.patch \
            file://0001-don-t-try-to-run-generated-binaries.patch \
            file://cups_serverbin.patch \
-           file://cups-no-gcrypt.patch \
            file://cups.socket \
            file://cups.path \
            file://cups.service \
 	  "
 
 LEAD_SONAME = "libcupsdriver.so"
+
+CLEANBROKEN = "1"
 
 inherit autotools-brokensep binconfig useradd systemd
 
