@@ -30,7 +30,7 @@ QA_SANE = "True"
 WARN_QA ?= "ldflags useless-rpaths rpaths staticdev libdir xorg-driver-abi \
             textrel already-stripped incompatible-license files-invalid \
             installed-vs-shipped compile-host-path install-host-path \
-            pn-overrides infodir build-deps file-rdeps \
+            pn-overrides infodir build-deps file-rdeps pkgconfig-nosysroot \
             unknown-configure-option symlink-to-sysroot multilib \
             invalid-packageconfig host-user-contaminated \
             "
@@ -671,6 +671,21 @@ def package_qa_check_symlink_to_sysroot(path, name, d, elf, messages):
             if target.startswith(tmpdir):
                 trimmed = path.replace(os.path.join (d.getVar("PKGDEST", True), name), "")
                 package_qa_add_message(messages, "symlink-to-sysroot", "Symlink %s in %s points to TMPDIR" % (trimmed, name))
+
+QAPATHTEST[pkgconfig-nosysroot] = "package_qa_check_pkgconfig_nosysroot"
+def package_qa_check_pkgconfig_nosysroot(file, pkgname, d, elf, messages):
+    if not file.endswith('.pc') or os.path.islink(file):
+	return
+
+    sysroot = d.getVar("PKG_CONFIG_SYSROOT_DIR", True)
+    if not sysroot:
+        return
+
+    with open(file) as f:
+        content = f.read()
+        if sysroot in content:
+            package_qa_add_message(messages, "pkgconfig-nosysroot",
+                                   "pkgconfig file %s contains absolute reference to sysroot" % package_qa_clean_path(file,d))
 
 def package_qa_check_license(workdir, d):
     """
