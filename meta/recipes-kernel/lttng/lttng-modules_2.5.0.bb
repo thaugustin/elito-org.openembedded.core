@@ -7,6 +7,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=1412caf5a1aa90d6a48588a4794c0eac \
                     file://lgpl-2.1.txt;md5=243b725d71bb5df4a1e5920b344b86ad"
 
 DEPENDS = "virtual/kernel"
+do_configure[depends] += "virtual/kernel:do_install"
 
 inherit module
 
@@ -22,6 +23,7 @@ SRC_URI = "git://git.lttng.org/lttng-modules.git;branch=stable-2.5 \
            file://Update-statedump-to-3.17-nsproxy-locking.patch \
            file://Update-kvm-instrumentation-compile-on-3.17-rc1.patch \
            file://fix_build_with_v3.17_kernel.patch \
+           file://compaction-fix-mm_compaction_isolate_template-build.patch \
            "
 
 export INSTALL_MOD_DIR="kernel/lttng-modules"
