@@ -37,3 +37,7 @@ EXTRA_OECONF +="--enable-debug --enable-logging --enable-tools --disable-manpage
 do_configure_prepend () {
         gtkdocize --docdir ${S}/libkmod/docs || touch ${S}/libkmod/docs/gtk-doc.make
 }
+
+do_compile_append () {
+    sed -i -e 's!${PKG_CONFIG_SYSROOT_DIR}${libdir}!${'libdir'}!g' libkmod/libkmod.pc
+}
