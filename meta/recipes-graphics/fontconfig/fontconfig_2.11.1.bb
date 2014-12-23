@@ -40,3 +40,8 @@ inherit autotools pkgconfig
 EXTRA_OECONF = " --disable-docs --with-default-fonts=${datadir}/fonts"
 
 BBCLASSEXTEND = "native"
+
+do_configure_append() {
+    sed -i -e 's!${PKG_CONFIG_SYSROOT_DIR}${includedir}!${'includedir'}!g' \
+	fontconfig.pc
+}
