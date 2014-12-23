@@ -25,6 +25,7 @@ PE = "2"
 
 SRC_URI = "git://git.lttng.org/lttng-ust.git;branch=stable-2.5 \
            file://lttng-ust-doc-examples-disable.patch \
+           file://add-aarch64.patch \
 	   "
 
 S = "${WORKDIR}/git"
