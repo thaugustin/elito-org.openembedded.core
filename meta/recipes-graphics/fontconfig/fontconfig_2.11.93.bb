@@ -43,3 +43,8 @@ FONTCONFIG_CACHE_DIR ?= "${localstatedir}/cache/fontconfig"
 EXTRA_OECONF = " --disable-docs --with-default-fonts=${datadir}/fonts --with-cache-dir=${FONTCONFIG_CACHE_DIR}"
 
 BBCLASSEXTEND = "native"
+
+do_configure_append() {
+    sed -i -e 's!${PKG_CONFIG_SYSROOT_DIR}${includedir}!${'includedir'}!g' \
+	fontconfig.pc
+}
