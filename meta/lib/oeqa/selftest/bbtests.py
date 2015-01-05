@@ -27,7 +27,7 @@ class BitbakeTests(oeSelfTest):
     def test_event_handler(self):
         self.write_config("INHERIT += \"test_events\"")
         result = bitbake('m4-native')
-        find_build_started = re.search("NOTE: Test for bb\.event\.BuildStarted(\n.*)*NOTE: Preparing runqueue", result.output)
+        find_build_started = re.search("NOTE: Test for bb\.event\.BuildStarted(\n.*)*NOTE: Preparing RunQueue", result.output)
         find_build_completed = re.search("Tasks Summary:.*(\n.*)*NOTE: Test for bb\.event\.BuildCompleted", result.output)
         self.assertTrue(find_build_started, msg = "Match failed in:\n%s"  % result.output)
         self.assertTrue(find_build_completed, msg = "Match failed in:\n%s" % result.output)
@@ -71,6 +71,7 @@ class BitbakeTests(oeSelfTest):
     @testcase(163)
     def test_force_task(self):
         bitbake('m4-native')
+        self.add_command_to_tearDown('bitbake -c clean m4-native')
         result = bitbake('-C compile m4-native')
         look_for_tasks = ['do_compile', 'do_install', 'do_populate_sysroot']
         for task in look_for_tasks:
