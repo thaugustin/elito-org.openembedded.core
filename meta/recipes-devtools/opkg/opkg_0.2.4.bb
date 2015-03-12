@@ -19,18 +19,12 @@ SRC_URI = "http://downloads.yoctoproject.org/releases/${BPN}/${BPN}-${PV}.tar.gz
            file://0001-opkg-key-Backport-improvements.patch \
 "
 
-S = "${WORKDIR}/${BPN}-${PV}"
-
 SRC_URI[md5sum] = "40ed2aee15abc8d550539449630091bd"
 SRC_URI[sha256sum] = "0f40c7e457d81edf9aedc07c778f4697111ab163a38ef95999faece015453086"
 
 inherit autotools pkgconfig systemd
 
-python () {
-    if not bb.utils.contains('DISTRO_FEATURES', 'sysvinit', True, False, d):
-        pn = d.getVar('PN', True)
-        d.setVar('SYSTEMD_SERVICE_%s' % (pn), 'opkg-configure.service')
-}
+SYSTEMD_SERVICE_${PN} = "opkg-configure.service"
 
 OPKG_LOCKFILE = " --with-opkglockfile=/var/run/opkg.lock"
 OPKG_LOCKFILE_class-native = ""
@@ -58,18 +52,15 @@ do_configure_prepend() {
 	sed -i -e s:-Werror::g ${S}/libopkg/Makefile.am
 }
 
-do_compile_append () {
-	echo "option lists_dir ${OPKGLIBDIR}/opkg" >>${WORKDIR}/opkg.conf
-}
-
 do_install_append () {
 	install -d ${D}${sysconfdir}/opkg
 	install -m 0644 ${WORKDIR}/opkg.conf ${D}${sysconfdir}/opkg/opkg.conf
+	echo "option lists_dir ${OPKGLIBDIR}/opkg" >>${D}${sysconfdir}/opkg/opkg.conf
 
 	# We need to create the lock directory
 	install -d ${D}${OPKGLIBDIR}/opkg
 
-	if ${@bb.utils.contains('DISTRO_FEATURES','sysvinit','false','true',d)};then
+	if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)};then
 		install -d ${D}${systemd_unitdir}/system
 		install -m 0644 ${WORKDIR}/opkg-configure.service ${D}${systemd_unitdir}/system/
 		sed -i -e 's,@BASE_BINDIR@,${base_bindir},g' \

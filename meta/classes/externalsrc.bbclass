@@ -37,6 +37,10 @@ python () {
             d.setVar('B', '${WORKDIR}/${BPN}-${PV}/')
         d.setVar('SRC_URI', '')
 
+        if '{SRCPV}' in d.getVar('PV', False):
+            # Dummy value because the default function can't be called with blank SRC_URI
+            d.setVar('SRCPV', '999')
+
         tasks = filter(lambda k: d.getVarFlag(k, "task"), d.keys())
 
         for task in tasks:
@@ -47,10 +51,30 @@ python () {
                 # Since configure will likely touch ${S}, ensure only we lock so one task has access at a time
                 d.appendVarFlag(task, "lockfiles", "${S}/singletask.lock")
 
+            # We do not want our source to be wiped out, ever (kernel.bbclass does this for do_clean)
+            cleandirs = d.getVarFlag(task, 'cleandirs', False)
+            if cleandirs:
+                cleandirs = cleandirs.split()
+                setvalue = False
+                if '${S}' in cleandirs:
+                    cleandirs.remove('${S}')
+                    setvalue = True
+                if externalsrcbuild == externalsrc and '${B}' in cleandirs:
+                    cleandirs.remove('${B}')
+                    setvalue = True
+                if setvalue:
+                    d.setVarFlag(task, 'cleandirs', ' '.join(cleandirs))
+
         for task in d.getVar("SRCTREECOVEREDTASKS", True).split():
             bb.build.deltask(task, d)
+
+        d.prependVarFlag('do_compile', 'prefuncs', "externalsrc_compile_prefunc ")
 
         # Ensure compilation happens every time
         d.setVarFlag('do_compile', 'nostamp', '1')
 }
 
+python externalsrc_compile_prefunc() {
+    # Make it obvious that this is happening, since forgetting about it could lead to much confusion
+    bb.warn('Compiling %s from external source %s' % (d.getVar('PN', True), d.getVar('EXTERNALSRC', True)))
+}

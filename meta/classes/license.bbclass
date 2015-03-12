@@ -50,7 +50,7 @@ license_create_manifest() {
 		pkged_pv="$(sed -n 's/^PV: //p' ${filename})"
 		pkged_name="$(basename $(readlink ${filename}))"
 		pkged_lic="$(sed -n "/^LICENSE_${pkged_name}: /{ s/^LICENSE_${pkged_name}: //; p }" ${filename})"
-		if [ -z ${pkged_lic} ]; then
+		if [ -z "${pkged_lic}" ]; then
 			# fallback checking value of LICENSE
 			pkged_lic="$(sed -n "/^LICENSE: /{ s/^LICENSE: //; p }" ${filename})"
 		fi
@@ -80,7 +80,7 @@ license_create_manifest() {
 		if [ "${COPY_LIC_DIRS}" = "1" ]; then
 			for pkg in ${INSTALLED_PKGS}; do
 				mkdir -p ${IMAGE_ROOTFS}/usr/share/common-licenses/${pkg}
-				pkged_pn="$(oe-pkgdata-util lookup-recipe ${PKGDATA_DIR} ${pkg})"
+				pkged_pn="$(oe-pkgdata-util -p ${PKGDATA_DIR} lookup-recipe ${pkg})"
 				for lic in `ls ${LICENSE_DIRECTORY}/${pkged_pn}`; do
 					# Really don't need to copy the generics as they're 
 					# represented in the manifest and in the actual pkg licenses
@@ -417,19 +417,20 @@ def check_license_format(d):
     """
     pn = d.getVar('PN', True)
     licenses = d.getVar('LICENSE', True)
-    from oe.license import license_operator
-    from oe.license import license_pattern
+    from oe.license import license_operator, license_operator_chars, license_pattern
 
     elements = filter(lambda x: x.strip(), license_operator.split(licenses))
     for pos, element in enumerate(elements):
         if license_pattern.match(element):
             if pos > 0 and license_pattern.match(elements[pos - 1]):
-                bb.warn("Recipe %s, LICENSE (%s) has invalid format, " \
-                        "LICENSES must have operator \"%s\" between them." %
-                        (pn, licenses, license_operator.pattern))
+                bb.warn('%s: LICENSE value "%s" has an invalid format - license names ' \
+                        'must be separated by the following characters to indicate ' \
+                        'the license selection: %s' %
+                        (pn, licenses, license_operator_chars))
         elif not license_operator.match(element):
-            bb.warn("Recipe %s, LICENSE (%s) has invalid operator (%s) not in" \
-                  " \"%s\"." % (pn, licenses, element, license_operator.pattern))
+            bb.warn('%s: LICENSE value "%s" has an invalid separator "%s" that is not ' \
+                    'in the valid list of separators (%s)' %
+                    (pn, licenses, element, license_operator_chars))
 
 SSTATETASKS += "do_populate_lic"
 do_populate_lic[sstate-inputdirs] = "${LICSSTATEDIR}"

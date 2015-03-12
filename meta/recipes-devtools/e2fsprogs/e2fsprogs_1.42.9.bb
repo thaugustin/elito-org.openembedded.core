@@ -19,6 +19,7 @@ SRC_URI += "file://acinclude.m4 \
             file://0012-Fix-musl-build-failures.patch \
             file://0001-e2fsprogs-fix-cross-compilation-problem.patch \
             file://misc-mke2fs.c-return-error-when-failed-to-populate-fs.patch \
+            file://cache_inode.patch \
 "
 
 SRC_URI[md5sum] = "3f8e41e63b432ba114b33f58674563f7"
@@ -77,7 +78,7 @@ FILES_libext2fs = "${libdir}/e2initrd_helper ${base_libdir}/libext2fs.so.*"
 FILES_${PN}-dev += "${datadir}/*/*.awk ${datadir}/*/*.sed ${base_libdir}/*.so \
   ${bindir}/compile_et ${bindir}/mk_cmds"
 
-BBCLASSEXTEND = "native"
+BBCLASSEXTEND = "native nativesdk"
 
 inherit update-alternatives
 

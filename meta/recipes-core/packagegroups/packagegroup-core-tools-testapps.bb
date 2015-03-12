@@ -43,7 +43,7 @@ _pkgs_alsa = " \
 
 _pkgs_screen = "\
     fstests \
-    owl-video \
+    gst-player-bin \
     "
 
 _pkgs_touch = "\

@@ -110,8 +110,8 @@ def create_recipe(args):
     if '://' in args.source:
         # Fetch a URL
         srcuri = args.source
-        if args.externalsrc:
-            srctree = args.externalsrc
+        if args.extract_to:
+            srctree = args.extract_to
         else:
             tempsrc = tempfile.mkdtemp(prefix='recipetool-')
             srctree = tempsrc
@@ -126,8 +126,8 @@ def create_recipe(args):
             srctree = os.path.join(srctree, srcsubdir)
     else:
         # Assume we're pointing to an existing source tree
-        if args.externalsrc:
-            logger.error('externalsrc cannot be specified if source is a directory')
+        if args.extract_to:
+            logger.error('--extract-to cannot be specified if source is a directory')
             sys.exit(1)
         if not os.path.isdir(args.source):
             logger.error('Invalid source directory %s' % args.source)
@@ -406,10 +406,12 @@ def convert_debian(debpath):
 
 
 def register_command(subparsers):
-    parser_create = subparsers.add_parser('create', help='Create a new recipe')
+    parser_create = subparsers.add_parser('create',
+                                          help='Create a new recipe',
+                                          description='Creates a new recipe from a source tree')
     parser_create.add_argument('source', help='Path or URL to source')
-    parser_create.add_argument('-o', '--outfile', help='Full path and filename to recipe to add', required=True)
+    parser_create.add_argument('-o', '--outfile', help='Specify filename for recipe to create', required=True)
     parser_create.add_argument('-m', '--machine', help='Make recipe machine-specific as opposed to architecture-specific', action='store_true')
-    parser_create.add_argument('-x', '--externalsrc', help='Assuming source is a URL, fetch it and extract it to the specified directory')
+    parser_create.add_argument('-x', '--extract-to', metavar='EXTRACTPATH', help='Assuming source is a URL, fetch it and extract it to the directory specified as %(metavar)s')
     parser_create.set_defaults(func=create_recipe)
 
