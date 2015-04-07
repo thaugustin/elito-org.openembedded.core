@@ -1,6 +1,6 @@
 # Development tool - standard commands plugin
 #
-# Copyright (C) 2014 Intel Corporation
+# Copyright (C) 2014-2015 Intel Corporation
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
@@ -87,6 +87,38 @@ def add(args, config, basepath, workspace):
     return 0
 
 
+def _check_compatible_recipe(pn, d):
+    if pn == 'perf':
+        logger.error("The perf recipe does not actually check out source and thus cannot be supported by this tool")
+        return False
+
+    if pn in ['gcc-source', 'kernel-devsrc', 'package-index']:
+        logger.error("The %s recipe is not supported by this tool" % pn)
+        return False
+
+    if bb.data.inherits_class('image', d):
+        logger.error("The %s recipe is an image, and therefore is not supported by this tool" % pn)
+        return False
+
+    if bb.data.inherits_class('populate_sdk', d):
+        logger.error("The %s recipe is an SDK, and therefore is not supported by this tool" % pn)
+        return False
+
+    if bb.data.inherits_class('packagegroup', d):
+        logger.error("The %s recipe is a packagegroup, and therefore is not supported by this tool" % pn)
+        return False
+
+    if bb.data.inherits_class('meta', d):
+        logger.error("The %s recipe is a meta-recipe, and therefore is not supported by this tool" % pn)
+        return False
+
+    if bb.data.inherits_class('externalsrc', d) and d.getVar('EXTERNALSRC', True):
+        logger.error("externalsrc is currently enabled for the %s recipe. This prevents the normal do_patch task from working. You will need to disable this first." % pn)
+        return False
+
+    return True
+
+
 def _get_recipe_file(cooker, pn):
     import oe.recipeutils
     recipefile = oe.recipeutils.pn_to_recipe(cooker, pn)
@@ -133,16 +165,7 @@ def _extract_source(srctree, keep_temp, devbranch, d):
 
     pn = d.getVar('PN', True)
 
-    if pn == 'perf':
-        logger.error("The perf recipe does not actually check out source and thus cannot be supported by this tool")
-        return None
-
-    if bb.data.inherits_class('image', d):
-        logger.error("The %s recipe is an image, and therefore is not supported by this tool" % pn)
-        return None
-
-    if bb.data.inherits_class('externalsrc', d) and d.getVar('EXTERNALSRC', True):
-        logger.error("externalsrc is currently enabled for the %s recipe. This prevents the normal do_patch task from working. You will need to disable this first." % pn)
+    if not _check_compatible_recipe(pn, d):
         return None
 
     if os.path.exists(srctree):
@@ -310,9 +333,8 @@ def modify(args, config, basepath, workspace):
         return -1
     rd = oe.recipeutils.parse_recipe(recipefile, tinfoil.config_data)
 
-    if bb.data.inherits_class('image', rd):
-        logger.error("The %s recipe is an image, and therefore is not supported by this tool" % args.recipename)
-        return None
+    if not _check_compatible_recipe(args.recipename, rd):
+        return -1
 
     initial_rev = None
     commits = []
@@ -326,8 +348,19 @@ def modify(args, config, basepath, workspace):
         commits = stdout.split()
     else:
         if os.path.exists(os.path.join(args.srctree, '.git')):
-            (stdout, _) = bb.process.run('git rev-parse HEAD', cwd=args.srctree)
-            initial_rev = stdout.rstrip()
+            # Check if it's a tree previously extracted by us
+            try:
+                (stdout, _) = bb.process.run('git branch --contains devtool-base', cwd=args.srctree)
+            except bb.process.ExecutionError:
+                stdout = ''
+            for line in stdout.splitlines():
+                if line.startswith('*'):
+                    (stdout, _) = bb.process.run('git rev-parse devtool-base', cwd=args.srctree)
+                    initial_rev = stdout.rstrip()
+            if not initial_rev:
+                # Otherwise, just grab the head revision
+                (stdout, _) = bb.process.run('git rev-parse HEAD', cwd=args.srctree)
+                initial_rev = stdout.rstrip()
 
     # Check that recipe isn't using a shared workdir
     s = rd.getVar('S', True)
@@ -556,28 +589,42 @@ def status(args, config, basepath, workspace):
 
 def reset(args, config, basepath, workspace):
     import bb.utils
-    if not args.recipename in workspace:
-        logger.error("no recipe named %s in your workspace" % args.recipename)
+    if args.recipename:
+        if args.all:
+            logger.error("Recipe cannot be specified if -a/--all is used")
+            return -1
+        elif not args.recipename in workspace:
+            logger.error("no recipe named %s in your workspace" % args.recipename)
+            return -1
+    elif not args.all:
+        logger.error("Recipe must be specified, or specify -a/--all to reset all recipes")
         return -1
 
-    if not args.no_clean:
-        logger.info('Cleaning sysroot for recipe %s...' % args.recipename)
-        exec_build_env_command(config.init_path, basepath, 'bitbake -c clean %s' % args.recipename)
+    if args.all:
+        recipes = workspace
+    else:
+        recipes = [args.recipename]
 
-    _check_preserve(config, args.recipename)
+    for pn in recipes:
+        if not args.no_clean:
+            logger.info('Cleaning sysroot for recipe %s...' % pn)
+            exec_build_env_command(config.init_path, basepath, 'bitbake -c clean %s' % pn)
 
-    preservepath = os.path.join(config.workspace_path, 'attic', args.recipename)
-    def preservedir(origdir):
-        if os.path.exists(origdir):
-            for fn in os.listdir(origdir):
-                logger.warn('Preserving %s in %s' % (fn, preservepath))
-                bb.utils.mkdirhier(preservepath)
-                shutil.move(os.path.join(origdir, fn), os.path.join(preservepath, fn))
-            os.rmdir(origdir)
+        _check_preserve(config, pn)
 
-    preservedir(os.path.join(config.workspace_path, 'recipes', args.recipename))
-    # We don't automatically create this dir next to appends, but the user can
-    preservedir(os.path.join(config.workspace_path, 'appends', args.recipename))
+        preservepath = os.path.join(config.workspace_path, 'attic', pn)
+        def preservedir(origdir):
+            if os.path.exists(origdir):
+                for fn in os.listdir(origdir):
+                    logger.warn('Preserving %s in %s' % (fn, preservepath))
+                    bb.utils.mkdirhier(preservepath)
+                    shutil.move(os.path.join(origdir, fn), os.path.join(preservepath, fn))
+                os.rmdir(origdir)
+
+        preservedir(os.path.join(config.workspace_path, 'recipes', pn))
+        # We don't automatically create this dir next to appends, but the user can
+        preservedir(os.path.join(config.workspace_path, 'appends', pn))
+
     return 0
 
 
@@ -602,33 +649,33 @@ def register_commands(subparsers, context):
     parser_add.add_argument('--version', '-V', help='Version to use within recipe (PV)')
     parser_add.set_defaults(func=add)
 
-    parser_add = subparsers.add_parser('modify', help='Modify the source for an existing recipe',
+    parser_modify = subparsers.add_parser('modify', help='Modify the source for an existing recipe',
                                        description='Enables modifying the source for an existing recipe',
                                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser_add.add_argument('recipename', help='Name for recipe to edit')
-    parser_add.add_argument('srctree', help='Path to external source tree')
-    parser_add.add_argument('--wildcard', '-w', action="store_true", help='Use wildcard for unversioned bbappend')
-    parser_add.add_argument('--extract', '-x', action="store_true", help='Extract source as well')
-    parser_add.add_argument('--same-dir', '-s', help='Build in same directory as source', action="store_true")
-    parser_add.add_argument('--branch', '-b', default="devtool", help='Name for development branch to checkout (only when using -x)')
-    parser_add.set_defaults(func=modify)
+    parser_modify.add_argument('recipename', help='Name for recipe to edit')
+    parser_modify.add_argument('srctree', help='Path to external source tree')
+    parser_modify.add_argument('--wildcard', '-w', action="store_true", help='Use wildcard for unversioned bbappend')
+    parser_modify.add_argument('--extract', '-x', action="store_true", help='Extract source as well')
+    parser_modify.add_argument('--same-dir', '-s', help='Build in same directory as source', action="store_true")
+    parser_modify.add_argument('--branch', '-b', default="devtool", help='Name for development branch to checkout (only when using -x)')
+    parser_modify.set_defaults(func=modify)
 
-    parser_add = subparsers.add_parser('extract', help='Extract the source for an existing recipe',
+    parser_extract = subparsers.add_parser('extract', help='Extract the source for an existing recipe',
                                        description='Extracts the source for an existing recipe',
                                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser_add.add_argument('recipename', help='Name for recipe to extract the source for')
-    parser_add.add_argument('srctree', help='Path to where to extract the source tree')
-    parser_add.add_argument('--branch', '-b', default="devtool", help='Name for development branch to checkout')
-    parser_add.add_argument('--keep-temp', action="store_true", help='Keep temporary directory (for debugging)')
-    parser_add.set_defaults(func=extract)
+    parser_extract.add_argument('recipename', help='Name for recipe to extract the source for')
+    parser_extract.add_argument('srctree', help='Path to where to extract the source tree')
+    parser_extract.add_argument('--branch', '-b', default="devtool", help='Name for development branch to checkout')
+    parser_extract.add_argument('--keep-temp', action="store_true", help='Keep temporary directory (for debugging)')
+    parser_extract.set_defaults(func=extract)
 
-    parser_add = subparsers.add_parser('update-recipe', help='Apply changes from external source tree to recipe',
+    parser_update_recipe = subparsers.add_parser('update-recipe', help='Apply changes from external source tree to recipe',
                                        description='Applies changes from external source tree to a recipe (updating/adding/removing patches as necessary, or by updating SRCREV)')
-    parser_add.add_argument('recipename', help='Name of recipe to update')
-    parser_add.add_argument('--mode', '-m', choices=['patch', 'srcrev', 'auto'], default='auto', help='Update mode (where %(metavar)s is %(choices)s; default is %(default)s)', metavar='MODE')
-    parser_add.add_argument('--initial-rev', help='Starting revision for patches')
-    parser_add.add_argument('--no-remove', '-n', action="store_true", help='Don\'t remove patches, only add or update')
-    parser_add.set_defaults(func=update_recipe)
+    parser_update_recipe.add_argument('recipename', help='Name of recipe to update')
+    parser_update_recipe.add_argument('--mode', '-m', choices=['patch', 'srcrev', 'auto'], default='auto', help='Update mode (where %(metavar)s is %(choices)s; default is %(default)s)', metavar='MODE')
+    parser_update_recipe.add_argument('--initial-rev', help='Starting revision for patches')
+    parser_update_recipe.add_argument('--no-remove', '-n', action="store_true", help='Don\'t remove patches, only add or update')
+    parser_update_recipe.set_defaults(func=update_recipe)
 
     parser_status = subparsers.add_parser('status', help='Show workspace status',
                                           description='Lists recipes currently in your workspace and the paths to their respective external source trees',
@@ -644,7 +691,7 @@ def register_commands(subparsers, context):
     parser_reset = subparsers.add_parser('reset', help='Remove a recipe from your workspace',
                                          description='Removes the specified recipe from your workspace (resetting its state)',
                                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser_reset.add_argument('recipename', help='Recipe to reset')
+    parser_reset.add_argument('recipename', nargs='?', help='Recipe to reset')
+    parser_reset.add_argument('--all', '-a', action="store_true", help='Reset all recipes (clear workspace)')
     parser_reset.add_argument('--no-clean', '-n', action="store_true", help='Don\'t clean the sysroot to remove recipe output')
     parser_reset.set_defaults(func=reset)
-

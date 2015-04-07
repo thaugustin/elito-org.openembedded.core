@@ -6,10 +6,10 @@ from oeqa.utils.commands import bitbake
 from oeqa.utils import CommandError
 
 class LicenseTests(oeSelfTest):
-    
+
     # Verify that changing a license file that has an absolute path causes
     # the license qa to fail due to a mismatched md5sum.
-    def test_foo(self):
+    def test_nonmatching_checksum(self):
         bitbake_cmd = '-c configure emptytest'
         error_msg = 'ERROR: emptytest: The new md5 checksum is 8d777f385d3dfec8815d20f7496026dc'
 
@@ -17,7 +17,8 @@ class LicenseTests(oeSelfTest):
         os.close(lic_file)
         self.track_for_cleanup(lic_path)
 
-        self.write_recipeinc('emptytest', 'LIC_FILES_CHKSUM = "file://%s;md5=d41d8cd98f00b204e9800998ecf8427e"' % lic_path)
+        self.write_recipeinc('emptytest', 'INHIBIT_DEFAULT_DEPS = "1"')
+        self.append_recipeinc('emptytest', 'LIC_FILES_CHKSUM = "file://%s;md5=d41d8cd98f00b204e9800998ecf8427e"' % lic_path)
         result = bitbake(bitbake_cmd)
 
         with open(lic_path, "w") as f:

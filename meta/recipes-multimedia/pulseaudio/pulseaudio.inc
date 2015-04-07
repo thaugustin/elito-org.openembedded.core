@@ -59,10 +59,6 @@ OE_LT_RPATH_ALLOW[export]="1"
 do_install_append() {
 	install -d ${D}${sysconfdir}/default/volatiles
 	install -m 0644 ${WORKDIR}/volatiles.04_pulse  ${D}${sysconfdir}/default/volatiles/volatiles.04_pulse
-	
-	if [ "x${TARGET_PFPU}" = "xsoft" ] ; then 
-	     sed -i -e s:\;\ resample-method\ =\ sinc-fastest:resample-method\ =\ trivial: ${D}${sysconfdir}/pulse/daemon.conf
-	fi
 }
 
 USERADD_PACKAGES = "pulseaudio-server"
@@ -85,7 +81,11 @@ PACKAGES_DYNAMIC += "^pulseaudio-lib-.* ^pulseaudio-module-.*"
 
 FILES_libpulsecore = "${libdir}/libpulsecore*.so"
 FILES_libpulsecommon = "${libdir}/pulseaudio/libpulsecommon*.so"
-FILES_libpulse = "${libdir}/libpulse.so.*"
+
+# client.conf configures the behaviour of libpulse, so it belongs in the same
+# package.
+FILES_libpulse = "${libdir}/libpulse.so.* ${sysconfdir}/pulse/client.conf"
+
 FILES_libpulse-simple = "${libdir}/libpulse-simple.so.*"
 FILES_libpulse-mainloop-glib = "${libdir}/libpulse-mainloop-glib.so.*"
 
@@ -104,10 +104,12 @@ FILES_${PN}-misc = "${bindir}/* ${libdir}/pulseaudio/libpulsedsp.so"
 # Allow the pulseaudio package to be created empty as a placeholder (-dbg and -dev depend on it)
 ALLOW_EMPTY_${PN} = "1"
 
+CONFFILES_libpulse = "${sysconfdir}/pulse/client.conf"
+
 CONFFILES_pulseaudio-server = "\ 
   ${sysconfdir}/pulse/default.pa \
   ${sysconfdir}/pulse/daemon.conf \
-  ${sysconfdir}/pulse/client.conf \
+  ${sysconfdir}/pulse/system.pa \
   "
 
 pkg_postinst_${PN}-server() {

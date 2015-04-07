@@ -93,7 +93,7 @@ oe_runconf () {
 		${CACHED_CONFIGUREVARS} $cfgscript ${CONFIGUREOPTS} ${EXTRA_OECONF} "$@" || (
 			set +x
 			echo "Configure failed. The contents of all config.log files will be put into ${T}/config.log to ease debugging."
-			find ${S} -name config.log -print -exec cat {} \; > ${T}/config.log
+			find ${S} -ignore_readdir_race -name config.log -print -exec cat {} \; > ${T}/config.log
 			bbfatal "oe_runconf failed"
 		)
 	else

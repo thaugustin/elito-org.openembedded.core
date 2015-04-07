@@ -29,7 +29,7 @@ SRCREV = "a88abde72169ddc2df77df3fa5bed30725022253"
 
 PV = "219+git${SRCPV}"
 
-SRC_URI = "git://anongit.freedesktop.org/systemd/systemd;branch=master;protocol=git \
+SRC_URI = "git://anongit.freedesktop.org/systemd/systemd;branch=master \
            file://0002-shared-missing.h-fall-back-to-insecure-getenv.patch \
            file://0003-binfmt-Don-t-install-dependency-links-at-install-tim.patch \
            file://0004-configure-Check-for-additional-features-that-uclibc-.patch \
@@ -43,12 +43,14 @@ SRC_URI = "git://anongit.freedesktop.org/systemd/systemd;branch=master;protocol=
            file://0001-tmpfiles-avoid-creating-duplicate-acl-entries.patch \
            file://0002-tmpfiles-quietly-ignore-ACLs-on-unsupported-filesyst.patch \
            file://0012-systemd-tmpfiles.c-Honor-ordering-within-files-as-th.patch \
+           file://0013-journal-fix-Inappropriate-ioctl-for-device-on-ext4.patch \
+           file://0014-Revert-rules-remove-firmware-loading-rules.patch \
+           file://0015-Revert-udev-remove-userspace-firmware-loading-suppor.patch \
            file://tmpfiles-pam.patch \
            file://touchscreen.rules \
            file://00-create-volatile.conf \
            file://init \
            file://run-ptest \
-           file://journald-volatile.conf \
           "
 
 S = "${WORKDIR}/git"
@@ -87,7 +89,11 @@ PACKAGECONFIG[xkbcommon] = "--enable-xkbcommon,--disable-xkbcommon,libxkbcommon"
 PACKAGECONFIG[iptc] = "--enable-libiptc,--disable-libiptc,iptables"
 PACKAGECONFIG[ldconfig] = "--enable-ldconfig,--disable-ldconfig,,"
 
-CACHED_CONFIGUREVARS = "ac_cv_path_KILL=${base_bindir}/kill"
+CACHED_CONFIGUREVARS += "ac_cv_path_KILL=${base_bindir}/kill"
+CACHED_CONFIGUREVARS += "ac_cv_path_KMOD=${base_bindir}/kmod"
+CACHED_CONFIGUREVARS += "ac_cv_path_QUOTACHECK=${sbindir}/quotacheck"
+CACHED_CONFIGUREVARS += "ac_cv_path_QUOTAON=${sbindir}/quotaon"
+CACHED_CONFIGUREVARS += "ac_cv_path_SULOGIN=${base_sbindir}/sulogin"
 
 # Helper variables to clarify locations.  This mirrors the logic in systemd's
 # build system.
@@ -105,6 +111,7 @@ EXTRA_OECONF = " --with-rootprefix=${rootprefix} \
                  --enable-split-usr \
                  --without-python \
                  --with-sysvrcnd-path=${sysconfdir} \
+                 --with-firmware-path=/lib/firmware \
                "
 # uclibc does not have NSS
 EXTRA_OECONF_append_libc-uclibc = " --disable-myhostname "
@@ -145,13 +152,14 @@ do_install() {
 	install -m 0644 ${WORKDIR}/*.rules ${D}${sysconfdir}/udev/rules.d/
 
 	install -m 0644 ${WORKDIR}/00-create-volatile.conf ${D}${sysconfdir}/tmpfiles.d/
-	install -D -m 0644 ${WORKDIR}/journald-volatile.conf ${D}${systemd_unitdir}/system/systemd-journald.service.d/journald-volatile.conf
 
 	if ${@bb.utils.contains('DISTRO_FEATURES','sysvinit','true','false',d)}; then
 		install -d ${D}${sysconfdir}/init.d
 		install -m 0755 ${WORKDIR}/init ${D}${sysconfdir}/init.d/systemd-udevd
 		sed -i s%@UDEVD@%${rootlibexecdir}/systemd/systemd-udevd% ${D}${sysconfdir}/init.d/systemd-udevd
 	fi
+
+	chown root:systemd-journal ${D}/${localstatedir}/log/journal
 
         # Delete journal README, as log can be symlinked inside volatile.
         rm -f ${D}/${localstatedir}/log/README

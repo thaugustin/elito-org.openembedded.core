@@ -8,6 +8,8 @@ DEPENDS = "glib-2.0 gstreamer1.0 gstreamer1.0-plugins-base gtk+"
 SRC_URI = "git://github.com/sdroege/gst-player.git \
            file://filechooser.patch \
            file://gtk2.patch \
+           file://Fix-pause-play.patch \
+           file://Add-error-signal-emission-for-missing-plugins.patch \
            file://gst-player.desktop"
 
 SRCREV = "5386c5b984d40ef5434673ed62204e69aaf52645"
@@ -32,4 +34,5 @@ RDEPENDS_${PN}-bin = "gstreamer1.0-plugins-base-playback"
 RRECOMMENDS_${PN}-bin = "gstreamer1.0-plugins-base-meta \
                          gstreamer1.0-plugins-good-meta \
                          gstreamer1.0-plugins-bad-meta \
+                         ${@bb.utils.contains("LICENSE_FLAGS_WHITELIST", "commercial", "gstreamer1.0-libav", "", d)} \
                          ${@bb.utils.contains("LICENSE_FLAGS_WHITELIST", "commercial", "gstreamer1.0-plugins-ugly-meta", "", d)}"

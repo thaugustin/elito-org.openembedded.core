@@ -68,11 +68,19 @@ PACKAGECONFIG[nfsidmap] = "--enable-nfsidmap,--disable-nfsidmap,keyutils"
 INHIBIT_AUTO_STAGE = "1"
 
 PACKAGES =+ "${PN}-client ${PN}-stats"
+
+CONFFILES_${PN}-client += "${localstatedir}/lib/nfs/etab \
+			   ${localstatedir}/lib/nfs/rmtab \
+			   ${localstatedir}/lib/nfs/xtab \
+			   ${localstatedir}/lib/nfs/statd/state \
+			   ${sysconfdir}/nfsmount.conf"
+
 FILES_${PN}-client = "${base_sbindir}/*mount.nfs* ${sbindir}/*statd \
 		      ${sbindir}/rpc.idmapd ${sbindir}/sm-notify \
 		      ${sbindir}/showmount ${sbindir}/nfsstat \
 		      ${localstatedir}/lib/nfs \
 		      ${sysconfdir}/nfs-utils.conf \
+		      ${sysconfdir}/nfsmount.conf \
 		      ${sysconfdir}/init.d/nfscommon \
 		      ${systemd_unitdir}/system/nfs-statd.service"
 FILES_${PN}-stats = "${sbindir}/mountstats ${sbindir}/nfsiostat"
@@ -90,6 +98,8 @@ do_install_append () {
 	install -m 0755 ${WORKDIR}/nfscommon ${D}${sysconfdir}/init.d/nfscommon
 
 	install -m 0755 ${WORKDIR}/nfs-utils.conf ${D}${sysconfdir}
+	install -m 0755 ${S}/utils/mount/nfsmount.conf ${D}${sysconfdir}
+
 	install -d ${D}${systemd_unitdir}/system
 	install -m 0644 ${WORKDIR}/nfs-server.service ${D}${systemd_unitdir}/system/
 	install -m 0644 ${WORKDIR}/nfs-mountd.service ${D}${systemd_unitdir}/system/
