@@ -37,7 +37,9 @@ DEBIAN_NOAUTONAME_fontconfig-utils = "1"
 
 inherit autotools pkgconfig
 
-EXTRA_OECONF = " --disable-docs --with-default-fonts=${datadir}/fonts"
+FONTCONFIG_CACHE_DIR ?= "${localstatedir}/cache/fontconfig"
+
+EXTRA_OECONF = " --disable-docs --with-default-fonts=${datadir}/fonts --with-cache-dir=${FONTCONFIG_CACHE_DIR}"
 
 BBCLASSEXTEND = "native"
 
