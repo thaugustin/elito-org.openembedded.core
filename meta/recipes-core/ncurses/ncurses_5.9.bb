@@ -6,7 +6,6 @@ PR = "${INC_PR}.1"
 
 SRC_URI += "file://tic-hang.patch \
             file://config.cache \
-            file://pkgconfig-initial.patch \
 "
 S = "${WORKDIR}/${BP}-${REVISION}"
 SRC_URI[md5sum] = "cee991d09e69e60ebedef424804c52d4"
