@@ -8,10 +8,60 @@ import glob
 
 import oeqa.utils.ftools as ftools
 from oeqa.selftest.base import oeSelfTest
-from oeqa.utils.commands import runCmd, bitbake, get_bb_var
+from oeqa.utils.commands import runCmd, bitbake, get_bb_var, create_temp_layer
 from oeqa.utils.decorators import testcase
 
-class DevtoolTests(oeSelfTest):
+class DevtoolBase(oeSelfTest):
+
+    def _test_recipe_contents(self, recipefile, checkvars, checkinherits):
+        with open(recipefile, 'r') as f:
+            for line in f:
+                if '=' in line:
+                    splitline = line.split('=', 1)
+                    var = splitline[0].rstrip()
+                    value = splitline[1].strip().strip('"')
+                    if var in checkvars:
+                        needvalue = checkvars.pop(var)
+                        self.assertEqual(value, needvalue, 'values for %s do not match' % var)
+                if line.startswith('inherit '):
+                    inherits = line.split()[1:]
+
+        self.assertEqual(checkvars, {}, 'Some variables not found: %s' % checkvars)
+
+        for inherit in checkinherits:
+            self.assertIn(inherit, inherits, 'Missing inherit of %s' % inherit)
+
+    def _check_bbappend(self, testrecipe, recipefile, appenddir):
+        result = runCmd('bitbake-layers show-appends', cwd=self.builddir)
+        resultlines = result.output.splitlines()
+        inrecipe = False
+        bbappends = []
+        bbappendfile = None
+        for line in resultlines:
+            if inrecipe:
+                if line.startswith(' '):
+                    bbappends.append(line.strip())
+                else:
+                    break
+            elif line == '%s:' % os.path.basename(recipefile):
+                inrecipe = True
+        self.assertLessEqual(len(bbappends), 2, '%s recipe is being bbappended by another layer - bbappends found:\n  %s' % (testrecipe, '\n  '.join(bbappends)))
+        for bbappend in bbappends:
+            if bbappend.startswith(appenddir):
+                bbappendfile = bbappend
+                break
+        else:
+            self.assertTrue(False, 'bbappend for recipe %s does not seem to be created in test layer' % testrecipe)
+        return bbappendfile
+
+    def _create_temp_layer(self, templayerdir, addlayer, templayername, priority=999, recipepathspec='recipes-*/*'):
+        create_temp_layer(templayerdir, templayername, priority, recipepathspec)
+        if addlayer:
+            self.add_command_to_tearDown('bitbake-layers remove-layer %s || true' % templayerdir)
+            result = runCmd('bitbake-layers add-layer %s' % templayerdir, cwd=self.builddir)
+
+
+class DevtoolTests(DevtoolBase):
 
     def test_create_workspace(self):
         # Check preconditions
@@ -34,64 +84,6 @@ class DevtoolTests(oeSelfTest):
         result = runCmd('bitbake-layers show-layers')
         self.assertNotIn(tempdir, result.output)
         self.assertIn(workspacedir, result.output)
-
-    def _test_recipe_contents(self, recipefile, checkvars, checkinherits):
-        with open(recipefile, 'r') as f:
-            for line in f:
-                if '=' in line:
-                    splitline = line.split('=', 1)
-                    var = splitline[0].rstrip()
-                    value = splitline[1].strip().strip('"')
-                    if var in checkvars:
-                        needvalue = checkvars.pop(var)
-                        self.assertEqual(value, needvalue, 'values for %s do not match' % var)
-                if line.startswith('inherit '):
-                    inherits = line.split()[1:]
-
-        self.assertEqual(checkvars, {}, 'Some variables not found: %s' % checkvars)
-
-        for inherit in checkinherits:
-            self.assertIn(inherit, inherits, 'Missing inherit of %s' % inherit)
-
-    def test_recipetool_create(self):
-        # Try adding a recipe
-        tempdir = tempfile.mkdtemp(prefix='devtoolqa')
-        self.track_for_cleanup(tempdir)
-        tempsrc = os.path.join(tempdir, 'srctree')
-        os.makedirs(tempsrc)
-        recipefile = os.path.join(tempdir, 'logrotate_3.8.7.bb')
-        srcuri = 'https://fedorahosted.org/releases/l/o/logrotate/logrotate-3.8.7.tar.gz'
-        result = runCmd('recipetool create -o %s %s -x %s' % (recipefile, srcuri, tempsrc))
-        self.assertTrue(os.path.isfile(recipefile))
-        checkvars = {}
-        checkvars['LICENSE'] = 'GPLv2'
-        checkvars['LIC_FILES_CHKSUM'] = 'file://COPYING;md5=18810669f13b87348459e611d31ab760'
-        checkvars['SRC_URI'] = 'https://fedorahosted.org/releases/l/o/logrotate/logrotate-${PV}.tar.gz'
-        checkvars['SRC_URI[md5sum]'] = '99e08503ef24c3e2e3ff74cc5f3be213'
-        checkvars['SRC_URI[sha256sum]'] = 'f6ba691f40e30e640efa2752c1f9499a3f9738257660994de70a45fe00d12b64'
-        self._test_recipe_contents(recipefile, checkvars, [])
-
-    def test_recipetool_create_git(self):
-        # Ensure we have the right data in shlibs/pkgdata
-        bitbake('libpng pango libx11 libxext jpeg')
-        # Try adding a recipe
-        tempdir = tempfile.mkdtemp(prefix='devtoolqa')
-        self.track_for_cleanup(tempdir)
-        tempsrc = os.path.join(tempdir, 'srctree')
-        os.makedirs(tempsrc)
-        recipefile = os.path.join(tempdir, 'libmatchbox.bb')
-        srcuri = 'git://git.yoctoproject.org/libmatchbox'
-        result = runCmd('recipetool create -o %s %s -x %s' % (recipefile, srcuri, tempsrc))
-        self.assertTrue(os.path.isfile(recipefile), 'recipetool did not create recipe file; output:\n%s' % result.output)
-        checkvars = {}
-        checkvars['LICENSE'] = 'LGPLv2.1'
-        checkvars['LIC_FILES_CHKSUM'] = 'file://COPYING;md5=7fbc338309ac38fefcd64b04bb903e34'
-        checkvars['S'] = '${WORKDIR}/git'
-        checkvars['PV'] = '1.0+git${SRCPV}'
-        checkvars['SRC_URI'] = srcuri
-        checkvars['DEPENDS'] = 'libpng pango libx11 libxext jpeg'
-        inherits = ['autotools', 'pkgconfig']
-        self._test_recipe_contents(recipefile, checkvars, inherits)
 
     def test_devtool_add(self):
         # Check preconditions
@@ -531,6 +523,177 @@ class DevtoolTests(oeSelfTest):
                         matched = True
                         break
                 self.assertTrue(matched, 'Unexpected diff remove line: %s' % line)
+
+    def test_devtool_update_recipe_append(self):
+        # Check preconditions
+        workspacedir = os.path.join(self.builddir, 'workspace')
+        self.assertTrue(not os.path.exists(workspacedir), 'This test cannot be run with a workspace directory under the build directory')
+        testrecipe = 'mdadm'
+        recipefile = get_bb_var('FILE', testrecipe)
+        src_uri = get_bb_var('SRC_URI', testrecipe)
+        self.assertNotIn('git://', src_uri, 'This test expects the %s recipe to NOT be a git recipe' % testrecipe)
+        result = runCmd('git status . --porcelain', cwd=os.path.dirname(recipefile))
+        self.assertEqual(result.output.strip(), "", '%s recipe is not clean' % testrecipe)
+        # First, modify a recipe
+        tempdir = tempfile.mkdtemp(prefix='devtoolqa')
+        tempsrcdir = os.path.join(tempdir, 'source')
+        templayerdir = os.path.join(tempdir, 'layer')
+        self.track_for_cleanup(tempdir)
+        self.track_for_cleanup(workspacedir)
+        self.add_command_to_tearDown('bitbake-layers remove-layer */workspace')
+        # (don't bother with cleaning the recipe on teardown, we won't be building it)
+        result = runCmd('devtool modify %s -x %s' % (testrecipe, tempsrcdir))
+        # Check git repo
+        self.assertTrue(os.path.isdir(os.path.join(tempsrcdir, '.git')), 'git repository for external source tree not found')
+        result = runCmd('git status --porcelain', cwd=tempsrcdir)
+        self.assertEqual(result.output.strip(), "", 'Created git repo is not clean')
+        result = runCmd('git symbolic-ref HEAD', cwd=tempsrcdir)
+        self.assertEqual(result.output.strip(), "refs/heads/devtool", 'Wrong branch in git repo')
+        # Add a commit
+        result = runCmd("sed 's!\\(#define VERSION\\W*\"[^\"]*\\)\"!\\1-custom\"!' -i ReadMe.c", cwd=tempsrcdir)
+        result = runCmd('git commit -a -m "Add our custom version"', cwd=tempsrcdir)
+        self.add_command_to_tearDown('cd %s; rm -f %s/*.patch; git checkout .' % (os.path.dirname(recipefile), testrecipe))
+        # Create a temporary layer and add it to bblayers.conf
+        self._create_temp_layer(templayerdir, True, 'selftestupdaterecipe')
+        # Create the bbappend
+        result = runCmd('devtool update-recipe %s -a %s' % (testrecipe, templayerdir))
+        self.assertNotIn('WARNING:', result.output)
+        # Check recipe is still clean
+        result = runCmd('git status . --porcelain', cwd=os.path.dirname(recipefile))
+        self.assertEqual(result.output.strip(), "", '%s recipe is not clean' % testrecipe)
+        # Check bbappend was created
+        splitpath = os.path.dirname(recipefile).split(os.sep)
+        appenddir = os.path.join(templayerdir, splitpath[-2], splitpath[-1])
+        bbappendfile = self._check_bbappend(testrecipe, recipefile, appenddir)
+        patchfile = os.path.join(appenddir, testrecipe, '0001-Add-our-custom-version.patch')
+        self.assertTrue(os.path.exists(patchfile), 'Patch file not created')
+
+        # Check bbappend contents
+        expectedlines = ['FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"\n',
+                         '\n',
+                         'SRC_URI += "file://0001-Add-our-custom-version.patch"\n',
+                         '\n']
+        with open(bbappendfile, 'r') as f:
+            self.assertEqual(expectedlines, f.readlines())
+
+        # Check we can run it again and bbappend isn't modified
+        result = runCmd('devtool update-recipe %s -a %s' % (testrecipe, templayerdir))
+        with open(bbappendfile, 'r') as f:
+            self.assertEqual(expectedlines, f.readlines())
+        # Drop new commit and check patch gets deleted
+        result = runCmd('git reset HEAD^', cwd=tempsrcdir)
+        result = runCmd('devtool update-recipe %s -a %s' % (testrecipe, templayerdir))
+        self.assertFalse(os.path.exists(patchfile), 'Patch file not deleted')
+        expectedlines2 = ['FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"\n',
+                         '\n']
+        with open(bbappendfile, 'r') as f:
+            self.assertEqual(expectedlines2, f.readlines())
+        # Put commit back and check we can run it if layer isn't in bblayers.conf
+        os.remove(bbappendfile)
+        result = runCmd('git commit -a -m "Add our custom version"', cwd=tempsrcdir)
+        result = runCmd('bitbake-layers remove-layer %s' % templayerdir, cwd=self.builddir)
+        result = runCmd('devtool update-recipe %s -a %s' % (testrecipe, templayerdir))
+        self.assertIn('WARNING: Specified layer is not currently enabled in bblayers.conf', result.output)
+        self.assertTrue(os.path.exists(patchfile), 'Patch file not created (with disabled layer)')
+        with open(bbappendfile, 'r') as f:
+            self.assertEqual(expectedlines, f.readlines())
+        # Deleting isn't expected to work under these circumstances
+
+    def test_devtool_update_recipe_append_git(self):
+        # Check preconditions
+        workspacedir = os.path.join(self.builddir, 'workspace')
+        self.assertTrue(not os.path.exists(workspacedir), 'This test cannot be run with a workspace directory under the build directory')
+        testrecipe = 'mtd-utils'
+        recipefile = get_bb_var('FILE', testrecipe)
+        src_uri = get_bb_var('SRC_URI', testrecipe)
+        self.assertIn('git://', src_uri, 'This test expects the %s recipe to be a git recipe' % testrecipe)
+        for entry in src_uri.split():
+            if entry.startswith('git://'):
+                git_uri = entry
+                break
+        result = runCmd('git status . --porcelain', cwd=os.path.dirname(recipefile))
+        self.assertEqual(result.output.strip(), "", '%s recipe is not clean' % testrecipe)
+        # First, modify a recipe
+        tempdir = tempfile.mkdtemp(prefix='devtoolqa')
+        tempsrcdir = os.path.join(tempdir, 'source')
+        templayerdir = os.path.join(tempdir, 'layer')
+        self.track_for_cleanup(tempdir)
+        self.track_for_cleanup(workspacedir)
+        self.add_command_to_tearDown('bitbake-layers remove-layer */workspace')
+        # (don't bother with cleaning the recipe on teardown, we won't be building it)
+        result = runCmd('devtool modify %s -x %s' % (testrecipe, tempsrcdir))
+        # Check git repo
+        self.assertTrue(os.path.isdir(os.path.join(tempsrcdir, '.git')), 'git repository for external source tree not found')
+        result = runCmd('git status --porcelain', cwd=tempsrcdir)
+        self.assertEqual(result.output.strip(), "", 'Created git repo is not clean')
+        result = runCmd('git symbolic-ref HEAD', cwd=tempsrcdir)
+        self.assertEqual(result.output.strip(), "refs/heads/devtool", 'Wrong branch in git repo')
+        # Add a commit
+        result = runCmd('echo "# Additional line" >> Makefile', cwd=tempsrcdir)
+        result = runCmd('git commit -a -m "Change the Makefile"', cwd=tempsrcdir)
+        self.add_command_to_tearDown('cd %s; rm -f %s/*.patch; git checkout .' % (os.path.dirname(recipefile), testrecipe))
+        # Create a temporary layer
+        os.makedirs(os.path.join(templayerdir, 'conf'))
+        with open(os.path.join(templayerdir, 'conf', 'layer.conf'), 'w') as f:
+            f.write('BBPATH .= ":${LAYERDIR}"\n')
+            f.write('BBFILES += "${LAYERDIR}/recipes-*/*/*.bbappend"\n')
+            f.write('BBFILE_COLLECTIONS += "oeselftesttemplayer"\n')
+            f.write('BBFILE_PATTERN_oeselftesttemplayer = "^${LAYERDIR}/"\n')
+            f.write('BBFILE_PRIORITY_oeselftesttemplayer = "999"\n')
+            f.write('BBFILE_PATTERN_IGNORE_EMPTY_oeselftesttemplayer = "1"\n')
+        self.add_command_to_tearDown('bitbake-layers remove-layer %s || true' % templayerdir)
+        result = runCmd('bitbake-layers add-layer %s' % templayerdir, cwd=self.builddir)
+        # Create the bbappend
+        result = runCmd('devtool update-recipe %s -a %s' % (testrecipe, templayerdir))
+        self.assertNotIn('WARNING:', result.output)
+        # Check recipe is still clean
+        result = runCmd('git status . --porcelain', cwd=os.path.dirname(recipefile))
+        self.assertEqual(result.output.strip(), "", '%s recipe is not clean' % testrecipe)
+        # Check bbappend was created
+        splitpath = os.path.dirname(recipefile).split(os.sep)
+        appenddir = os.path.join(templayerdir, splitpath[-2], splitpath[-1])
+        bbappendfile = self._check_bbappend(testrecipe, recipefile, appenddir)
+        self.assertFalse(os.path.exists(os.path.join(appenddir, testrecipe)), 'Patch directory should not be created')
+
+        # Check bbappend contents
+        result = runCmd('git rev-parse HEAD', cwd=tempsrcdir)
+        expectedlines = ['SRCREV = "%s"\n' % result.output,
+                         '\n',
+                         'SRC_URI = "%s"\n' % git_uri,
+                         '\n']
+        with open(bbappendfile, 'r') as f:
+            self.assertEqual(expectedlines, f.readlines())
+
+        # Check we can run it again and bbappend isn't modified
+        result = runCmd('devtool update-recipe %s -a %s' % (testrecipe, templayerdir))
+        with open(bbappendfile, 'r') as f:
+            self.assertEqual(expectedlines, f.readlines())
+        # Drop new commit and check SRCREV changes
+        result = runCmd('git reset HEAD^', cwd=tempsrcdir)
+        result = runCmd('devtool update-recipe %s -a %s' % (testrecipe, templayerdir))
+        self.assertFalse(os.path.exists(os.path.join(appenddir, testrecipe)), 'Patch directory should not be created')
+        result = runCmd('git rev-parse HEAD', cwd=tempsrcdir)
+        expectedlines = ['SRCREV = "%s"\n' % result.output,
+                         '\n',
+                         'SRC_URI = "%s"\n' % git_uri,
+                         '\n']
+        with open(bbappendfile, 'r') as f:
+            self.assertEqual(expectedlines, f.readlines())
+        # Put commit back and check we can run it if layer isn't in bblayers.conf
+        os.remove(bbappendfile)
+        result = runCmd('git commit -a -m "Change the Makefile"', cwd=tempsrcdir)
+        result = runCmd('bitbake-layers remove-layer %s' % templayerdir, cwd=self.builddir)
+        result = runCmd('devtool update-recipe %s -a %s' % (testrecipe, templayerdir))
+        self.assertIn('WARNING: Specified layer is not currently enabled in bblayers.conf', result.output)
+        self.assertFalse(os.path.exists(os.path.join(appenddir, testrecipe)), 'Patch directory should not be created')
+        result = runCmd('git rev-parse HEAD', cwd=tempsrcdir)
+        expectedlines = ['SRCREV = "%s"\n' % result.output,
+                         '\n',
+                         'SRC_URI = "%s"\n' % git_uri,
+                         '\n']
+        with open(bbappendfile, 'r') as f:
+            self.assertEqual(expectedlines, f.readlines())
+        # Deleting isn't expected to work under these circumstances
 
     def test_devtool_extract(self):
         # Check preconditions

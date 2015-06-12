@@ -29,12 +29,18 @@ from glob import glob
 from shutil import rmtree
 
 from oeqa.selftest.base import oeSelfTest
-from oeqa.utils.commands import runCmd
+from oeqa.utils.commands import runCmd, bitbake
 
 class Wic(oeSelfTest):
     """Wic test class."""
 
     resultdir = "/var/tmp/wic/build/"
+
+    @classmethod
+    def setUpClass(cls):
+        """Build wic runtime dependencies and images used in the tests."""
+        bitbake('syslinux syslinux-native parted-native gptfdisk-native '
+                'dosfstools-native mtools-native core-image-minimal')
 
     def setUp(self):
         """This code is executed before each test method."""
@@ -66,4 +72,10 @@ class Wic(oeSelfTest):
                                    "-n tmp/sysroots/x86_64-linux "
                                    "-r tmp/work/qemux86-poky-linux/"
                                    "core-image-minimal/1.0-r0/rootfs").status)
+        self.assertEqual(1, len(glob(self.resultdir + "directdisk-*.direct")))
+
+    def test06_gpt_image(self):
+        """Test creation of core-image-minimal with gpt table and UUID boot"""
+        self.assertEqual(0, runCmd("wic create directdisk-gpt "
+                                   "--image-name core-image-minimal").status)
         self.assertEqual(1, len(glob(self.resultdir + "directdisk-*.direct")))

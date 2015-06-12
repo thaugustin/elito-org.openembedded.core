@@ -47,7 +47,6 @@ class BootimgEFIPlugin(SourcePlugin):
         else:
             splashline = ""
 
-        (rootdev, root_part_uuid) = cr._get_boot_config()
         options = cr.ks.handler.bootloader.appendLine
 
         grubefi_conf = ""
@@ -61,13 +60,8 @@ class BootimgEFIPlugin(SourcePlugin):
 
         kernel = "/bzImage"
 
-        if cr._ptable_format == 'msdos':
-            rootstr = rootdev
-        else:
-            raise ImageError("Unsupported partition table format found")
-
         grubefi_conf += "linux %s root=%s rootwait %s\n" \
-            % (kernel, rootstr, options)
+            % (kernel, cr.rootdev, options)
         grubefi_conf += "}\n"
 
         msger.debug("Writing grubefi config %s/hdd/boot/EFI/BOOT/grub.cfg" \
@@ -87,7 +81,6 @@ class BootimgEFIPlugin(SourcePlugin):
         install_cmd = "install -d %s/loader/entries" % hdddir
         exec_cmd(install_cmd)
 
-        (rootdev, root_part_uuid) = cr._get_boot_config()
         options = cr.ks.handler.bootloader.appendLine
 
         timeout = kickstart.get_timeout(cr.ks)
@@ -106,16 +99,10 @@ class BootimgEFIPlugin(SourcePlugin):
 
         kernel = "/bzImage"
 
-        if cr._ptable_format == 'msdos':
-            rootstr = rootdev
-        else:
-            raise ImageError("Unsupported partition table format found")
-
         boot_conf = ""
         boot_conf += "title boot\n"
         boot_conf += "linux %s\n" % kernel
-        boot_conf += "options LABEL=Boot root=%s %s\n" \
-            % (rootstr, options)
+        boot_conf += "options LABEL=Boot root=%s %s\n" % (cr.rootdev, options)
 
         msger.debug("Writing gummiboot config %s/hdd/boot/loader/entries/boot.conf" \
                         % cr_workdir)

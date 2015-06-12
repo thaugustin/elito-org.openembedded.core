@@ -44,8 +44,12 @@ class BootimgPcbiosPlugin(SourcePlugin):
         disk image.  In this case, we install the MBR.
         """
         mbrfile = "%s/syslinux/" % bootimg_dir
-        if cr._ptable_format == 'msdos':
+        if cr.ptable_format == 'msdos':
             mbrfile += "mbr.bin"
+        elif cr.ptable_format == 'gpt':
+            mbrfile += "gptmbr.bin"
+        else:
+            msger.error("Unsupported partition table: %s" % cr.ptable_format)
 
         if not os.path.exists(mbrfile):
             msger.error("Couldn't find %s.  If using the -e option, do you have the right MACHINE set in local.conf?  If not, is the bootimg_dir path correct?" % mbrfile)
@@ -79,7 +83,6 @@ class BootimgPcbiosPlugin(SourcePlugin):
         else:
             splashline = ""
 
-        (rootdev, root_part_uuid) = cr._get_boot_config()
         options = cr.ks.handler.bootloader.appendLine
 
         syslinux_conf = ""
@@ -100,12 +103,8 @@ class BootimgPcbiosPlugin(SourcePlugin):
         kernel = "/vmlinuz"
         syslinux_conf += "KERNEL " + kernel + "\n"
 
-        if cr._ptable_format == 'msdos':
-            rootstr = rootdev
-        else:
-            raise ImageError("Unsupported partition table format found")
-
-        syslinux_conf += "APPEND label=boot root=%s %s\n" % (rootstr, options)
+        syslinux_conf += "APPEND label=boot root=%s %s\n" % \
+                             (cr.rootdev, options)
 
         msger.debug("Writing syslinux config %s/hdd/boot/syslinux.cfg" \
                     % cr_workdir)

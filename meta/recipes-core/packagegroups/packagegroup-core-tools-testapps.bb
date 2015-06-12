@@ -57,8 +57,6 @@ RDEPENDS_${PN} = "\
     blktool \
     lrzsz \
     ${KEXECTOOLS} \
-    gst-meta-video \
-    gst-meta-audio \
     ltp \
     connman-tools \
     connman-tests \

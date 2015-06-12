@@ -30,7 +30,7 @@ WARN_QA ?= "ldflags useless-rpaths rpaths staticdev libdir xorg-driver-abi \
             textrel already-stripped incompatible-license files-invalid \
             installed-vs-shipped compile-host-path install-host-path \
             pn-overrides infodir build-deps file-rdeps pkgconfig-nosysroot \
-            unknown-configure-option symlink-to-sysroot \
+            unknown-configure-option symlink-to-sysroot multilib \
             "
 ERROR_QA ?= "dev-so debug-deps dev-deps debug-files arch pkgconfig la \
             perms dep-cmp pkgvarcheck perm-config perm-line perm-link \
@@ -457,6 +457,11 @@ def package_qa_check_arch(path,name,d, elf, messages):
     target_arch = d.getVar('TARGET_ARCH', True)
     provides = d.getVar('PROVIDES', True)
     bpn = d.getVar('BPN', True)
+
+    if target_arch == "allarch":
+        pn = d.getVar('PN', True)
+        messages["arch"] = pn + ": Recipe inherits the allarch class, but has packaged architecture-specific binaries"
+        return
 
     # FIXME: Cross package confuse this check, so just skip them
     for s in ['cross', 'nativesdk', 'cross-canadian']:

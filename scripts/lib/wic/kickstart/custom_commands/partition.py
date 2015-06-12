@@ -26,6 +26,7 @@
 
 import os
 import tempfile
+import uuid
 
 from pykickstart.commands.partition import *
 from wic.utils.oe.misc import *
@@ -51,6 +52,9 @@ class Wic_PartData(Mic_PartData):
         self.no_table = kwargs.get("no-table", False)
         self.extra_space = kwargs.get("extra-space", "10M")
         self.overhead_factor = kwargs.get("overhead-factor", 1.3)
+        self._use_uuid = False
+        self.uuid = None
+        self.use_uuid = kwargs.get("use-uuid", False)
         self.source_file = ""
         self.size = 0
 
@@ -65,10 +69,22 @@ class Wic_PartData(Mic_PartData):
                 retval += " --rootfs-dir=%s" % self.rootfs
         if self.no_table:
             retval += " --no-table"
-        retval += " --extra-space=%d" % self.extra_space
+        if self.use_uuid:
+            retval += " --use-uuid"
+        retval += " --extra-space=%s" % self.extra_space
         retval += " --overhead-factor=%f" % self.overhead_factor
 
         return retval
+
+    @property
+    def use_uuid(self):
+        return self._use_uuid
+
+    @use_uuid.setter
+    def use_uuid(self, value):
+        self._use_uuid = value
+        if value and not self.uuid:
+            self.uuid = str(uuid.uuid4())
 
     def get_rootfs(self):
         """
@@ -230,6 +246,7 @@ class Wic_PartData(Mic_PartData):
         image_rootfs = rootfs_dir
         rootfs = "%s/rootfs_%s.%s" % (cr_workdir, self.label ,self.fstype)
 
+        os.path.isfile(rootfs) and os.remove(rootfs)
         du_cmd = "du -ks %s" % image_rootfs
         out = exec_cmd(du_cmd)
         actual_rootfs_size = int(out.split()[0])
@@ -256,10 +273,7 @@ class Wic_PartData(Mic_PartData):
 
         mkfs_cmd = "mkfs.%s -F %s %s %s -d %s" % \
             (self.fstype, extra_imagecmd, rootfs, label_str, image_rootfs)
-        (rc, out) = exec_native_cmd(pseudo + mkfs_cmd, native_sysroot)
-        if rc:
-            print "rootfs_dir: %s" % rootfs_dir
-            msger.error("ERROR: mkfs.%s returned '%s' instead of 0 (which you probably don't want to ignore, use --debug for details) when creating filesystem from rootfs directory: %s" % (self.fstype, rc, rootfs_dir))
+        exec_native_cmd(pseudo + mkfs_cmd, native_sysroot)
 
         # get the rootfs size in the right units for kickstart (kB)
         du_cmd = "du -Lbks %s" % rootfs
@@ -281,6 +295,7 @@ class Wic_PartData(Mic_PartData):
         image_rootfs = rootfs_dir
         rootfs = "%s/rootfs_%s.%s" % (cr_workdir, self.label, self.fstype)
 
+        os.path.isfile(rootfs) and os.remove(rootfs)
         du_cmd = "du -ks %s" % image_rootfs
         out = exec_cmd(du_cmd)
         actual_rootfs_size = int(out.split()[0])
@@ -305,9 +320,7 @@ class Wic_PartData(Mic_PartData):
 
         mkfs_cmd = "mkfs.%s -b %d -r %s %s %s" % \
             (self.fstype, rootfs_size * 1024, image_rootfs, label_str, rootfs)
-        (rc, out) = exec_native_cmd(pseudo + mkfs_cmd, native_sysroot)
-        if rc:
-            msger.error("ERROR: mkfs.%s returned '%s' instead of 0 (which you probably don't want to ignore, use --debug for details) when creating filesystem from rootfs directory: %s" % (self.fstype, rc, rootfs_dir))
+        exec_native_cmd(pseudo + mkfs_cmd, native_sysroot)
 
         # get the rootfs size in the right units for kickstart (kB)
         du_cmd = "du -Lbks %s" % rootfs
@@ -325,6 +338,7 @@ class Wic_PartData(Mic_PartData):
         image_rootfs = rootfs_dir
         rootfs = "%s/rootfs_%s.%s" % (cr_workdir, self.label, self.fstype)
 
+        os.path.isfile(rootfs) and os.remove(rootfs)
         du_cmd = "du -bks %s" % image_rootfs
         out = exec_cmd(du_cmd)
         blocks = int(out.split()[0])
@@ -354,9 +368,7 @@ class Wic_PartData(Mic_PartData):
         exec_native_cmd(dosfs_cmd, native_sysroot)
 
         mcopy_cmd = "mcopy -i %s -s %s/* ::/" % (rootfs, image_rootfs)
-        rc, out = exec_native_cmd(mcopy_cmd, native_sysroot)
-        if rc:
-            msger.error("ERROR: mcopy returned '%s' instead of 0 (which you probably don't want to ignore, use --debug for details)" % rc)
+        exec_native_cmd(mcopy_cmd, native_sysroot)
 
         chmod_cmd = "chmod 644 %s" % rootfs
         exec_cmd(chmod_cmd)
@@ -377,6 +389,7 @@ class Wic_PartData(Mic_PartData):
         image_rootfs = rootfs_dir
         rootfs = "%s/rootfs_%s.%s" % (cr_workdir, self.label ,self.fstype)
 
+        os.path.isfile(rootfs) and os.remove(rootfs)
         squashfs_cmd = "mksquashfs %s %s -noappend" % \
                        (image_rootfs, rootfs)
         exec_native_cmd(pseudo + squashfs_cmd, native_sysroot)
@@ -415,6 +428,7 @@ class Wic_PartData(Mic_PartData):
         """
         fs = "%s/fs_%s.%s" % (cr_workdir, self.label, self.fstype)
 
+        os.path.isfile(fs) and os.remove(fs)
         dd_cmd = "dd if=/dev/zero of=%s bs=1k seek=%d count=0" % \
             (fs, self.size)
         exec_cmd(dd_cmd)
@@ -427,9 +441,7 @@ class Wic_PartData(Mic_PartData):
 
         mkfs_cmd = "mkfs.%s -F %s %s %s" % \
             (self.fstype, extra_imagecmd, label_str, fs)
-        (rc, out) = exec_native_cmd(mkfs_cmd, native_sysroot)
-        if rc:
-            msger.error("ERROR: mkfs.%s returned '%s' instead of 0 (which you probably don't want to ignore, use --debug for details)" % (self.fstype, rc))
+        exec_native_cmd(mkfs_cmd, native_sysroot)
 
         self.source_file = fs
 
@@ -442,6 +454,7 @@ class Wic_PartData(Mic_PartData):
         """
         fs = "%s/fs_%s.%s" % (cr_workdir, self.label, self.fstype)
 
+        os.path.isfile(fs) and os.remove(fs)
         dd_cmd = "dd if=/dev/zero of=%s bs=1k seek=%d count=0" % \
             (fs, self.size)
         exec_cmd(dd_cmd)
@@ -452,9 +465,7 @@ class Wic_PartData(Mic_PartData):
 
         mkfs_cmd = "mkfs.%s -b %d %s %s" % \
             (self.fstype, self.size * 1024, label_str, fs)
-        (rc, out) = exec_native_cmd(mkfs_cmd, native_sysroot)
-        if rc:
-            msger.error("ERROR: mkfs.%s returned '%s' instead of 0 (which you probably don't want to ignore, use --debug for details)" % (self.fstype, rc))
+        exec_native_cmd(mkfs_cmd, native_sysroot)
 
         self.source_file = fs
 
@@ -466,6 +477,7 @@ class Wic_PartData(Mic_PartData):
         Prepare an empty vfat partition.
         """
         fs = "%s/fs_%s.%s" % (cr_workdir, self.label, self.fstype)
+        os.path.isfile(fs) and os.remove(fs)
 
         blocks = self.size
 
@@ -492,6 +504,7 @@ class Wic_PartData(Mic_PartData):
                       "Proceeding as requested." % self.mountpoint)
 
         fs = "%s/fs_%s.%s" % (cr_workdir, self.label, self.fstype)
+        os.path.isfile(fs) and os.remove(fs)
 
         # it is not possible to create a squashfs without source data,
         # thus prepare an empty temp dir that is used as source
@@ -564,4 +577,7 @@ class Wic_Partition(Mic_Partition):
         op.add_option("--overhead-factor", dest="overhead_factor",
                       action="callback", callback=overhead_cb, type="float",
                       nargs=1, default=1.3)
+        op.add_option("--use-uuid", dest="use_uuid", action="store_true",
+                      default=False)
+
         return op
