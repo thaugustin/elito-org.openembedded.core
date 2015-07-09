@@ -2,7 +2,8 @@ SUMMARY = "OpenGL driver testing framework"
 LICENSE = "MIT & LGPLv2+ & GPLv3 & GPLv2+ & BSD-3-Clause"
 LIC_FILES_CHKSUM = "file://COPYING;md5=b2beded7103a3d8a442a2a0391d607b0"
 
-SRC_URI = "git://anongit.freedesktop.org/piglit"
+SRC_URI = "git://anongit.freedesktop.org/piglit \
+           file://0001-tests-Fix-missing-include-of-Xutil.h.patch"
 
 # From 2014/12/04
 SRCREV = "126c7d049b8f32e541625d5a35fbc5f5e4e7fbf8"
@@ -19,6 +20,12 @@ REQUIRED_DISTRO_FEATURES = "x11"
 
 PACKAGECONFIG ??= ""
 PACKAGECONFIG[freeglut] = "-DPIGLIT_USE_GLUT=1,-DPIGLIT_USE_GLUT=0,freeglut,"
+
+do_configure_prepend() {
+   if [ "${@bb.utils.contains('PACKAGECONFIG', 'freeglut', 'yes', 'no', d)}" = "no" ]; then
+        sed -i -e "/^#.*include <GL\/freeglut_ext.h>$/d" ${S}/src/piglit/glut_wrap.h
+   fi
+}
 
 FILES_${PN}-dbg += "${libdir}/piglit/*/.debug/"
 

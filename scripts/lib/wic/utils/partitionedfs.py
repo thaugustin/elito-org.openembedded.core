@@ -18,6 +18,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc., 59
 # Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+import os
 from wic import msger
 from wic.utils.errors import ImageError
 from wic.utils.oe.misc import exec_cmd, exec_native_cmd
@@ -301,9 +302,8 @@ class Image(object):
                 msger.debug("partition %d: set UUID to %s" % \
                             (p['num'], p['uuid']))
                 exec_native_cmd("sgdisk --partition-guid=%d:%s %s" % \
-                                         (p['num'], p['uuid'],
-                                          d['disk'].device),
-                                        self.native_sysroot)
+                                (p['num'], p['uuid'], d['disk'].device),
+                                self.native_sysroot)
 
             if p['boot']:
                 flag_name = "legacy_boot" if d['ptable_format'] == 'gpt' else "boot"
@@ -333,29 +333,24 @@ class Image(object):
                 except:
                     pass
 
-    def __write_partition(self, num, source_file, start, size, image_file):
-        """
-        Install source_file contents into a partition.
-        """
-        if not source_file: # nothing to write
-            return
-
-        # Start is included in the size so need to substract one from the end.
-        end = start + size - 1
-        msger.debug("Installed %s in partition %d, sectors %d-%d, "
-                    "size %d sectors" % (source_file, num, start, end, size))
-
-        dd_cmd = "dd if=%s of=%s bs=%d seek=%d count=%d conv=notrunc" % \
-            (source_file, image_file, self.sector_size, start, size)
-        exec_cmd(dd_cmd)
-
-
     def assemble(self, image_file):
         msger.debug("Installing partitions")
 
-        for p in self.partitions:
-            self.__write_partition(p['num'], p['source_file'],
-                                   p['start'], p['size'], image_file)
+        for part in self.partitions:
+            source = part['source_file']
+            if source:
+                # install source_file contents into a partition
+                cmd = "dd if=%s of=%s bs=%d seek=%d count=%d conv=notrunc" % \
+                      (source, image_file, self.sector_size,
+                       part['start'], part['size'])
+                exec_cmd(cmd)
+
+                msger.debug("Installed %s in partition %d, sectors %d-%d, "
+                            "size %d sectors" % \
+                            (source, part['num'], part['start'],
+                             part['start'] + part['size'] - 1, part['size']))
+
+                os.rename(source, image_file + '.p%d' % part['num'])
 
     def create(self):
         for dev in self.disks.keys():

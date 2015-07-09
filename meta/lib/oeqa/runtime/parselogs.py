@@ -59,6 +59,9 @@ ignore_errors = {
         'Failed to load module "glx"',
         'pci 0000:00:00.0: [Firmware Bug]: reg 0x..: invalid BAR (can\'t size)',
         ] + common_errors,
+    'qemumips64' : [
+        'pci 0000:00:00.0: [Firmware Bug]: reg 0x..: invalid BAR (can\'t size)',
+         ] + common_errors,
     'qemuppc' : [
         'PCI 0000:00 Cannot reserve Legacy IO [io  0x0000-0x0fff]',
         'host side 80-wire cable detection failed, limiting max speed',
@@ -69,6 +72,10 @@ ignore_errors = {
         'mmci-pl18x: probe of fpga:05 failed with error -22',
         'mmci-pl18x: probe of fpga:0b failed with error -22',
         'Failed to load module "glx"'
+        ] + common_errors,
+    'qemuarm64' : [
+        'Fatal server error:',
+        '(EE) Server terminated with error (1). Closing log file.',
         ] + common_errors,
     'emenlow' : [
         '[Firmware Bug]: ACPI: No _BQC method, cannot determine initial brightness',
@@ -198,6 +205,7 @@ class ParseLogsTest(oeRuntimeTest):
     def parse_logs(self, errors, ignore_errors, logs, lines_before = 10, lines_after = 10):
         results = {}
         rez = []
+        grep_output = ''
         for log in logs:
             result = None
             thegrep = self.build_grepcmd(errors, ignore_errors, log)
@@ -211,10 +219,10 @@ class ParseLogsTest(oeRuntimeTest):
                 for xrez in rez:
                     command = "grep \"\\"+str(xrez)+"\" -B "+str(lines_before)+" -A "+str(lines_after)+" "+str(log)
                     try:
-                        yrez = subprocess.check_output(command, shell=True)
+                        grep_output = subprocess.check_output(command, shell=True)
                     except:
                         pass
-                    results[log.replace('target_logs/','')][xrez]=yrez
+                    results[log.replace('target_logs/','')][xrez]=grep_output
         return results
 
     #get the output of dmesg and write it in a file. This file is added to log_locations.

@@ -66,7 +66,7 @@ sstate_hardcode_path[dirs] = "${SSTATE_BUILDDIR}"
 
 python () {
     if bb.data.inherits_class('native', d):
-        d.setVar('SSTATE_PKGARCH', d.getVar('BUILD_ARCH'))
+        d.setVar('SSTATE_PKGARCH', d.getVar('BUILD_ARCH', False))
     elif bb.data.inherits_class('crosssdk', d):
         d.setVar('SSTATE_PKGARCH', d.expand("${BUILD_ARCH}_${SDK_ARCH}_${SDK_OS}"))
     elif bb.data.inherits_class('cross', d):
@@ -739,7 +739,7 @@ def sstate_checkhashes(sq_fn, sq_task, sq_hash, sq_hashfn, d, siginfo=False):
         if localdata.getVar('BB_NO_NETWORK', True) == "1" and localdata.getVar('SSTATE_MIRROR_ALLOW_NETWORK', True) == "1":
             localdata.delVar('BB_NO_NETWORK')
 
-        def checkstatus(arg):
+        def checkstatus(thread_worker, arg):
             (task, sstatefile) = arg
 
             localdata2 = bb.data.createCopy(localdata)
@@ -771,9 +771,10 @@ def sstate_checkhashes(sq_fn, sq_task, sq_hash, sq_hashfn, d, siginfo=False):
             bb.note("Checking sstate mirror object availability (for %s objects)" % len(tasklist))
             import multiprocessing
             nproc = min(multiprocessing.cpu_count(), len(tasklist))
-            pool = oe.utils.ThreadedPool(nproc)
+            pool = oe.utils.ThreadedPool(nproc, len(tasklist))
             for t in tasklist:
                 pool.add_task(checkstatus, t)
+            pool.start()
             pool.wait_completion()
 
     inheritlist = d.getVar("INHERIT", True)
@@ -895,7 +896,7 @@ python sstate_eventhandler2() {
     import glob
     d = e.data
     stamps = e.stamps.values()
-    removeworkdir = (d.getVar("SSTATE_PRUNE_OBSOLETEWORKDIR") == "1")
+    removeworkdir = (d.getVar("SSTATE_PRUNE_OBSOLETEWORKDIR", False) == "1")
     seen = []
     for a in d.getVar("SSTATE_ARCHS", True).split():
         toremove = []

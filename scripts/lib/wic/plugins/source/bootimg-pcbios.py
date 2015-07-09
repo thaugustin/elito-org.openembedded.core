@@ -34,10 +34,14 @@ from wic.utils.oe.misc import exec_cmd, exec_native_cmd, \
                               get_bitbake_var, BOOTDD_EXTRA_SPACE
 
 class BootimgPcbiosPlugin(SourcePlugin):
+    """
+    Create MBR boot partition and install syslinux on it.
+    """
+
     name = 'bootimg-pcbios'
 
     @classmethod
-    def do_install_disk(self, disk, disk_name, cr, workdir, oe_builddir,
+    def do_install_disk(cls, disk, disk_name, cr, workdir, oe_builddir,
                         bootimg_dir, kernel_dir, native_sysroot):
         """
         Called after all partitions have been prepared and assembled into a
@@ -52,7 +56,9 @@ class BootimgPcbiosPlugin(SourcePlugin):
             msger.error("Unsupported partition table: %s" % cr.ptable_format)
 
         if not os.path.exists(mbrfile):
-            msger.error("Couldn't find %s.  If using the -e option, do you have the right MACHINE set in local.conf?  If not, is the bootimg_dir path correct?" % mbrfile)
+            msger.error("Couldn't find %s.  If using the -e option, do you "
+                        "have the right MACHINE set in local.conf?  If not, "
+                        "is the bootimg_dir path correct?" % mbrfile)
 
         full_path = cr._full_path(workdir, disk_name, "direct")
         msger.debug("Installing MBR on disk %s as %s with size %s bytes" \
@@ -64,7 +70,7 @@ class BootimgPcbiosPlugin(SourcePlugin):
             raise ImageError("Unable to set MBR to %s" % full_path)
 
     @classmethod
-    def do_configure_partition(self, part, source_params, cr, cr_workdir,
+    def do_configure_partition(cls, part, source_params, cr, cr_workdir,
                                oe_builddir, bootimg_dir, kernel_dir,
                                native_sysroot):
         """
@@ -113,7 +119,7 @@ class BootimgPcbiosPlugin(SourcePlugin):
         cfg.close()
 
     @classmethod
-    def do_prepare_partition(self, part, source_params, cr, cr_workdir,
+    def do_prepare_partition(cls, part, source_params, cr, cr_workdir,
                              oe_builddir, bootimg_dir, kernel_dir,
                              rootfs_dir, native_sysroot):
         """
