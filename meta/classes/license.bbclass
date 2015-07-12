@@ -175,6 +175,7 @@ def add_package_and_files(d):
 
 def copy_license_files(lic_files_paths, destdir):
     import shutil
+    import errno
 
     bb.utils.mkdirhier(destdir)
     for (basename, path) in lic_files_paths:
@@ -183,8 +184,14 @@ def copy_license_files(lic_files_paths, destdir):
             dst = os.path.join(destdir, basename)
             if os.path.exists(dst):
                 os.remove(dst)
-            if os.access(src, os.W_OK) and (os.stat(src).st_dev == os.stat(destdir).st_dev):
-                os.link(src, dst)
+            if os.access(src, os.W_OK):
+                try:
+                    os.link(src, dst)
+                except OSError as e:
+                    if e.errno != errno.EXDEV:
+                        raise e
+
+                    shutil.copyfile(src, dst)
             else:
                 shutil.copyfile(src, dst)
         except Exception as e:
