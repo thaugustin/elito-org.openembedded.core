@@ -211,9 +211,9 @@ kernel_do_compile() {
 
 do_compile_kernelmodules() {
 	unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS MACHINE
-	if (grep -q -i -e '^CONFIG_MODULES=y$' .config); then
+	if (grep -q -i -e '^CONFIG_MODULES=y$' ${B}/.config); then
 		install -d ${D}/lib/firmware
-		oe_runmake ${PARALLEL_MAKE} modules CC="${KERNEL_CC}" LD="${KERNEL_LD}" ${KERNEL_EXTRA_ARGS}
+		oe_runmake -C ${B} ${PARALLEL_MAKE} modules CC="${KERNEL_CC}" LD="${KERNEL_LD}" ${KERNEL_EXTRA_ARGS}
 		rmdir ${D}/lib/firmware || :
 	else
 		bbnote "no modules to compile"
@@ -262,7 +262,7 @@ emit_depmod_pkgdata() {
 	# Stash data for depmod
 	install -d ${PKGDESTWORK}/kernel-depmod/
 	echo "${KERNEL_VERSION}" > ${PKGDESTWORK}/kernel-depmod/kernel-abiversion
-	cp System.map ${PKGDESTWORK}/kernel-depmod/System.map-${KERNEL_VERSION}
+	cp ${B}/System.map ${PKGDESTWORK}/kernel-depmod/System.map-${KERNEL_VERSION}
 }
 
 PACKAGEFUNCS += "emit_depmod_pkgdata"
@@ -338,7 +338,7 @@ kernel_do_configure() {
 }
 
 do_savedefconfig() {
-	oe_runmake savedefconfig
+	oe_runmake -C ${B} savedefconfig
 }
 do_savedefconfig[nostamp] = "1"
 addtask savedefconfig after do_configure

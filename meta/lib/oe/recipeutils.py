@@ -617,10 +617,11 @@ def find_layerdir(fn):
 def replace_dir_vars(path, d):
     """Replace common directory paths with appropriate variable references (e.g. /etc becomes ${sysconfdir})"""
     dirvars = {}
-    for var in d:
+    # Sort by length so we get the variables we're interested in first
+    for var in sorted(d.keys(), key=len):
         if var.endswith('dir') and var.lower() == var:
             value = d.getVar(var, True)
-            if value.startswith('/') and not '\n' in value:
+            if value.startswith('/') and not '\n' in value and value not in dirvars:
                 dirvars[value] = var
     for dirpath in sorted(dirvars.keys(), reverse=True):
         path = path.replace(dirpath, '${%s}' % dirvars[dirpath])
@@ -667,8 +668,17 @@ def get_recipe_upstream_version(rd):
     ru['type'] = 'U'
     ru['datetime'] = ''
 
+    # XXX: If don't have SRC_URI means that don't have upstream sources so
+    # returns 1.0.
+    src_uris = rd.getVar('SRC_URI', True)
+    if not src_uris:
+        ru['version'] = '1.0'
+        ru['type'] = 'M'
+        ru['datetime'] = datetime.now()
+        return ru
+
     # XXX: we suppose that the first entry points to the upstream sources
-    src_uri = rd.getVar('SRC_URI', True).split()[0] 
+    src_uri = src_uris.split()[0]
     uri_type, _, _, _, _, _ =  decodeurl(src_uri)
 
     pv = rd.getVar('PV', True)
