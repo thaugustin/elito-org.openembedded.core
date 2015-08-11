@@ -10,6 +10,7 @@ import subprocess
 import bb
 import traceback
 import sys
+import logging
 from oeqa.utils.sshcontrol import SSHControl
 from oeqa.utils.qemurunner import QemuRunner
 from oeqa.utils.qemutinyrunner import QemuTinyRunner
@@ -123,6 +124,16 @@ class QemuTarget(BaseTarget):
         self.rootfs = os.path.join(self.testdir, d.getVar("IMAGE_LINK_NAME", True) + '-testimage.' + self.image_fstype)
         self.kernel = os.path.join(d.getVar("DEPLOY_DIR_IMAGE", True), d.getVar("KERNEL_IMAGETYPE", False) + '-' + d.getVar('MACHINE', False) + '.bin')
 
+        # Log QemuRunner log output to a file
+        import oe.path
+        bb.utils.mkdirhier(self.testdir)
+        self.qemurunnerlog = os.path.join(self.testdir, 'qemurunner_log.%s' % self.datetime)
+        logger = logging.getLogger('BitBake.QemuRunner')
+        loggerhandler = logging.FileHandler(self.qemurunnerlog)
+        loggerhandler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+        logger.addHandler(loggerhandler)
+        oe.path.symlink(os.path.basename(self.qemurunnerlog), os.path.join(self.testdir, 'qemurunner_log'), force=True)
+
         if d.getVar("DISTRO", True) == "poky-tiny":
             self.runner = QemuTinyRunner(machine=d.getVar("MACHINE", True),
                             rootfs=self.rootfs,
@@ -143,6 +154,7 @@ class QemuTarget(BaseTarget):
 
     def deploy(self):
         try:
+            bb.utils.mkdirhier(self.testdir)
             shutil.copyfile(self.origrootfs, self.rootfs)
         except Exception as e:
             bb.fatal("Error copying rootfs: %s" % e)
@@ -163,6 +175,9 @@ class QemuTarget(BaseTarget):
             self.connection = SSHControl(ip=self.ip, logfile=self.sshlog)
         else:
             self.stop()
+            if os.path.exists(self.qemulog):
+                with open(self.qemulog, 'r') as f:
+                    bb.error("Qemu log output from %s:\n%s" % (self.qemulog, f.read()))
             raise bb.build.FuncFailed("%s - FAILED to start qemu - check the task log and the boot log" % self.pn)
 
     def stop(self):

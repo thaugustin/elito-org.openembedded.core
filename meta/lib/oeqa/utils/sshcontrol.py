@@ -31,6 +31,12 @@ class SSHProcess(object):
         self.starttime = None
         self.logfile = None
 
+        # Unset DISPLAY which means we won't trigger SSH_ASKPASS
+        env = os.environ.copy()
+        if "DISPLAY" in env:
+            del env['DISPLAY']
+        self.options['env'] = env
+
     def log(self, msg):
         if self.logfile:
             with open(self.logfile, "a") as f:
