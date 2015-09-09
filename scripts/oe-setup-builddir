@@ -25,6 +25,10 @@ fi
 
 mkdir -p "$BUILDDIR/conf"
 
+# Attempting to remove sticky and setuid bits from BUILDDIR and
+# BUILDDIR/conf directories. #TODO appropriate checks for this
+chmod -st "$BUILDDIR" "$BUILDDIR/conf"
+
 if [ ! -d "$BUILDDIR" ]; then
     echo >&2 "Error: The builddir ($BUILDDIR) does not exist!"
     exit 1

@@ -21,13 +21,18 @@ SRC_URI = "\
     file://wacom.patch \
     file://add-ptest-in-makefile.patch \
     file://run-ptest \
+    file://cpus.c-qemu_mutex_lock_iothread-fix-race-condition-a.patch \
     "
 
 SRC_URI_append_class-native = "\
     file://fix-libcap-header-issue-on-some-distro.patch \
+    file://cpus.c-qemu_cpu_kick_thread_debugging.patch \
     "
 
 EXTRA_OECONF += "--target-list=${@get_qemu_target_list(d)} --disable-werror  --disable-bluez --disable-libiscsi --with-system-pixman --extra-cflags='${CFLAGS}'"
+
+EXTRA_OECONF_append_class-native = " --enable-debug --enable-debug-info"
+INHIBIT_SYSROOT_STRIP = "1"
 
 EXTRA_OECONF_class-nativesdk = "--target-list=${@get_qemu_target_list(d)} --disable-werror \
 				"
@@ -90,7 +95,8 @@ do_install_append() {
 # END of qemu-mips workaround
 
 PACKAGECONFIG ??= " \
-	fdt sdl alsa \
+	fdt sdl \
+	${@bb.utils.contains('DISTRO_FEATURES', 'alsa', 'alsa', '', d)} \
 	${@bb.utils.contains('DISTRO_FEATURES', 'xen', 'xen', '', d)} \
 	"
 PACKAGECONFIG_class-native ??= "fdt alsa uuid"

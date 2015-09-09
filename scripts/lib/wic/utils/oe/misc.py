@@ -26,6 +26,7 @@
 #
 """Miscellaneous functions."""
 
+import os
 from collections import defaultdict
 
 from wic import msger
@@ -40,19 +41,19 @@ NATIVE_RECIPES = {"mcopy": "mtools",
                   "mkfs.ext4": "e2fsprogs",
                   "mkfs.vfat": "dosfstools",
                   "mksquashfs": "squashfs-tools",
-                  "mkswqp": "util-linux",
+                  "mkswap": "util-linux",
                   "parted": "parted",
                   "sgdisk": "gptfdisk",
                   "syslinux": "syslinux"
                  }
 
-def __exec_cmd(cmd_and_args, as_shell=False, catch=3):
+def _exec_cmd(cmd_and_args, as_shell=False, catch=3):
     """
     Execute command, catching stderr, stdout
 
     Need to execute as_shell if the command uses wildcards
     """
-    msger.debug("__exec_cmd: %s" % cmd_and_args)
+    msger.debug("_exec_cmd: %s" % cmd_and_args)
     args = cmd_and_args.split()
     msger.debug(args)
 
@@ -61,7 +62,7 @@ def __exec_cmd(cmd_and_args, as_shell=False, catch=3):
     else:
         ret, out = runner.runtool(args, catch)
     out = out.strip()
-    msger.debug("__exec_cmd: output for %s (rc = %d): %s" % \
+    msger.debug("_exec_cmd: output for %s (rc = %d): %s" % \
                 (cmd_and_args, ret, out))
 
     return (ret, out)
@@ -73,7 +74,7 @@ def exec_cmd(cmd_and_args, as_shell=False, catch=3):
 
     Exits if rc non-zero
     """
-    ret, out = __exec_cmd(cmd_and_args, as_shell, catch)
+    ret, out = _exec_cmd(cmd_and_args, as_shell, catch)
 
     if ret != 0:
         msger.error("exec_cmd: %s returned '%s' instead of 0" % \
@@ -99,7 +100,7 @@ def exec_native_cmd(cmd_and_args, native_sysroot, catch=3):
     args = cmd_and_args.split()
     msger.debug(args)
 
-    ret, out = __exec_cmd(native_cmd_and_args, True, catch)
+    ret, out = _exec_cmd(native_cmd_and_args, True, catch)
 
     if ret == 127: # shell command-not-found
         prog = args[0]
@@ -124,48 +125,90 @@ def exec_native_cmd(cmd_and_args, native_sysroot, catch=3):
 
 BOOTDD_EXTRA_SPACE = 16384
 
-_BITBAKE_VARS = defaultdict(dict)
+class BitbakeVars(defaultdict):
+    """
+    Container for Bitbake variables.
+    """
+    def __init__(self):
+        defaultdict.__init__(self, dict)
+
+        # default_image and vars_dir attributes should be set from outside
+        self.default_image = None
+        self.vars_dir = None
+
+    def _parse_line(self, line, image):
+        """
+        Parse one line from bitbake -e output or from .env file.
+        Put result key-value pair into the storage.
+        """
+        if "=" not in line:
+            return
+        try:
+            key, val = line.split("=")
+        except ValueError:
+            return
+        key = key.strip()
+        val = val.strip()
+        if key.replace('_', '').isalnum():
+            self[image][key] = val.strip('"')
+
+    def get_var(self, var, image=None):
+        """
+        Get bitbake variable from 'bitbake -e' output or from .env file.
+        This is a lazy method, i.e. it runs bitbake or parses file only when
+        only when variable is requested. It also caches results.
+        """
+        if not image:
+            image = self.default_image
+
+        if image not in self:
+            if image and self.vars_dir:
+                fname = os.path.join(self.vars_dir, image + '.env')
+                if os.path.isfile(fname):
+                    # parse .env file
+                    with open(fname) as varsfile:
+                        for line in varsfile:
+                            self._parse_line(line, image)
+                else:
+                    print "Couldn't get bitbake variable from %s." % fname
+                    print "File %s doesn't exist." % fname
+                    return
+            else:
+                # Get bitbake -e output
+                cmd = "bitbake -e"
+                if image:
+                    cmd += " %s" % image
+
+                log_level = msger.get_loglevel()
+                msger.set_loglevel('normal')
+                ret, lines = _exec_cmd(cmd)
+                msger.set_loglevel(log_level)
+
+                if ret:
+                    print "Couldn't get '%s' output." % cmd
+                    print "Bitbake failed with error:\n%s\n" % lines
+                    return
+
+                # Parse bitbake -e output
+                for line in lines.split('\n'):
+                    self._parse_line(line, image)
+
+            # Make first image a default set of variables
+            images = [key for key in self if key]
+            if len(images) == 1:
+                self[None] = self[image]
+
+        return self[image].get(var)
+
+# Create BB_VARS singleton
+BB_VARS = BitbakeVars()
 
 def get_bitbake_var(var, image=None):
     """
-    Get bitbake variable value lazy way, i.e. run
-    'bitbake -e' only when variable is requested.
+    Provide old get_bitbake_var API by wrapping
+    get_var method of BB_VARS singleton.
     """
-    if image not in _BITBAKE_VARS:
-        # Get bitbake -e output
-        cmd = "bitbake -e"
-        if image:
-            cmd += " %s" % image
-
-        log_level = msger.get_loglevel()
-        msger.set_loglevel('normal')
-        ret, lines = __exec_cmd(cmd)
-        msger.set_loglevel(log_level)
-
-        if ret:
-            print "Couldn't get '%s' output." % cmd
-            print "Bitbake failed with error:\n%s\n" % lines
-            return
-
-        # Parse bitbake -e output
-        for line in lines.split('\n'):
-            if "=" not in line:
-                continue
-            try:
-                key, val = line.split("=")
-            except ValueError:
-                continue
-            key = key.strip()
-            val = val.strip()
-            if key.replace('_', '').isalnum():
-                _BITBAKE_VARS[image][key] = val.strip('"')
-
-        # Make first image a default set of variables
-        images = [key for key in _BITBAKE_VARS if key]
-        if len(images) == 1:
-            _BITBAKE_VARS[None] = _BITBAKE_VARS[image]
-
-    return _BITBAKE_VARS[image].get(var)
+    return BB_VARS.get_var(var, image)
 
 def parse_sourceparams(sourceparams):
     """

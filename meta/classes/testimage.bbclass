@@ -56,6 +56,33 @@ TESTIMAGEDEPENDS_qemuall = "qemu-native:do_populate_sysroot qemu-helper-native:d
 TESTIMAGELOCK = "${TMPDIR}/testimage.lock"
 TESTIMAGELOCK_qemuall = ""
 
+TESTIMAGE_DUMP_DIR ?= "/tmp/oe-saved-tests/"
+
+testimage_dump_target () {
+    top -bn1
+    ps
+    free
+    df
+    # The next command will export the default gateway IP
+    export DEFAULT_GATEWAY=$(ip route | awk '/default/ { print $3}')
+    ping -c3 $DEFAULT_GATEWAY
+    dmesg
+    netstat -an
+    ip address
+    # Next command will dump logs from /var/log/
+    find /var/log/ -type f 2>/dev/null -exec echo "====================" \; -exec echo {} \; -exec echo "====================" \; -exec cat {} \; -exec echo "" \;
+}
+
+testimage_dump_host () {
+    top -bn1
+    ps -ef
+    free
+    df
+    memstat
+    dmesg
+    netstat -an
+}
+
 python do_testimage() {
     testimage_main(d)
 }
@@ -146,9 +173,10 @@ def exportTests(d,tc):
     savedata = {}
     savedata["d"] = {}
     savedata["target"] = {}
+    savedata["host_dumper"] = {}
     for key in tc.__dict__:
         # special cases
-        if key != "d" and key != "target":
+        if key != "d" and key != "target" and key != "host_dumper":
             savedata[key] = getattr(tc, key)
     savedata["target"]["ip"] = tc.target.ip or d.getVar("TEST_TARGET_IP", True)
     savedata["target"]["server_ip"] = tc.target.server_ip or d.getVar("TEST_SERVER_IP", True)
@@ -161,6 +189,9 @@ def exportTests(d,tc):
         except bb.data_smart.ExpansionError:
             # we don't care about those anyway
             pass
+
+    savedata["host_dumper"]["parent_dir"] = tc.host_dumper.parent_dir
+    savedata["host_dumper"]["cmds"] = tc.host_dumper.cmds
 
     with open(os.path.join(exportpath, "testdata.json"), "w") as f:
             json.dump(savedata, f, skipkeys=True, indent=4, sort_keys=True)
@@ -205,8 +236,10 @@ def testimage_main(d):
     import os
     import oeqa.runtime
     import time
+    import signal
     from oeqa.oetest import loadTests, runTests
     from oeqa.targetcontrol import get_target_controller
+    from oeqa.utils.dump import get_host_dumper
 
     pn = d.getVar("PN", True)
     export = oe.utils.conditional("TEST_EXPORT_ONLY", "1", True, False, d)
@@ -221,6 +254,11 @@ def testimage_main(d):
     testslist = get_tests_list(d)
     testsrequired = [t for t in d.getVar("TEST_SUITES", True).split() if t != "auto"]
 
+    tagexp = d.getVar("TEST_SUITES_TAGS", True)
+
+    # we need the host dumper in test context
+    host_dumper = get_host_dumper(d)
+
     # the robot dance
     target = get_target_controller(d)
 
@@ -228,17 +266,27 @@ def testimage_main(d):
         def __init__(self):
             self.d = d
             self.testslist = testslist
+            self.tagexp = tagexp
             self.testsrequired = testsrequired
             self.filesdir = os.path.join(os.path.dirname(os.path.abspath(oeqa.runtime.__file__)),"files")
             self.target = target
+            self.host_dumper = host_dumper
             self.imagefeatures = d.getVar("IMAGE_FEATURES", True).split()
             self.distrofeatures = d.getVar("DISTRO_FEATURES", True).split()
             manifest = os.path.join(d.getVar("DEPLOY_DIR_IMAGE", True), d.getVar("IMAGE_LINK_NAME", True) + ".manifest")
+            self.sigterm = False
+            self.origsigtermhandler = signal.getsignal(signal.SIGTERM)
+            signal.signal(signal.SIGTERM, self.sigterm_exception)
             try:
                 with open(manifest) as f:
                     self.pkgmanifest = f.read()
             except IOError as e:
                 bb.fatal("No package manifest file found. Did you build the image?\n%s" % e)
+
+        def sigterm_exception(self, signum, stackframe):
+            bb.warn("TestImage received SIGTERM, shutting down...")
+            self.sigterm = True
+            self.target.stop()
 
     # test context
     tc = TestContext()
@@ -254,8 +302,8 @@ def testimage_main(d):
 
     target.deploy()
 
-    target.start()
     try:
+        target.start()
         if export:
             exportTests(d,tc)
         else:
@@ -272,6 +320,7 @@ def testimage_main(d):
             else:
                 raise bb.build.FuncFailed("%s - FAILED - check the task log and the ssh log" % pn )
     finally:
+        signal.signal(signal.SIGTERM, tc.origsigtermhandler)
         target.stop()
 
 testimage_main[vardepsexclude] =+ "BB_ORIGENV"

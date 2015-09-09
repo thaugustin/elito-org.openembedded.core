@@ -29,7 +29,7 @@ SRCREV = "85a6fabdd3e43cfab0fc6359e9f2a9e368d4a3ed"
 
 PV = "219-stable+git${SRCPV}"
 
-SRC_URI = "git://anongit.freedesktop.org/systemd/systemd-stable;branch=v219-stable;protocol=git \
+SRC_URI = "git://github.com/systemd/systemd-stable;branch=v219-stable;protocol=git \
            file://0002-shared-missing.h-fall-back-to-insecure-getenv.patch \
            file://0003-binfmt-Don-t-install-dependency-links-at-install-tim.patch \
            file://0004-configure-Check-for-additional-features-that-uclibc-.patch \
@@ -50,6 +50,7 @@ SRC_URI = "git://anongit.freedesktop.org/systemd/systemd-stable;branch=v219-stab
            file://init \
            file://run-ptest \
           "
+SRC_URI_append_qemuall = "file://qemuall_io_latency-core-device.c-Change-the-default-device-timeout-to-2.patch"
 
 S = "${WORKDIR}/git"
 
@@ -103,7 +104,17 @@ rootprefix ?= "${base_prefix}"
 rootlibdir ?= "${base_libdir}"
 rootlibexecdir = "${rootprefix}/lib"
 
-# The gtk+ tools should get built as a separate recipe e.g. systemd-tools
+CACHED_CONFIGUREVARS_class-target = "\
+                         ac_cv_path_MOUNT_PATH=${base_bindir}/mount \
+                         ac_cv_path_UMOUNT_PATH=${base_bindir}/umount \
+                         ac_cv_path_KMOD=${base_bindir}/kmod \
+                         ac_cv_path_KILL=${base_bindir}/kill \
+                         ac_cv_path_SULOGIN=${base_sbindir}/sulogin \
+                         ac_cv_path_KEXEC=${sbindir}/kexec \
+                         ac_cv_path_QUOTACHECK=${sbindir}/quotacheck \
+                         ac_cv_path_QUOTAON=${sbindir}/quotaon \
+			 "
+
 EXTRA_OECONF = " --with-rootprefix=${rootprefix} \
                  --with-rootlibdir=${rootlibdir} \
                  --with-roothomedir=${ROOT_HOME} \
@@ -119,7 +130,6 @@ EXTRA_OECONF = " --with-rootprefix=${rootprefix} \
 EXTRA_OECONF_append_libc-uclibc = " --disable-myhostname "
 
 do_configure_prepend() {
-	export CPP="${HOST_PREFIX}cpp ${TOOLCHAIN_OPTIONS} ${HOST_CC_ARCH}"
 	export NM="${HOST_PREFIX}gcc-nm"
 	export AR="${HOST_PREFIX}gcc-ar"
 	export RANLIB="${HOST_PREFIX}gcc-ranlib"
@@ -296,10 +306,10 @@ FILES_${PN} = " ${base_bindir}/* \
                 ${exec_prefix}/lib/sysctl.d \
                 ${exec_prefix}/lib/sysusers.d \
                 ${localstatedir} \
-                /lib/udev/rules.d/70-uaccess.rules \
-                /lib/udev/rules.d/71-seat.rules \
-                /lib/udev/rules.d/73-seat-late.rules \
-                /lib/udev/rules.d/99-systemd.rules \
+                ${nonarch_base_libdir}/udev/rules.d/70-uaccess.rules \
+                ${nonarch_base_libdir}/udev/rules.d/71-seat.rules \
+                ${nonarch_base_libdir}/udev/rules.d/73-seat-late.rules \
+                ${nonarch_base_libdir}/udev/rules.d/99-systemd.rules \
                "
 
 FILES_${PN}-dbg += "${rootlibdir}/.debug ${systemd_unitdir}/.debug ${systemd_unitdir}/*/.debug ${base_libdir}/security/.debug/"
@@ -317,7 +327,7 @@ RRECOMMENDS_${PN} += "systemd-serialgetty systemd-vconsole-setup \
 
 PACKAGES =+ "udev-dbg udev udev-hwdb"
 
-FILES_udev-dbg += "/lib/udev/.debug"
+FILES_udev-dbg += "${nonarch_base_libdir}/udev/.debug"
 
 RPROVIDES_udev = "hotplug"
 

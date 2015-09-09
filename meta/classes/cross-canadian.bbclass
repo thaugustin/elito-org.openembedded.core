@@ -1,5 +1,5 @@
 #
-# NOTE - When using this class the user is repsonsible for ensuring that
+# NOTE - When using this class the user is responsible for ensuring that
 # TRANSLATED_TARGET_ARCH is added into PN. This ensures that if the TARGET_ARCH
 # is changed, another nativesdk xxx-canadian-cross can be installed
 #
@@ -27,6 +27,9 @@ python () {
 
     # Allow the following code segment to be disabled, e.g. meta-environment
     if d.getVar("MODIFYTOS", True) != "1":
+        return
+
+    if d.getVar("TCLIBC", True) == "baremetal":
         return
 
     tos = d.getVar("TARGET_OS", True)

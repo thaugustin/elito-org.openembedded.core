@@ -164,6 +164,9 @@ class Rootfs(object):
         pre_process_cmds = self.d.getVar("ROOTFS_PREPROCESS_COMMAND", True)
         post_process_cmds = self.d.getVar("ROOTFS_POSTPROCESS_COMMAND", True)
 
+        postinst_intercepts_dir = self.d.getVar("POSTINST_INTERCEPTS_DIR", True)
+        if not postinst_intercepts_dir:
+            postinst_intercepts_dir = self.d.expand("${COREBASE}/scripts/postinst-intercepts")
         intercepts_dir = os.path.join(self.d.getVar('WORKDIR', True),
                                       "intercept_scripts")
 
@@ -173,8 +176,7 @@ class Rootfs(object):
 
         bb.utils.mkdirhier(self.deploy_dir_image)
 
-        shutil.copytree(self.d.expand("${COREBASE}/scripts/postinst-intercepts"),
-                        intercepts_dir)
+        shutil.copytree(postinst_intercepts_dir, intercepts_dir)
 
         shutil.copy(self.d.expand("${COREBASE}/meta/files/deploydir_readme.txt"),
                     self.deploy_dir_image +
@@ -235,11 +237,10 @@ class Rootfs(object):
                 installed_pkgs_dir = self.d.expand('${WORKDIR}/installed_pkgs.txt')
                 pkgs_to_remove = list()
                 with open(installed_pkgs_dir, "r+") as installed_pkgs:
-                    pkgs_installed = installed_pkgs.read().split('\n')
+                    pkgs_installed = installed_pkgs.read().splitlines()
                     for pkg_installed in pkgs_installed[:]:
                         pkg = pkg_installed.split()[0]
-                        if pkg in ["update-rc.d",
-                                "base-passwd",
+                        if pkg in ["base-passwd",
                                 "shadow",
                                 "update-alternatives",
                                 self.d.getVar("ROOTFS_BOOTSTRAP_INSTALL", True)
@@ -277,7 +278,7 @@ class Rootfs(object):
             bb.note("> Executing %s intercept ..." % script)
 
             try:
-                subprocess.check_output(script_full)
+                subprocess.check_call(script_full)
             except subprocess.CalledProcessError as e:
                 bb.warn("The postinstall intercept hook '%s' failed (exit code: %d)! See log for details!" %
                         (script, e.returncode))

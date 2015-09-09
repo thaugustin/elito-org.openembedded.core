@@ -22,11 +22,11 @@ PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}libc-initial = "${TCLIBC}-initial"
 PREFERRED_PROVIDER_virtual/nativesdk-${SDK_PREFIX}libc-initial = "nativesdk-${TCLIBC}-initial"
 PREFERRED_PROVIDER_virtual/gettext ??= "gettext"
 
-GCCVERSION ?= "4.9%"
+GCCVERSION ?= "5.%"
 SDKGCCVERSION ?= "${GCCVERSION}"
 BINUVERSION ?= "2.25%"
 GDBVERSION ?= "7.9%"
-GLIBCVERSION ?= "2.21"
+GLIBCVERSION ?= "2.22"
 UCLIBCVERSION ?= "0.9.33+git%"
 LINUXLIBCVERSION ?= "4.1"
 
