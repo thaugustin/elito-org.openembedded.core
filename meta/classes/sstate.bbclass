@@ -157,17 +157,14 @@ def sstate_add(ss, source, dest, d):
 
 def sstate_install(ss, d):
     import oe.path
+    import oe.sstatesig
     import subprocess
 
     sharedfiles = []
     shareddirs = []
     bb.utils.mkdirhier(d.expand("${SSTATE_MANIFESTS}"))
 
-    d2 = d.createCopy()
-    extrainf = d.getVarFlag("do_" + ss['task'], 'stamp-extra-info', True)
-    if extrainf:
-        d2.setVar("SSTATE_MANMACH", extrainf)
-    manifest = d2.expand("${SSTATE_MANFILEPREFIX}.%s" % ss['task'])
+    manifest, d2 = oe.sstatesig.sstate_get_manifest_filename(ss['task'], d)
 
     if os.access(manifest, os.R_OK):
         bb.fatal("Package already staged (%s)?!" % manifest)
@@ -615,9 +612,12 @@ def pstaging_fetch(sstatefetch, sstatepkg, d):
 
     # Try a fetch from the sstate mirror, if it fails just return and
     # we will build the package
-    for srcuri in ['file://{0}'.format(sstatefetch),
-                   'file://{0}.siginfo'.format(sstatefetch),
-                   'file://{0}.sig'.format(sstatefetch)]:
+    uris = ['file://{0}'.format(sstatefetch),
+            'file://{0}.siginfo'.format(sstatefetch)]
+    if bb.utils.to_boolean(d.getVar("SSTATE_VERIFY_SIG", True), False):
+        uris += ['file://{0}.sig'.format(sstatefetch)]
+
+    for srcuri in uris:
         localdata.setVar('SRC_URI', srcuri)
         try:
             fetcher = bb.fetch2.Fetch([srcuri], localdata, cache=False)

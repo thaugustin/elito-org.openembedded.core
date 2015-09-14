@@ -36,13 +36,14 @@ do_install_ptest() {
     :
 }
 
-fakeroot do_install_ptest_base() {
+do_install_ptest_base() {
     if [ -f ${WORKDIR}/run-ptest ]; then
         install -D ${WORKDIR}/run-ptest ${D}${PTEST_PATH}/run-ptest
         if grep -q install-ptest: Makefile; then
             oe_runmake DESTDIR=${D}${PTEST_PATH} install-ptest
         fi
         do_install_ptest
+        chown -R root:root ${D}${PTEST_PATH}
     fi
 }
 

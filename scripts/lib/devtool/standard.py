@@ -31,11 +31,6 @@ from devtool import parse_recipe
 logger = logging.getLogger('devtool')
 
 
-def plugin_init(pluginlist):
-    """Plugin initialization"""
-    pass
-
-
 def add(args, config, basepath, workspace):
     """Entry point for the devtool 'add' subcommand"""
     import bb
@@ -766,11 +761,8 @@ def _guess_recipe_update_mode(srctree, rdata):
     # Just use the first URI for now
     uri = git_uris[0]
     # Check remote branch
-    upstr_branch = 'master'
-    for paramdef in uri.split(';')[1:]:
-        name, value = paramdef.split('=', 1)
-        if name == 'branch':
-            upstr_branch = value
+    params = bb.fetch.decodeurl(uri)[5]
+    upstr_branch = params['branch'] if 'branch' in params else 'master'
     # Check if current branch HEAD is found in upstream branch
     stdout, _ = bb.process.run('git rev-parse HEAD', cwd=srctree)
     head_rev = stdout.rstrip()
