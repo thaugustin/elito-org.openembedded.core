@@ -44,7 +44,6 @@ EXTRA_OECONF += "\
   ${OPKG_LOCKFILE} \
  "
 
-  ${OPKG_LOCKFILE} \
 do_install_append () {
 	install -d ${D}${sysconfdir}/opkg
 	install -m 0644 ${WORKDIR}/opkg.conf ${D}${sysconfdir}/opkg/opkg.conf
