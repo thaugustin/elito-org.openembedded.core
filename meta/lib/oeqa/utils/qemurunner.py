@@ -186,7 +186,6 @@ class QemuRunner:
             logger.info("Target IP: %s" % self.ip)
             logger.info("Server IP: %s" % self.server_ip)
 
-            logger.info("Starting logging thread")
             self.thread = LoggingThread(self.log, threadsock, logger)
             self.thread.start()
             if not self.thread.connection_established.wait(self.boottime):
@@ -440,9 +439,9 @@ class LoggingThread(threading.Thread):
 
     def eventloop(self):
         poll = select.poll()
-        eventmask = self.errorevents | self.readevents
+        event_read_mask = self.errorevents | self.readevents
         poll.register(self.serversock.fileno())
-        poll.register(self.readpipe, eventmask)
+        poll.register(self.readpipe, event_read_mask)
 
         breakout = False
         self.running = True
@@ -466,7 +465,7 @@ class LoggingThread(threading.Thread):
                     self.readsock, _ = self.serversock.accept()
                     self.readsock.setblocking(0)
                     poll.unregister(self.serversock.fileno())
-                    poll.register(self.readsock.fileno())
+                    poll.register(self.readsock.fileno(), event_read_mask)
 
                     self.logger.info("Setting connection established event")
                     self.connection_established.set()

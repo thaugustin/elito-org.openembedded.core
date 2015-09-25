@@ -157,8 +157,14 @@ python copy_buildsystem () {
         # Ensure locked sstate cache objects are re-used without error
         f.write('SIGGEN_LOCKEDSIGS_CHECK_LEVEL = "warn"\n\n')
 
+        # If you define a sdk_extraconf() function then it can contain additional config
+        extraconf = (d.getVar('sdk_extraconf', True) or '').strip()
+        if extraconf:
+            # Strip off any leading / trailing spaces
+            for line in extraconf.splitlines():
+                f.write(line.strip() + '\n')
+
         f.write('require conf/locked-sigs.inc\n')
-        f.write('require conf/work-config.inc\n')
 
     sigfile = d.getVar('WORKDIR', True) + '/locked-sigs.inc'
     oe.copy_buildsystem.generate_locked_sigs(sigfile, d)
@@ -178,10 +184,6 @@ python copy_buildsystem () {
                                                    d.getVar('SSTATE_DIR', True),
                                                    sstate_out, d,
                                                    fixedlsbstring)
-
-    # Create a dummy config file for additional settings
-    with open(baseoutpath + '/conf/work-config.inc', 'w') as f:
-        pass
 }
 
 def extsdk_get_buildtools_filename(d):
@@ -222,14 +224,15 @@ sdk_ext_postinst() {
 
 	# Make sure when the user sets up the environment, they also get
 	# the buildtools-tarball tools in their path.
-	echo ". $target_sdk_dir/buildtools/environment-setup*" >> $target_sdk_dir/environment-setup*
+	env_setup_script="$target_sdk_dir/environment-setup-${REAL_MULTIMACH_TARGET_SYS}"
+	echo ". $target_sdk_dir/buildtools/environment-setup*" >> $env_setup_script
 
 	# Allow bitbake environment setup to be ran as part of this sdk.
-	echo "export OE_SKIP_SDK_CHECK=1" >> $target_sdk_dir/environment-setup*
+	echo "export OE_SKIP_SDK_CHECK=1" >> $env_setup_script
 
 	# A bit of another hack, but we need this in the path only for devtool
 	# so put it at the end of $PATH.
-	echo "export PATH=\$PATH:$target_sdk_dir/sysroots/${SDK_SYS}/${bindir_nativesdk}" >> $target_sdk_dir/environment-setup*
+	echo "export PATH=\$PATH:$target_sdk_dir/sysroots/${SDK_SYS}/${bindir_nativesdk}" >> $env_setup_script
 
 	# For now this is where uninative.bbclass expects the tarball
 	mv *-nativesdk-libc.tar.* $target_sdk_dir/`dirname ${oe_init_build_env_path}`

@@ -25,7 +25,7 @@ import logging
 import argparse
 import scriptutils
 import errno
-from devtool import exec_build_env_command, setup_tinfoil, DevtoolError
+from devtool import exec_build_env_command, setup_tinfoil, check_workspace_recipe, use_external_build, setup_git_repo, DevtoolError
 from devtool import parse_recipe
 
 logger = logging.getLogger('devtool')
@@ -82,7 +82,7 @@ def add(args, config, basepath, workspace):
     else:
         bp = args.recipename
     recipefile = os.path.join(recipedir, "%s.bb" % bp)
-    if sys.stdout.isatty():
+    if args.color == 'auto' and sys.stdout.isatty():
         color = 'always'
     else:
         color = args.color
@@ -94,29 +94,50 @@ def add(args, config, basepath, workspace):
         source = srctree
     if args.version:
         extracmdopts += ' -V %s' % args.version
+    if args.binary:
+        extracmdopts += ' -b'
     try:
         stdout, _ = exec_build_env_command(config.init_path, basepath, 'recipetool --color=%s create -o %s "%s" %s' % (color, recipefile, source, extracmdopts))
-        logger.info('Recipe %s has been automatically created; further editing may be required to make it fully functional' % recipefile)
     except bb.process.ExecutionError as e:
         raise DevtoolError('Command \'%s\' failed:\n%s' % (e.command, e.stdout))
 
     _add_md5(config, args.recipename, recipefile)
+
+    if args.fetch and not args.no_git:
+        setup_git_repo(srctree, args.version, 'devtool')
 
     initial_rev = None
     if os.path.exists(os.path.join(srctree, '.git')):
         (stdout, _) = bb.process.run('git rev-parse HEAD', cwd=srctree)
         initial_rev = stdout.rstrip()
 
+    tinfoil = setup_tinfoil(config_only=True, basepath=basepath)
+    rd = oe.recipeutils.parse_recipe(recipefile, None, tinfoil.config_data)
+    if not rd:
+        return 1
+
     appendfile = os.path.join(appendpath, '%s.bbappend' % bp)
     with open(appendfile, 'w') as f:
         f.write('inherit externalsrc\n')
         f.write('EXTERNALSRC = "%s"\n' % srctree)
-        if args.same_dir:
+
+        b_is_s = use_external_build(args.same_dir, args.no_same_dir, rd)
+        if b_is_s:
             f.write('EXTERNALSRC_BUILD = "%s"\n' % srctree)
         if initial_rev:
             f.write('\n# initial_rev: %s\n' % initial_rev)
 
+        if args.binary:
+            f.write('do_install_append() {\n')
+            f.write('    rm -rf ${D}/.git\n')
+            f.write('    rm -f ${D}/singletask.lock\n')
+            f.write('}\n')
+
     _add_md5(config, args.recipename, appendfile)
+
+    logger.info('Recipe %s has been automatically created; further editing may be required to make it fully functional' % recipefile)
+
+    tinfoil.shutdown()
 
     return 0
 
@@ -210,7 +231,7 @@ class BbTaskExecutor(object):
 def _prep_extract_operation(config, basepath, recipename):
     """HACK: Ugly workaround for making sure that requirements are met when
        trying to extract a package. Returns the tinfoil instance to be used."""
-    tinfoil = setup_tinfoil()
+    tinfoil = setup_tinfoil(basepath=basepath)
     rd = parse_recipe(config, tinfoil, recipename, True)
 
     if bb.data.inherits_class('kernel-yocto', rd):
@@ -218,7 +239,7 @@ def _prep_extract_operation(config, basepath, recipename):
         try:
             stdout, _ = exec_build_env_command(config.init_path, basepath,
                                                'bitbake kern-tools-native')
-            tinfoil = setup_tinfoil()
+            tinfoil = setup_tinfoil(basepath=basepath)
         except bb.process.ExecutionError as err:
             raise DevtoolError("Failed to build kern-tools-native:\n%s" %
                                err.stdout)
@@ -252,6 +273,10 @@ def _extract_source(srctree, keep_temp, devbranch, d):
             raise DevtoolError("output path %s already exists and is "
                                "non-empty" % srctree)
 
+    if 'noexec' in (d.getVarFlags('do_unpack', False) or []):
+        raise DevtoolError("The %s recipe has do_unpack disabled, unable to "
+                           "extract source" % pn)
+
     # Prepare for shutil.move later on
     bb.utils.mkdirhier(srctree)
     os.rmdir(srctree)
@@ -275,7 +300,7 @@ def _extract_source(srctree, keep_temp, devbranch, d):
             if bb.data.inherits_class('kernel', d):
                 crd.setVar('S', '${WORKDIR}/source')
             else:
-                crd.setVar('S', '${WORKDIR}/${BP}')
+                crd.setVar('S', '${WORKDIR}/%s' % os.path.basename(d.getVar('S', True)))
         if bb.data.inherits_class('kernel', d):
             # We don't want to move the source to STAGING_KERNEL_DIR here
             crd.setVar('STAGING_KERNEL_DIR', '${S}')
@@ -321,20 +346,17 @@ def _extract_source(srctree, keep_temp, devbranch, d):
             else:
                 os.rmdir(patchdir)
 
-        if not os.listdir(srcsubdir):
-            raise DevtoolError("no source unpacked to S, perhaps the %s "
-                               "recipe doesn't use any source?" % pn)
+        if not os.path.exists(srcsubdir) or not os.listdir(srcsubdir):
+            raise DevtoolError("no source unpacked to S, either the %s "
+                               "recipe doesn't use any source or the "
+                               "correct source directory could not be "
+                               "determined" % pn)
 
-        if not os.path.exists(os.path.join(srcsubdir, '.git')):
-            bb.process.run('git init', cwd=srcsubdir)
-            bb.process.run('git add .', cwd=srcsubdir)
-            bb.process.run('git commit -q -m "Initial commit from upstream at version %s"' % crd.getVar('PV', True), cwd=srcsubdir)
+        setup_git_repo(srcsubdir, crd.getVar('PV', True), devbranch)
 
         (stdout, _) = bb.process.run('git rev-parse HEAD', cwd=srcsubdir)
         initial_rev = stdout.rstrip()
 
-        bb.process.run('git checkout -b %s' % devbranch, cwd=srcsubdir)
-        bb.process.run('git tag -f devtool-base', cwd=srcsubdir)
         crd.setVar('PATCHTOOL', 'git')
 
         logger.info('Patching...')
@@ -421,7 +443,7 @@ def modify(args, config, basepath, workspace):
     if args.extract:
         tinfoil = _prep_extract_operation(config, basepath, args.recipename)
     else:
-        tinfoil = setup_tinfoil()
+        tinfoil = setup_tinfoil(basepath=basepath)
 
     rd = parse_recipe(config, tinfoil, args.recipename, True)
     if not rd:
@@ -483,18 +505,7 @@ def modify(args, config, basepath, workspace):
         f.write('# NOTE: We use pn- overrides here to avoid affecting multiple variants in the case where the recipe uses BBCLASSEXTEND\n')
         f.write('EXTERNALSRC_pn-%s = "%s"\n' % (args.recipename, srctree))
 
-        b_is_s = True
-        if args.no_same_dir:
-            logger.info('using separate build directory since --no-same-dir specified')
-            b_is_s = False
-        elif args.same_dir:
-            logger.info('using source tree as build directory since --same-dir specified')
-        elif bb.data.inherits_class('autotools-brokensep', rd):
-            logger.info('using source tree as build directory since original recipe inherits autotools-brokensep')
-        elif rd.getVar('B', True) == s:
-            logger.info('using source tree as build directory since that is the default for this recipe')
-        else:
-            b_is_s = False
+        b_is_s = use_external_build(args.same_dir, args.no_same_dir, rd)
         if b_is_s:
             f.write('EXTERNALSRC_BUILD_pn-%s = "%s"\n' % (args.recipename, srctree))
 
@@ -776,9 +787,7 @@ def _guess_recipe_update_mode(srctree, rdata):
 
 def update_recipe(args, config, basepath, workspace):
     """Entry point for the devtool 'update-recipe' subcommand"""
-    if not args.recipename in workspace:
-        raise DevtoolError("no recipe named %s in your workspace" %
-                           args.recipename)
+    check_workspace_recipe(workspace, args.recipename)
 
     if args.append:
         if not os.path.exists(args.append):
@@ -788,7 +797,7 @@ def update_recipe(args, config, basepath, workspace):
             raise DevtoolError('conf/layer.conf not found in bbappend '
                                'destination layer "%s"' % args.append)
 
-    tinfoil = setup_tinfoil()
+    tinfoil = setup_tinfoil(basepath=basepath)
 
     rd = parse_recipe(config, tinfoil, args.recipename, True)
     if not rd:
@@ -830,9 +839,8 @@ def reset(args, config, basepath, workspace):
     if args.recipename:
         if args.all:
             raise DevtoolError("Recipe cannot be specified if -a/--all is used")
-        elif not args.recipename in workspace:
-            raise DevtoolError("no recipe named %s in your workspace" %
-                               args.recipename)
+        else:
+            check_workspace_recipe(workspace, args.recipename, checksrc=False)
     elif not args.all:
         raise DevtoolError("Recipe must be specified, or specify -a/--all to "
                            "reset all recipes")
@@ -879,9 +887,13 @@ def register_commands(subparsers, context):
                                        description='Adds a new recipe')
     parser_add.add_argument('recipename', help='Name for new recipe to add')
     parser_add.add_argument('srctree', help='Path to external source tree')
-    parser_add.add_argument('--same-dir', '-s', help='Build in same directory as source', action="store_true")
+    group = parser_add.add_mutually_exclusive_group()
+    group.add_argument('--same-dir', '-s', help='Build in same directory as source', action="store_true")
+    group.add_argument('--no-same-dir', help='Force build in a separate build directory', action="store_true")
     parser_add.add_argument('--fetch', '-f', help='Fetch the specified URI and extract it to create the source tree', metavar='URI')
     parser_add.add_argument('--version', '-V', help='Version to use within recipe (PV)')
+    parser_add.add_argument('--no-git', '-g', help='If -f/--fetch is specified, do not set up source tree as a git repository', action="store_true")
+    parser_add.add_argument('--binary', '-b', help='Treat the source tree as something that should be installed verbatim (no compilation, same directory structure)', action='store_true')
     parser_add.set_defaults(func=add)
 
     parser_modify = subparsers.add_parser('modify', help='Modify the source for an existing recipe',

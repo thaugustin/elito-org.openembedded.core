@@ -279,14 +279,20 @@ def testimage_main(d):
             self.imagefeatures = d.getVar("IMAGE_FEATURES", True).split()
             self.distrofeatures = d.getVar("DISTRO_FEATURES", True).split()
             manifest = os.path.join(d.getVar("DEPLOY_DIR_IMAGE", True), d.getVar("IMAGE_LINK_NAME", True) + ".manifest")
+            nomanifest = d.getVar("IMAGE_NO_MANIFEST", True)
+
             self.sigterm = False
             self.origsigtermhandler = signal.getsignal(signal.SIGTERM)
             signal.signal(signal.SIGTERM, self.sigterm_exception)
-            try:
-                with open(manifest) as f:
-                    self.pkgmanifest = f.read()
-            except IOError as e:
-                bb.fatal("No package manifest file found. Did you build the image?\n%s" % e)
+
+            if nomanifest is None or nomanifest != "1":
+                try:
+                    with open(manifest) as f:
+                        self.pkgmanifest = f.read()
+                except IOError as e:
+                    bb.fatal("No package manifest file found. Did you build the image?\n%s" % e)
+            else:
+                self.pkgmanifest = ""
 
         def sigterm_exception(self, signum, stackframe):
             bb.warn("TestImage received SIGTERM, shutting down...")
@@ -305,13 +311,15 @@ def testimage_main(d):
         import traceback
         bb.fatal("Loading tests failed:\n%s" % traceback.format_exc())
 
-    target.deploy()
 
-    try:
-        target.start()
-        if export:
-            exportTests(d,tc)
-        else:
+    if export:
+        signal.signal(signal.SIGTERM, tc.origsigtermhandler)
+        tc.origsigtermhandler = None
+        exportTests(d,tc)
+    else:
+        target.deploy()
+        try:
+            target.start()
             starttime = time.time()
             result = runTests(tc)
             stoptime = time.time()
@@ -324,9 +332,9 @@ def testimage_main(d):
                 bb.plain(msg)
             else:
                 raise bb.build.FuncFailed("%s - FAILED - check the task log and the ssh log" % pn )
-    finally:
-        signal.signal(signal.SIGTERM, tc.origsigtermhandler)
-        target.stop()
+        finally:
+            signal.signal(signal.SIGTERM, tc.origsigtermhandler)
+            target.stop()
 
 testimage_main[vardepsexclude] =+ "BB_ORIGENV"
 
