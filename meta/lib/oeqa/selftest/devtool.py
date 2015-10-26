@@ -466,6 +466,28 @@ class DevtoolTests(DevtoolBase):
         # Try building
         bitbake(testrecipe)
 
+    def test_devtool_modify_virtual(self):
+        # Try modifying a virtual recipe
+        virtrecipe = 'virtual/libx11'
+        realrecipe = 'libx11'
+        tempdir = tempfile.mkdtemp(prefix='devtoolqa')
+        self.track_for_cleanup(tempdir)
+        self.track_for_cleanup(self.workspacedir)
+        self.add_command_to_tearDown('bitbake-layers remove-layer */workspace')
+        result = runCmd('devtool modify %s -x %s' % (virtrecipe, tempdir))
+        self.assertTrue(os.path.exists(os.path.join(tempdir, 'Makefile.am')), 'Extracted source could not be found')
+        self.assertTrue(os.path.exists(os.path.join(self.workspacedir, 'conf', 'layer.conf')), 'Workspace directory not created')
+        matches = glob.glob(os.path.join(self.workspacedir, 'appends', '%s_*.bbappend' % realrecipe))
+        self.assertTrue(matches, 'bbappend not created %s' % result.output)
+        # Test devtool status
+        result = runCmd('devtool status')
+        self.assertNotIn(virtrecipe, result.output)
+        self.assertIn(realrecipe, result.output)
+        # Check git repo
+        self._check_src_repo(tempdir)
+        # This is probably sufficient
+
+
     @testcase(1169)
     def test_devtool_update_recipe(self):
         # Check preconditions
@@ -805,6 +827,16 @@ class DevtoolTests(DevtoolBase):
         self.assertTrue(os.path.exists(os.path.join(tempdir, 'Makefile.am')), 'Extracted source could not be found')
         self._check_src_repo(tempdir)
 
+    def test_devtool_extract_virtual(self):
+        tempdir = tempfile.mkdtemp(prefix='devtoolqa')
+        # Try devtool extract
+        self.track_for_cleanup(tempdir)
+        self.track_for_cleanup(self.workspacedir)
+        self.add_command_to_tearDown('bitbake-layers remove-layer */workspace')
+        result = runCmd('devtool extract virtual/libx11 %s' % tempdir)
+        self.assertTrue(os.path.exists(os.path.join(tempdir, 'Makefile.am')), 'Extracted source could not be found')
+        self._check_src_repo(tempdir)
+
     @testcase(1168)
     def test_devtool_reset_all(self):
         tempdir = tempfile.mkdtemp(prefix='devtoolqa')
@@ -983,3 +1015,15 @@ class DevtoolTests(DevtoolBase):
         self.track_for_cleanup(tempdir)
         self.track_for_cleanup(self.workspacedir)
         self.add_command_to_tearDown('bitbake-layers remove-layer */workspace')
+
+    def test_devtool_layer_plugins(self):
+        """Test that devtool can use plugins from other layers.
+
+        This test executes the selftest-reverse command from meta-selftest."""
+
+        self.track_for_cleanup(self.workspacedir)
+        self.add_command_to_tearDown('bitbake-layers remove-layer */workspace')
+
+        s = "Microsoft Made No Profit From Anyone's Zunes Yo"
+        result = runCmd("devtool --quiet selftest-reverse \"%s\"" % s)
+        self.assertEqual(result.output, s[::-1])
