@@ -10,7 +10,7 @@ DEPENDS = "glib-2.0 cairo pango atk jpeg libpng gdk-pixbuf \
 
 LICENSE = "LGPLv2 & LGPLv2+ & LGPLv2.1+"
 
-inherit autotools pkgconfig gtk-doc update-alternatives gtk-immodules-cache gsettings distro_features_check
+inherit autotools pkgconfig gtk-doc update-alternatives gtk-immodules-cache gsettings distro_features_check upstream-version-is-even
 ANY_OF_DISTRO_FEATURES = "${GTK3DISTROFEATURES}"
 
 # This should be in autotools.bbclass, but until something elses uses it putting
@@ -29,6 +29,7 @@ EXTRA_OECONF += " \
                  --enable-modules \
                  --disable-cups \
                  --disable-introspection \
+                 --disable-colord \
 "
 
 PACKAGECONFIG ??= "${@bb.utils.contains("DISTRO_FEATURES", "x11", "x11", "", d)} \
@@ -79,14 +80,9 @@ FILES_${PN}-dev += " \
                     ${libdir}/gtk-3.0/${LIBV}/engines/*.la \
                     ${libdir}/gtk-3.0/modules/*.la \
                     ${bindir}/gtk-builder-convert \
-                    ${bindir}/gtk-encode-symbolic-svg"
-
-FILES_${PN}-dbg += " \
-                    ${libdir}/gtk-3.0/${LIBV}/loaders/.debug \
-                    ${libdir}/gtk-3.0/${LIBV}/immodules/.debug \
-                    ${libdir}/gtk-3.0/${LIBV}/engines/.debug \
-                    ${libdir}/gtk-3.0/${LIBV}/printbackends/.debug \
-                    ${libdir}/gtk-3.0/modules/.debug"
+                    ${bindir}/gtk-encode-symbolic-svg \
+                    ${bindir}/gtk-builder-tool \
+                    "
 
 RRECOMMENDS_${PN} = "adwaita-icon-theme-symbolic"
 

@@ -63,6 +63,15 @@ class Rootfs(object):
                 if 'log_check' in line:
                     continue
 
+                if hasattr(self, 'log_check_expected_errors_regexes'):
+                    m = None
+                    for ee in self.log_check_expected_errors_regexes:
+                        m = re.search(ee, line)
+                        if m:
+                            break
+                    if m:
+                        continue
+
                 m = r.search(line)
                 if m:
                     found_error = 1
@@ -239,32 +248,27 @@ class Rootfs(object):
             pkg_to_remove = ""
         else:
             pkg_to_remove = "update-rc.d"
-        if not runtime_pkgmanage:
-            # Remove components that we don't need if we're not going to install
-            # additional packages at runtime
-            if delayed_postinsts is None:
-                installed_pkgs_dir = self.d.expand('${WORKDIR}/installed_pkgs.txt')
-                pkgs_to_remove = list()
-                with open(installed_pkgs_dir, "r+") as installed_pkgs:
-                    pkgs_installed = installed_pkgs.read().splitlines()
-                    for pkg_installed in pkgs_installed[:]:
-                        pkg = pkg_installed.split()[0]
-                        if pkg in ["update-rc.d",
-                                "base-passwd",
-                                "shadow",
-                                "update-alternatives", pkg_to_remove,
-                                self.d.getVar("ROOTFS_BOOTSTRAP_INSTALL", True)
-                                ]:
-                            pkgs_to_remove.append(pkg)
-                            pkgs_installed.remove(pkg_installed)
+        if image_rorfs:
+            # Remove components that we don't need if it's a read-only rootfs
+            pkgs_installed = image_list_installed_packages(self.d)
+            pkgs_to_remove = list()
+            for pkg in pkgs_installed.split():
+                if pkg in ["update-rc.d",
+                        "base-passwd",
+                        "shadow",
+                        "update-alternatives", pkg_to_remove,
+                        self.d.getVar("ROOTFS_BOOTSTRAP_INSTALL", True)
+                        ]:
+                    pkgs_to_remove.append(pkg)
 
-                if len(pkgs_to_remove) > 0:
-                    self.pm.remove(pkgs_to_remove, False)
-                    # Update installed_pkgs.txt
-                    open(installed_pkgs_dir, "w+").write('\n'.join(pkgs_installed))
+            if len(pkgs_to_remove) > 0:
+                self.pm.remove(pkgs_to_remove, False)
 
-            else:
-                self._save_postinsts()
+        if delayed_postinsts:
+            self._save_postinsts()
+            if image_rorfs:
+                bb.warn("There are post install scripts "
+                        "in a read-only rootfs")
 
         post_uninstall_cmds = self.d.getVar("ROOTFS_POSTUNINSTALL_COMMAND", True)
         execute_pre_post_process(self.d, post_uninstall_cmds)
@@ -628,6 +632,10 @@ class DpkgRootfs(DpkgOpkgRootfs):
     def __init__(self, d, manifest_dir):
         super(DpkgRootfs, self).__init__(d)
         self.log_check_regex = '^E:'
+        self.log_check_expected_errors_regexes = \
+        [
+            "^E: Unmet dependencies."
+        ]
 
         bb.utils.remove(self.image_rootfs, True)
         bb.utils.remove(self.d.getVar('MULTILIB_TEMP_ROOTFS', True), True)

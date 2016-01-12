@@ -15,6 +15,9 @@ SDK_RDEPENDS_append_task-populate-sdk-ext = " ${SDK_TARGETS}"
 
 SDK_RELOCATE_AFTER_INSTALL_task-populate-sdk-ext = "0"
 
+SDK_EXT = ""
+SDK_EXT_task-populate-sdk-ext = "-ext"
+
 SDK_LOCAL_CONF_WHITELIST ?= ""
 SDK_LOCAL_CONF_BLACKLIST ?= "CONF_VERSION BB_NUMBER_THREADS PARALLEL_MAKE PRSERV_HOST"
 SDK_INHERIT_BLACKLIST ?= "buildhistory icecc"
@@ -51,7 +54,7 @@ python copy_buildsystem () {
     core_meta_subdir = ''
 
     # Copy in all metadata layers + bitbake (as repositories)
-    buildsystem = oe.copy_buildsystem.BuildSystem(d)
+    buildsystem = oe.copy_buildsystem.BuildSystem('extensible SDK', d)
     baseoutpath = d.getVar('SDK_OUTPUT', True) + '/' + d.getVar('SDKPATH', True)
     layers_copied = buildsystem.copy_bitbake_and_layers(baseoutpath + '/layers')
 
@@ -144,18 +147,16 @@ python copy_buildsystem () {
         f.write('CONF_VERSION = "%s"\n\n' % d.getVar('CONF_VERSION', False))
 
         # Some classes are not suitable for SDK, remove them from INHERIT
-        f.write('INHERIT_remove = "%s"\n' % d.getVar('SDK_INHERIT_BLACKLIST'))
+        f.write('INHERIT_remove = "%s"\n' % d.getVar('SDK_INHERIT_BLACKLIST', False))
 
         # Bypass the default connectivity check if any
         f.write('CONNECTIVITY_CHECK_URIS = ""\n\n')
 
-        # Another hack, but we want the native part of sstate to be kept the same
-        # regardless of the host distro
-        fixedlsbstring = 'SDK-Fixed'
-        f.write('NATIVELSBSTRING_forcevariable = "%s"\n\n' % fixedlsbstring)
-
         # Ensure locked sstate cache objects are re-used without error
-        f.write('SIGGEN_LOCKEDSIGS_CHECK_LEVEL = "warn"\n\n')
+        f.write('SIGGEN_LOCKEDSIGS_CHECK_LEVEL = "none"\n\n')
+
+        # Hide the config information from bitbake output (since it's fixed within the SDK)
+        f.write('BUILDCFG_HEADER = ""\n')
 
         # If you define a sdk_extraconf() function then it can contain additional config
         extraconf = (d.getVar('sdk_extraconf', True) or '').strip()
@@ -170,27 +171,31 @@ python copy_buildsystem () {
     oe.copy_buildsystem.generate_locked_sigs(sigfile, d)
 
     # Filter the locked signatures file to just the sstate tasks we are interested in
-    allowed_tasks = ['do_populate_lic', 'do_populate_sysroot', 'do_packagedata', 'do_package_write_ipk', 'do_package_write_rpm', 'do_package_write_deb', 'do_package_qa', 'do_deploy']
     excluded_targets = d.getVar('SDK_TARGETS', True)
     lockedsigs_pruned = baseoutpath + '/conf/locked-sigs.inc'
-    oe.copy_buildsystem.prune_lockedsigs(allowed_tasks,
-                                         excluded_targets,
+    oe.copy_buildsystem.prune_lockedsigs([],
+                                         excluded_targets.split(),
                                          sigfile,
                                          lockedsigs_pruned)
 
     sstate_out = baseoutpath + '/sstate-cache'
     bb.utils.remove(sstate_out, True)
+    # uninative.bbclass sets NATIVELSBSTRING to 'universal'
+    fixedlsbstring = 'universal'
     oe.copy_buildsystem.create_locked_sstate_cache(lockedsigs_pruned,
                                                    d.getVar('SSTATE_DIR', True),
                                                    sstate_out, d,
                                                    fixedlsbstring)
+    # We don't need sstate do_package files
+    for root, dirs, files in os.walk(sstate_out):
+        for name in files:
+            if name.endswith("_package.tgz"):
+                f = os.path.join(root, name)
+                os.remove(f)
 }
 
 def extsdk_get_buildtools_filename(d):
-    # This is somewhat of a hack
-    localdata = bb.data.createCopy(d)
-    localdata.setVar('PN', 'buildtools-tarball')
-    return localdata.expand('${SDK_NAME}-buildtools-nativesdk-standalone-*.sh')
+    return '*-buildtools-nativesdk-standalone-*.sh'
 
 install_tools() {
 	install -d ${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}
@@ -222,7 +227,7 @@ SDK_PRE_INSTALL_COMMAND_task-populate-sdk-ext = "${sdk_ext_preinst}"
 sdk_ext_postinst() {
 	printf "\nExtracting buildtools...\n"
 	cd $target_sdk_dir
-	printf "buildtools\ny" | ./*buildtools-nativesdk-standalone* > /dev/null
+	printf "buildtools\ny" | ./*buildtools-nativesdk-standalone* > /dev/null || ( printf 'ERROR: buildtools installation failed\n' ; exit 1 )
 
 	# Make sure when the user sets up the environment, they also get
 	# the buildtools-tarball tools in their path.
@@ -249,7 +254,8 @@ sdk_ext_postinst() {
 		# dash which is /bin/sh on Ubuntu will not preserve the
 		# current working directory when first ran, nor will it set $1 when
 		# sourcing a script. That is why this has to look so ugly.
-		sh -c ". buildtools/environment-setup* > preparing_build_system.log && cd $target_sdk_dir/`dirname ${oe_init_build_env_path}` && set $target_sdk_dir && . $target_sdk_dir/${oe_init_build_env_path} $target_sdk_dir >> preparing_build_system.log && $target_sdk_dir/ext-sdk-prepare.sh $target_sdk_dir '${SDK_TARGETS}' >> preparing_build_system.log 2>&1" || { echo "SDK preparation failed: see `pwd`/preparing_build_system.log" ; exit 1 ; }
+		LOGFILE="$target_sdk_dir/preparing_build_system.log"
+		sh -c ". buildtools/environment-setup* > $LOGFILE && cd $target_sdk_dir/`dirname ${oe_init_build_env_path}` && set $target_sdk_dir && . $target_sdk_dir/${oe_init_build_env_path} $target_sdk_dir >> $LOGFILE && $target_sdk_dir/ext-sdk-prepare.sh $target_sdk_dir '${SDK_TARGETS}' >> $LOGFILE 2>&1" || { echo "ERROR: SDK preparation failed: see $LOGFILE"; echo "printf 'ERROR: this SDK was not fully installed and needs reinstalling\n'" >> $env_setup_script ; exit 1 ; }
 	fi
 	rm -f $target_sdk_dir/ext-sdk-prepare.sh
 	echo done
@@ -260,6 +266,11 @@ SDK_POST_INSTALL_COMMAND_task-populate-sdk-ext = "${sdk_ext_postinst}"
 SDK_POSTPROCESS_COMMAND_prepend_task-populate-sdk-ext = "copy_buildsystem; install_tools; "
 
 fakeroot python do_populate_sdk_ext() {
+    # FIXME hopefully we can remove this restriction at some point, but uninative
+    # currently forces this upon us
+    if d.getVar('SDK_ARCH', True) != d.getVar('BUILD_ARCH', True):
+        bb.fatal('The extensible SDK can currently only be built for the same architecture as the machine being built on - SDK_ARCH is set to %s (likely via setting SDKMACHINE) which is different from the architecture of the build machine (%s). Unable to continue.' % (d.getVar('SDK_ARCH', True), d.getVar('BUILD_ARCH', True)))
+
     bb.build.exec_func("do_populate_sdk", d)
 }
 

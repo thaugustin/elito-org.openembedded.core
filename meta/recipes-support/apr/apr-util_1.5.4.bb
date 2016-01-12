@@ -68,10 +68,11 @@ do_install_append_class-target() {
 
 FILES_${PN}     += "${libdir}/apr-util-1/apr_dbm_gdbm-1.so"
 FILES_${PN}-dev += "${libdir}/aprutil.exp ${libdir}/apr-util-1/apr_dbm_gdbm.so* ${libdir}/apr-util-1/apr_dbm_gdbm.la"
-FILES_${PN}-dbg += "${libdir}/apr-util-1/.debug/*"
 FILES_${PN}-staticdev += "${libdir}/apr-util-1/apr_dbm_gdbm.a"
 
 inherit ptest
+
+RDEPENDS_${PN}-ptest_append_libc-glibc = " glibc-gconv-iso8859-1 glibc-gconv-iso8859-2 glibc-gconv-utf-7"
 
 do_compile_ptest() {
 	cd ${B}/test

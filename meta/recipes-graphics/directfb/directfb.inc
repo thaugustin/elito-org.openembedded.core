@@ -22,6 +22,9 @@ S = "${WORKDIR}/DirectFB-${PV}"
 
 LDFLAGS_append =" -lts -lm"
 
+# Workaround for linking issues seen with armv7a + gold
+LDFLAGS_append_arm = "${@base_contains('DISTRO_FEATURES', 'ld-is-gold', ' -fuse-ld=bfd ', '', d)}"
+
 BINCONFIG = "${bindir}/directfb-config"
 
 inherit autotools binconfig-disabled pkgconfig
@@ -55,13 +58,6 @@ TARGET_CFLAGS_remove_x86 = "-fno-omit-frame-pointer"
 #}
 
 # NOTE: monolithic packaging for now, should improve that eventually
-
-
-
-FILES_${PN}-dbg += "\
-  ${libdir}/directfb-${RV}/*/*/.debug/*.so \
-  ${libdir}/directfb-${RV}/*/.debug/*.so \
-"
 
 FILES_${PN}-dev += "\
   ${bindir}/directfb-config \

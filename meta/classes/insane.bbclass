@@ -292,6 +292,7 @@ def package_qa_check_libdir(d):
     pkgdest = d.getVar('PKGDEST', True)
     base_libdir = d.getVar("base_libdir",True) + os.sep
     libdir = d.getVar("libdir", True) + os.sep
+    libexecdir = d.getVar("libexecdir", True) + os.sep
     exec_prefix = d.getVar("exec_prefix", True) + os.sep
 
     messages = []
@@ -307,6 +308,9 @@ def package_qa_check_libdir(d):
                 if 'libdir' in (d.getVar('INSANE_SKIP_' + package, True) or "").split():
                     bb.note("Package %s skipping libdir QA test" % (package))
                     skippackages.append(package)
+                elif d.getVar('PACKAGE_DEBUG_SPLIT_STYLE', True) == 'debug-file-directory' and package.endswith("-dbg"):
+                    bb.note("Package %s skipping libdir QA test for PACKAGE_DEBUG_SPLIT_STYLE equals debug-file-directory" % (package))
+                    skippackages.append(package)
             for package in skippackages:
                 dirs.remove(package)
         for file in files:
@@ -319,7 +323,7 @@ def package_qa_check_libdir(d):
                     if base_libdir not in rel_path:
                         messages.append("%s: found library in wrong location: %s" % (package, rel_path))
                 if exec_re.match(rel_path):
-                    if libdir not in rel_path:
+                    if libdir not in rel_path and libexecdir not in rel_path:
                         messages.append("%s: found library in wrong location: %s" % (package, rel_path))
 
     if messages:
@@ -1128,6 +1132,7 @@ python do_package_qa () {
     bb.note("DONE with PACKAGE QA")
 }
 
+do_package_qa[vardepsexclude] = "BB_TASKDEPDATA"
 do_package_qa[rdeptask] = "do_packagedata"
 addtask do_package_qa after do_packagedata do_package before do_build
 

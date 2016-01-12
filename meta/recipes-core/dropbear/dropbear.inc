@@ -49,9 +49,6 @@ _sftp_server_path = "${@\
     [d.getVar('libexecdir', True).endswith(d.expand('/${BPN}'))]}"
 CFLAGS += "-DSFTPSERVER_PATH=\\"${_sftp_server_path}\\""
 
-CFLAGS_prepend = " -I. "
-LD = "${CC}"
-
 SBINCOMMANDS = "dropbear dropbearkey dropbearconvert"
 BINCOMMANDS = "dbclient ssh scp"
 EXTRA_OEMAKE = 'MULTI=1 SCPPROGRESS=1 PROGRAMS="${SBINCOMMANDS} ${BINCOMMANDS}"'
