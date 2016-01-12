@@ -456,7 +456,7 @@ def _add_md5(config, recipename, filename):
             f.write('%s|%s|%s\n' % (recipename, os.path.relpath(fn, config.workspace_path), md5))
 
     if os.path.isdir(filename):
-        for root, _, files in os.walk(os.path.dirname(filename)):
+        for root, _, files in os.walk(filename):
             for f in files:
                 addfile(os.path.join(root, f))
     else:
@@ -593,7 +593,7 @@ def modify(args, config, basepath, workspace):
             f.write('EXTERNALSRC_BUILD_pn-%s = "%s"\n' % (pn, srctree))
 
         if bb.data.inherits_class('kernel', rd):
-            f.write('SRCTREECOVEREDTASKS = "do_validate_branches do_kernel_checkout do_fetch do_unpack"\n')
+            f.write('SRCTREECOVEREDTASKS = "do_validate_branches do_kernel_checkout do_fetch do_unpack do_patch"\n')
         if initial_rev:
             f.write('\n# initial_rev: %s\n' % initial_rev)
             for commit in commits:
