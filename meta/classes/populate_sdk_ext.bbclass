@@ -155,7 +155,7 @@ python copy_buildsystem () {
         f.write('NATIVELSBSTRING_forcevariable = "%s"\n\n' % fixedlsbstring)
 
         # Ensure locked sstate cache objects are re-used without error
-        f.write('SIGGEN_LOCKEDSIGS_CHECK_LEVEL = "warn"\n\n')
+        f.write('SIGGEN_LOCKEDSIGS_CHECK_LEVEL = "none"\n\n')
 
         # If you define a sdk_extraconf() function then it can contain additional config
         extraconf = (d.getVar('sdk_extraconf', True) or '').strip()
@@ -219,7 +219,7 @@ SDK_PRE_INSTALL_COMMAND_task-populate-sdk-ext = "${sdk_ext_preinst}"
 sdk_ext_postinst() {
 	printf "\nExtracting buildtools...\n"
 	cd $target_sdk_dir
-	printf "buildtools\ny" | ./*buildtools-nativesdk-standalone* > /dev/null
+	printf "buildtools\ny" | ./*buildtools-nativesdk-standalone* > /dev/null || ( printf 'ERROR: buildtools installation failed\n' ; exit 1 )
 
 	# Make sure when the user sets up the environment, they also get
 	# the buildtools-tarball tools in their path.
@@ -247,7 +247,7 @@ sdk_ext_postinst() {
 		# current working directory when first ran, nor will it set $1 when
 		# sourcing a script. That is why this has to look so ugly.
 		LOGFILE="$target_sdk_dir/preparing_build_system.log"
-		sh -c ". buildtools/environment-setup* > $LOGFILE && cd $target_sdk_dir/`dirname ${oe_init_build_env_path}` && set $target_sdk_dir && . $target_sdk_dir/${oe_init_build_env_path} $target_sdk_dir >> $LOGFILE && $target_sdk_dir/ext-sdk-prepare.sh $target_sdk_dir '${SDK_TARGETS}' >> $LOGFILE 2>&1" || { echo "ERROR: SDK preparation failed: see $LOGFILE"; echo "printf 'ERROR: this SDK wasn't fully installed and needs reinstalling\n'" >> $env_setup_script ; exit 1 ; }
+		sh -c ". buildtools/environment-setup* > $LOGFILE && cd $target_sdk_dir/`dirname ${oe_init_build_env_path}` && set $target_sdk_dir && . $target_sdk_dir/${oe_init_build_env_path} $target_sdk_dir >> $LOGFILE && $target_sdk_dir/ext-sdk-prepare.sh $target_sdk_dir '${SDK_TARGETS}' >> $LOGFILE 2>&1" || { echo "ERROR: SDK preparation failed: see $LOGFILE"; echo "printf 'ERROR: this SDK was not fully installed and needs reinstalling\n'" >> $env_setup_script ; exit 1 ; }
 	fi
 	rm -f $target_sdk_dir/ext-sdk-prepare.sh
 	echo done
