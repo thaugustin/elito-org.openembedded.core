@@ -319,9 +319,18 @@ do_shared_workdir () {
 		cp -fR include/generated/* $kerneldir/include/generated/
 	fi
 
-	if [ -d arch/${ARCH}/include/generated ]; then
-		mkdir -p $kerneldir/arch/${ARCH}/include/generated/
-		cp -fR arch/${ARCH}/include/generated/* $kerneldir/arch/${ARCH}/include/generated/
+	# When ARCH is set to i386 or x86_64, we need to map ARCH to the real name of src
+	# dir (x86) under arch/ of kenrel tree, so that we can find correct source to copy.
+
+	if [ "${ARCH}" = "i386" ] || [ "${ARCH}" = "x86_64" ]; then
+		KERNEL_SRCARCH=x86
+	else
+		KERNEL_SRCARCH=${ARCH}
+	fi
+
+	if [ -d arch/${KERNEL_SRCARCH}/include/generated ]; then
+		mkdir -p $kerneldir/arch/${KERNEL_SRCARCH}/include/generated/
+		cp -fR arch/${KERNEL_SRCARCH}/include/generated/* $kerneldir/arch/${KERNEL_SRCARCH}/include/generated/
 	fi
 }
 
@@ -410,6 +419,18 @@ python split_kernel_packages () {
     do_split_packages(d, root='/lib/firmware', file_regex='^(.*)\.(bin|fw|cis|dsp)$', output_pattern='kernel-firmware-%s', description='Firmware for %s', recursive=True, extra_depends='')
 }
 
+# Many scripts want to look in arch/$arch/boot for the bootable
+# image. This poses a problem for vmlinux based booting. This 
+# task arranges to have vmlinux appear in the normalized directory
+# location.
+do_kernel_link_vmlinux() {
+	if [ ! -d "${B}/arch/${ARCH}/boot" ]; then
+		mkdir ${B}/arch/${ARCH}/boot
+	fi
+	cd ${B}/arch/${ARCH}/boot
+	ln -sf ../../../vmlinux
+}
+
 do_strip() {
 	if [ -n "${KERNEL_IMAGE_STRIP_EXTRA_SECTIONS}" ]; then
 		if [ "${KERNEL_IMAGETYPE}" != "vmlinux" ]; then
@@ -492,6 +513,7 @@ kernel_do_deploy() {
 		ln -sf ${initramfs_base_name}.bin ${initramfs_symlink_name}.bin
 	fi
 }
+do_deploy[cleandirs] = "${DEPLOYDIR}"
 do_deploy[dirs] = "${DEPLOYDIR} ${B}"
 do_deploy[prefuncs] += "package_get_auto_pr"
 

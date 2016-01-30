@@ -1,6 +1,9 @@
 inherit rootfs_${IMAGE_PKGTYPE}
 
-inherit populate_sdk_ext
+# Only Linux SDKs support populate_sdk_ext, fall back to populate_sdk
+# in the non-Linux SDK_OS case, such as mingw32
+SDKEXTCLASS ?= "${@['populate_sdk', 'populate_sdk_ext']['linux' in d.getVar("SDK_OS", True)]}"
+inherit ${SDKEXTCLASS}
 
 TOOLCHAIN_TARGET_TASK += "${PACKAGE_INSTALL}"
 TOOLCHAIN_TARGET_TASK_ATTEMPTONLY += "${PACKAGE_INSTALL_ATTEMPTONLY}"
@@ -239,8 +242,6 @@ fakeroot python do_image () {
     pre_process_cmds = d.getVar("IMAGE_PREPROCESS_COMMAND", True)
 
     execute_pre_post_process(d, pre_process_cmds)
-
-    write_wic_env(d)
 }
 do_image[dirs] = "${TOPDIR}"
 do_image[umask] = "022"
@@ -261,7 +262,7 @@ addtask do_image_complete after do_image before do_build
 # Write environment variables used by wic
 # to tmp/sysroots/<machine>/imgdata/<image>.env
 #
-def write_wic_env(d):
+python do_rootfs_wicenv () {
     wicvars = d.getVar('WICVARS', True)
     if not wicvars:
         return
@@ -275,6 +276,10 @@ def write_wic_env(d):
             value = d.getVar(var, True)
             if value:
                 envf.write('%s="%s"\n' % (var, value.strip()))
+}
+addtask do_rootfs_wicenv after do_rootfs before do_image_wic do_image_complete
+do_rootfs_wicenv[vardeps] += "${WICVARS}"
+do_rootfs_wicenv[prefuncs] = 'set_image_size'
 
 def setup_debugfs_variables(d):
     d.appendVar('IMAGE_ROOTFS', '-dbg')
@@ -294,8 +299,6 @@ python () {
     old_overrides = d.getVar('OVERRIDES', 0)
 
     def _image_base_type(type):
-        if type in ["vmdk", "vdi", "qcow2", "live", "iso", "hddimg"]:
-            type = "ext4"
         basetype = type
         for ctype in ctypes:
             if type.endswith("." + ctype):
@@ -334,17 +337,25 @@ python () {
             _add_type(dep)
             basedep = _image_base_type(dep)
             typedeps[baset].add(basedep)
+
+        if baset != t:
+            _add_type(baset)
         
     for t in alltypes[:]:
         _add_type(t)
 
     d.appendVarFlag('do_image', 'vardeps', ' '.join(vardeps))
 
+    maskedtypes = (d.getVar('IMAGE_TYPES_MASKED', True) or "").split()
+
     for t in basetypes:
         vardeps = set()
         cmds = []
         subimages = []
         realt = t
+
+        if t in maskedtypes:
+            continue
 
         localdata = bb.data.createCopy(d)
         debug = ""
@@ -355,6 +366,12 @@ python () {
         localdata.setVar('OVERRIDES', '%s:%s' % (realt, old_overrides))
         bb.data.update_data(localdata)
         localdata.setVar('type', realt)
+        # Delete DATETIME so we don't expand any references to it now
+        # This means the task's hash can be stable rather than having hardcoded
+        # date/time values. It will get expanded at execution time.
+        # Similarly TMPDIR since otherwise we see QA stamp comparision problems
+        localdata.delVar('DATETIME')
+        localdata.delVar('TMPDIR')
 
         image_cmd = localdata.getVar("IMAGE_CMD", True)
         vardeps.add('IMAGE_CMD_' + realt)
@@ -376,17 +393,20 @@ python () {
         else:
             subimages.append(realt)
 
+        after = 'do_image'
+        for dep in typedeps[t]:
+            after += ' do_image_%s' % dep.replace("-", "_").replace(".", "_")
+
+        t = t.replace("-", "_").replace(".", "_")
+
         d.setVar('do_image_%s' % t, '\n'.join(cmds))
         d.setVarFlag('do_image_%s' % t, 'func', '1')
         d.setVarFlag('do_image_%s' % t, 'fakeroot', '1')
         d.setVarFlag('do_image_%s' % t, 'prefuncs', debug + 'set_image_size')
         d.setVarFlag('do_image_%s' % t, 'postfuncs', 'create_symlinks')
-        d.setVarFlag('do_image_%s' % t, 'subimages', subimages)
+        d.setVarFlag('do_image_%s' % t, 'subimages', ' '.join(subimages))
         d.appendVarFlag('do_image_%s' % t, 'vardeps', ' '.join(vardeps))
-
-        after = 'do_image'
-        for dep in typedeps[t]:
-            after += ' do_image_%s' % dep
+        d.appendVarFlag('do_image_%s' % t, 'vardepsexclude', 'DATETIME')
 
         bb.debug(2, "Adding type %s before %s, after %s" % (t, 'do_image_complete', after))
         bb.build.addtask('do_image_%s' % t, 'do_image_complete', after, d)
@@ -403,6 +423,9 @@ def get_rootfs_size(d):
     rootfs_req_size = int(d.getVar('IMAGE_ROOTFS_SIZE', True))
     rootfs_extra_space = eval(d.getVar('IMAGE_ROOTFS_EXTRA_SPACE', True))
     rootfs_maxsize = d.getVar('IMAGE_ROOTFS_MAXSIZE', True)
+    image_fstypes = d.getVar('IMAGE_FSTYPES', True) or ''
+    initramfs_fstypes = d.getVar('INITRAMFS_FSTYPES', True) or ''
+    initramfs_maxsize = d.getVar('INITRAMFS_MAXSIZE', True)
 
     rootfs_req_size = int((rootfs_req_size + 1023) / 1024)
     rootfs_extra_space = int((rootfs_extra_space + 1023) / 1024)
@@ -426,8 +449,17 @@ def get_rootfs_size(d):
     if rootfs_maxsize:
         rootfs_maxsize_int = int(rootfs_maxsize)
         if base_size > rootfs_maxsize_int:
-            bb.fatal("The rootfs size %d(K) overrides the max size %d(K)" % \
+            bb.fatal("The rootfs size %d(K) overrides IMAGE_ROOTFS_MAXSIZE: %d(K)" % \
                 (base_size, rootfs_maxsize_int))
+
+    # Check the initramfs size against INITRAMFS_MAXSIZE (if set)
+    if image_fstypes == initramfs_fstypes != ''  and initramfs_maxsize:
+        initramfs_maxsize_int = int(initramfs_maxsize)
+        if base_size > initramfs_maxsize_int:
+            bb.error("The initramfs size %d(K) overrides INITRAMFS_MAXSIZE: %d(K)" % \
+                (base_size, initramfs_maxsize_int))
+            bb.error("You can set INITRAMFS_MAXSIZE a larger value. Usually, it should")
+            bb.fatal("be less than 1/2 of ram size, or you may fail to boot it.\n")
     return base_size
 
 python set_image_size () {
@@ -446,15 +478,16 @@ python create_symlinks() {
     link_name = d.getVar('IMAGE_LINK_NAME', True)
     manifest_name = d.getVar('IMAGE_MANIFEST', True)
     taskname = d.getVar("BB_CURRENTTASK", True)
-    subimages = d.getVarFlag("do_" + taskname, 'subimages', False)
+    subimages = (d.getVarFlag("do_" + taskname, 'subimages', False) or "").split()
+    imgsuffix = d.getVarFlag("do_" + taskname, 'imgsuffix', True) or ".rootfs."
     os.chdir(deploy_dir)
 
     if not link_name:
         return
     for type in subimages:
-        if os.path.exists(img_name + ".rootfs." + type):
+        if os.path.exists(img_name + imgsuffix + type):
             dst = deploy_dir + "/" + link_name + "." + type
-            src = img_name + ".rootfs." + type
+            src = img_name + imgsuffix + type
             bb.note("Creating symlink: %s -> %s" % (dst, src))
             if os.path.islink(dst):
                 if d.getVar('RM_OLD_IMAGE', True) == "1" and \
