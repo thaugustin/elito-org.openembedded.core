@@ -148,7 +148,7 @@ RDEPENDS_${PN}-tests = "python-dbus python-pygobject python-textutils python-sub
 FILES_${PN}-client = "${bindir}/connmanctl"
 RDEPENDS_${PN}-client ="${PN}"
 
-FILES_${PN} = "${bindir}/* ${sbindir}/* ${libdir}/lib*.so.* \
+FILES_${PN} = "${bindir}/* ${sbindir}/* ${libexecdir}/* ${libdir}/lib*.so.* \
             ${libdir}/connman/plugins \
             ${sysconfdir} ${sharedstatedir} ${localstatedir} \
             ${base_bindir}/* ${base_sbindir}/* ${base_libdir}/*.so* ${datadir}/${PN} \

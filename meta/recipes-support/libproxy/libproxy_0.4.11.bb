@@ -19,7 +19,7 @@ inherit cmake pkgconfig
 EXTRA_OECMAKE = "-DWITH_WEBKIT=no -DWITH_GNOME=yes -DWITH_KDE4=no \
 	      -DWITH_PYTHON=no -DWITH_PERL=no -DWITH_MOZJS=no -DWITH_NM=no -DLIB_INSTALL_DIR=${libdir} -DLIBEXEC_INSTALL_DIR=${libexecdir}"
 
-FILES_${PN} += "${libdir}/${BPN}/${PV}/modules ${libexecdir}/pxgsettings"
+FILES_${PN} += "${libdir}/${BPN}/${PV}/modules"
 FILES_${PN}-dev += "${datadir}/cmake"
 
 do_configure_prepend() {
