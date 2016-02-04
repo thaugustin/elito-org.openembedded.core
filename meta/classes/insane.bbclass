@@ -670,7 +670,7 @@ def package_qa_check_pkgconfig_nosysroot(file, pkgname, d, elf, messages):
     with open(file) as f:
         content = f.read()
         if sysroot in content:
-            package_qa_add_message(messages. "pkgconfig-nosysroot",
+            package_qa_add_message(messages, "pkgconfig-nosysroot",
                                    "pkgconfig file %s contains absolute reference to sysroot" % package_qa_clean_path(file,d))
 
 def package_qa_check_license(workdir, d):
