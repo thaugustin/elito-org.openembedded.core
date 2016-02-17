@@ -46,7 +46,7 @@ enabled tests are listed here, the do_package_qa task will run under fakeroot."
 
 ALL_QA = "${WARN_QA} ${ERROR_QA}"
 
-UNKNOWN_CONFIGURE_WHITELIST ?= "--enable-nls --disable-nls --disable-silent-rules --disable-dependency-tracking --with-libtool-sysroot"
+UNKNOWN_CONFIGURE_WHITELIST ?= "--enable-nls --disable-nls --disable-silent-rules --disable-dependency-tracking --with-libtool-sysroot --disable-static"
 
 #
 # dictionary for elf headers
@@ -808,7 +808,9 @@ def package_qa_walk(warnfuncs, errorfuncs, skip, package, d):
             elf = oe.qa.ELFFile(path)
             try:
                 elf.open()
-            except:
+            except (IOError, ValueError):
+                # IOError can happen if the packaging control files disappear,
+                # ValueError means the file isn't an ELF.
                 elf = None
             for func in warnfuncs:
                 func(path, package, d, elf, warnings)
