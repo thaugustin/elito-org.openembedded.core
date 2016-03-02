@@ -46,16 +46,12 @@ SYSTEMTAP_aarch64 = ""
 
 LTTNGUST = "${@base_contains('MACHINE_FEATURES', 'screen', 'lttng-ust', '', d)}"
 LTTNGUST_libc-uclibc = ""
-LTTNGUST_aarch64 = ""
 
 LTTNGTOOLS = "lttng-tools"
-LTTNGTOOLS_aarch64 = ""
 
 LTTNGMODULES = "lttng-modules"
-LTTNGMODULES_aarch64 = ""
 
 BABELTRACE = "babeltrace"
-BABELTRACE_aarch64 = ""
 
 # valgrind does not work on mips
 
