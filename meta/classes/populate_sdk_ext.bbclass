@@ -143,7 +143,12 @@ python copy_buildsystem () {
         f.write('# this configuration provides, it is strongly suggested that you set\n')
         f.write('# up a proper instance of the full build system and use that instead.\n\n')
 
-        f.write('LCONF_VERSION = "%s"\n\n' % d.getVar('LCONF_VERSION', False))
+        # LCONF_VERSION may not be set, for example when using meta-poky
+        # so don't error if it isn't found
+        lconf_version = d.getVar('LCONF_VERSION', False)
+        if lconf_version is not None:
+            f.write('LCONF_VERSION = "%s"\n\n' % lconf_version)
+
         f.write('BBPATH = "$' + '{TOPDIR}"\n')
         f.write('SDKBASEMETAPATH = "$' + '{TOPDIR}"\n')
         f.write('BBLAYERS := " \\\n')
@@ -313,6 +318,9 @@ sdk_ext_postinst() {
 	cd $target_sdk_dir
 	printf "buildtools\ny" | ./*buildtools-nativesdk-standalone* > /dev/null || ( printf 'ERROR: buildtools installation failed\n' ; exit 1 )
 
+	# Delete the buildtools tar file since it won't be used again
+	rm ./*buildtools-nativesdk-standalone*.sh -f
+
 	# Make sure when the user sets up the environment, they also get
 	# the buildtools-tarball tools in their path.
 	env_setup_script="$target_sdk_dir/environment-setup-${REAL_MULTIMACH_TARGET_SYS}"
@@ -323,7 +331,7 @@ sdk_ext_postinst() {
 
 	# A bit of another hack, but we need this in the path only for devtool
 	# so put it at the end of $PATH.
-	echo "export PATH=\$PATH:$target_sdk_dir/sysroots/${SDK_SYS}/${bindir_nativesdk}" >> $env_setup_script
+	echo "export PATH=$target_sdk_dir/sysroots/${SDK_SYS}${bindir_nativesdk}:\$PATH" >> $env_setup_script
 
 	echo "printf 'SDK environment now set up; additionally you may now run devtool to perform development tasks.\nRun devtool --help for further details.\n'" >> $env_setup_script
 
