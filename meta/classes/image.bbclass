@@ -387,7 +387,7 @@ python () {
                     subimages.append(realt + "." + ctype)
 
         if realt not in alltypes:
-            cmds.append(localdata.expand("\trm ${IMAGE_NAME}.rootfs.${type}"))
+            cmds.append(localdata.expand("\trm ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}"))
         else:
             subimages.append(realt)
 
@@ -477,7 +477,7 @@ python create_symlinks() {
     manifest_name = d.getVar('IMAGE_MANIFEST', True)
     taskname = d.getVar("BB_CURRENTTASK", True)
     subimages = (d.getVarFlag("do_" + taskname, 'subimages', False) or "").split()
-    imgsuffix = d.getVarFlag("do_" + taskname, 'imgsuffix', True) or ".rootfs."
+    imgsuffix = d.getVarFlag("do_" + taskname, 'imgsuffix', True) or d.expand("${IMAGE_NAME_SUFFIX}.")
     os.chdir(deploy_dir)
 
     if not link_name:
