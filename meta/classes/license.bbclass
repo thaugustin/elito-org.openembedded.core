@@ -340,7 +340,6 @@ def add_package_and_files(d):
 
 def copy_license_files(lic_files_paths, destdir):
     import shutil
-    import errno
 
     bb.utils.mkdirhier(destdir)
     for (basename, path) in lic_files_paths:
@@ -353,10 +352,22 @@ def copy_license_files(lic_files_paths, destdir):
                 try:
                     os.link(src, dst)
                 except OSError as e:
+                    import errno
                     if e.errno != errno.EXDEV:
                         raise e
 
                     shutil.copyfile(src, dst)
+
+                try:
+                    os.chown(dst,0,0)
+                except OSError as err:
+                    import errno
+                    if err.errno == errno.EPERM:
+                        # suppress "Operation not permitted" error, as
+                        # sometimes this function is not executed under pseudo
+                        pass
+                    else:
+                        raise
             else:
                 shutil.copyfile(src, dst)
         except Exception as e:
