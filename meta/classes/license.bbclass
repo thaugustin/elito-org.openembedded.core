@@ -192,6 +192,17 @@ def copy_license_files(lic_files_paths, destdir):
                         raise e
 
                     shutil.copyfile(src, dst)
+
+                try:
+                    os.chown(dst,0,0)
+                except OSError as err:
+                    import errno
+                    if err.errno == errno.EPERM:
+                        # suppress "Operation not permitted" error, as
+                        # sometimes this function is not executed under pseudo
+                        pass
+                    else:
+                        raise
             else:
                 shutil.copyfile(src, dst)
         except Exception as e:
