@@ -47,7 +47,6 @@ python debian_package_name_hook () {
 
     def isexec(path):
         try:
-            assert(not os.path.islink(path))
             s = os.stat(path)
         except (os.error, AttributeError):
             return 0
