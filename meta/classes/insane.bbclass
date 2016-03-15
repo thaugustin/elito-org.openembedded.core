@@ -424,7 +424,6 @@ def package_qa_check_unsafe_references_in_scripts(path, name, d, elf, messages):
         pn = d.getVar('PN', True)
 
         # Ensure we're checking an executable script
-        assert(not os.path.islink(path))
         statinfo = os.stat(path)
         if bool(statinfo.st_mode & stat.S_IXUSR):
             # grep shell scripts for possible references to /exec_prefix/

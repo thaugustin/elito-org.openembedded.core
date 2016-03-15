@@ -13,7 +13,6 @@ def runstrip(arg):
     (file, elftype, strip) = arg
 
     newmode = None
-    assert(not os.path.islink(file))
     if not os.access(file, os.W_OK) or os.access(file, os.R_OK):
         origmode = os.stat(file)[stat.ST_MODE]
         newmode = origmode | stat.S_IWRITE | stat.S_IREAD
