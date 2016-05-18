@@ -687,22 +687,24 @@ def package_qa_check_pkgconfig_nosysroot(file, pkgname, d, elf, messages):
             package_qa_add_message(messages, "pkgconfig-nosysroot",
                                    "pkgconfig file %s contains absolute reference to sysroot" % package_qa_clean_path(file,d))
 
-def package_qa_check_license(workdir, d):
+# Check license variables
+do_populate_lic[postfuncs] += "populate_lic_qa_checksum"
+python populate_lic_qa_checksum() {
     """
     Check for changes in the license files 
     """
     import tempfile
     sane = True
 
-    lic_files = d.getVar('LIC_FILES_CHKSUM', True)
+    lic_files = d.getVar('LIC_FILES_CHKSUM', True) or ''
     lic = d.getVar('LICENSE', True)
     pn = d.getVar('PN', True)
 
     if lic == "CLOSED":
         return
 
-    if not lic_files:
-        package_qa_handle_error("license-checksum", pn + ": Recipe file does not have license file information (LIC_FILES_CHKSUM)", d)
+    if not lic_files and d.getVar('SRC_URI', True):
+        package_qa_handle_error("license-checksum", pn + ": Recipe file fetches files and does not have license file information (LIC_FILES_CHKSUM)", d)
         return
 
     srcdir = d.getVar('S', True)
@@ -768,6 +770,7 @@ def package_qa_check_license(workdir, d):
                 msg = pn + ": LIC_FILES_CHKSUM is not specified for " +  url
                 msg = msg + "\n" + pn + ": The md5 checksum is " + md5chksum
             package_qa_handle_error("license-checksum", msg, d)
+}
 
 def package_qa_check_staged(path,d):
     """
@@ -1223,12 +1226,6 @@ Rerun configure task after fixing this.""")
 Missing inherit gettext?""" % (gt, config))
 
     ###########################################################################
-    # Check license variables
-    ###########################################################################
-
-    package_qa_check_license(workdir, d)
-
-    ###########################################################################
     # Check unrecognised configure options (with a white list)
     ###########################################################################
     if bb.data.inherits_class("autotools", d):
@@ -1276,8 +1273,8 @@ python do_qa_unpack() {
 #addtask qa_staging after do_populate_sysroot before do_build
 do_populate_sysroot[postfuncs] += "do_qa_staging "
 
-# Check broken config.log files, for packages requiring Gettext which don't
-# have it in DEPENDS and for correct LIC_FILES_CHKSUM
+# Check broken config.log files, for packages requiring Gettext which
+# don't have it in DEPENDS.
 #addtask qa_configure after do_configure before do_compile
 do_configure[postfuncs] += "do_qa_configure "
 
