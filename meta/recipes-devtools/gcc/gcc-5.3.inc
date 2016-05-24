@@ -88,6 +88,11 @@ SRC_URI = "\
            file://0056-Enable-libc-provide-ssp-and-gcc_cv_target_dl_iterate.patch \
            file://0057-unwind-fix-for-musl.patch \
            file://0058-fdebug-prefix-map-support-to-remap-relative-path.patch \
+           file://0059-libgcc-use-ldflags.patch \
+           file://CVE-2016-4488.patch \
+           file://CVE-2016-4489.patch \
+           file://CVE-2016-2226.patch \
+           file://CVE-2016-4490.patch \
 "
 
 BACKPORTS = ""
