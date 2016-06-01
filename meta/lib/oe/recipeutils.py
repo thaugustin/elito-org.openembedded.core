@@ -19,7 +19,7 @@ from collections import OrderedDict, defaultdict
 
 
 # Help us to find places to insert values
-recipe_progression = ['SUMMARY', 'DESCRIPTION', 'HOMEPAGE', 'BUGTRACKER', 'SECTION', 'LICENSE', 'LIC_FILES_CHKSUM', 'PROVIDES', 'DEPENDS', 'PR', 'PV', 'SRCREV', 'SRC_URI', 'S', 'do_fetch()', 'do_unpack()', 'do_patch()', 'EXTRA_OECONF', 'do_configure()', 'EXTRA_OEMAKE', 'do_compile()', 'do_install()', 'do_populate_sysroot()', 'INITSCRIPT', 'USERADD', 'GROUPADD', 'PACKAGES', 'FILES', 'RDEPENDS', 'RRECOMMENDS', 'RSUGGESTS', 'RPROVIDES', 'RREPLACES', 'RCONFLICTS', 'ALLOW_EMPTY', 'do_package()', 'do_deploy()']
+recipe_progression = ['SUMMARY', 'DESCRIPTION', 'HOMEPAGE', 'BUGTRACKER', 'SECTION', 'LICENSE', 'LICENSE_FLAGS', 'LIC_FILES_CHKSUM', 'PROVIDES', 'DEPENDS', 'PR', 'PV', 'SRCREV', 'SRCPV', 'SRC_URI', 'S', 'do_fetch()', 'do_unpack()', 'do_patch()', 'EXTRA_OECONF', 'EXTRA_OECMAKE', 'EXTRA_OESCONS', 'do_configure()', 'EXTRA_OEMAKE', 'do_compile()', 'do_install()', 'do_populate_sysroot()', 'INITSCRIPT', 'USERADD', 'GROUPADD', 'PACKAGES', 'FILES', 'RDEPENDS', 'RRECOMMENDS', 'RSUGGESTS', 'RPROVIDES', 'RREPLACES', 'RCONFLICTS', 'ALLOW_EMPTY', 'populate_packages()', 'do_package()', 'do_deploy()']
 # Variables that sometimes are a bit long but shouldn't be wrapped
 nowrap_vars = ['SUMMARY', 'HOMEPAGE', 'BUGTRACKER', 'SRC_URI[md5sum]', 'SRC_URI[sha256sum]']
 list_vars = ['SRC_URI', 'LIC_FILES_CHKSUM']
@@ -158,14 +158,18 @@ def split_var_value(value, assignment=True):
     return outlist
 
 
-def patch_recipe_file(fn, values, patch=False, relpath=''):
-    """Update or insert variable values into a recipe file (assuming you
-       have already identified the exact file you want to update.)
+def patch_recipe_lines(fromlines, values, trailing_newline=True):
+    """Update or insert variable values into lines from a recipe.
        Note that some manual inspection/intervention may be required
        since this cannot handle all situations.
     """
 
     import bb.utils
+
+    if trailing_newline:
+        newline = '\n'
+    else:
+        newline = ''
 
     recipe_progression_res = []
     recipe_progression_restrs = []
@@ -197,7 +201,7 @@ def patch_recipe_file(fn, values, patch=False, relpath=''):
     def outputvalue(name, lines, rewindcomments=False):
         if values[name] is None:
             return
-        rawtext = '%s = "%s"\n' % (name, values[name])
+        rawtext = '%s = "%s"%s' % (name, values[name], newline)
         addlines = []
         if name in nowrap_vars:
             addlines.append(rawtext)
@@ -205,19 +209,19 @@ def patch_recipe_file(fn, values, patch=False, relpath=''):
             splitvalue = split_var_value(values[name], assignment=False)
             if len(splitvalue) > 1:
                 linesplit = ' \\\n' + (' ' * (len(name) + 4))
-                addlines.append('%s = "%s%s"\n' % (name, linesplit.join(splitvalue), linesplit))
+                addlines.append('%s = "%s%s"%s' % (name, linesplit.join(splitvalue), linesplit, newline))
             else:
                 addlines.append(rawtext)
         else:
             wrapped = textwrap.wrap(rawtext)
             for wrapline in wrapped[:-1]:
-                addlines.append('%s \\\n' % wrapline)
-            addlines.append('%s\n' % wrapped[-1])
+                addlines.append('%s \\%s' % (wrapline, newline))
+            addlines.append('%s%s' % (wrapped[-1], newline))
         if rewindcomments:
             # Ensure we insert the lines before any leading comments
             # (that we'd want to ensure remain leading the next value)
             for i, ln in reversed(list(enumerate(lines))):
-                if ln[0] != '#':
+                if not ln.startswith('#'):
                     lines[i+1:i+1] = addlines
                     break
             else:
@@ -247,8 +251,7 @@ def patch_recipe_file(fn, values, patch=False, relpath=''):
 
     # First run - establish which values we want to set are already in the file
     varlist = [re.escape(item) for item in values.keys()]
-    with open(fn, 'r') as f:
-        changed, fromlines = bb.utils.edit_metadata(f, varlist, patch_recipe_varfunc)
+    bb.utils.edit_metadata(fromlines, varlist, patch_recipe_varfunc)
     # Second run - actually set everything
     modifying = True
     varlist.extend(recipe_progression_restrs)
@@ -259,6 +262,21 @@ def patch_recipe_file(fn, values, patch=False, relpath=''):
             tolines.append('\n')
         for k in remainingnames.keys():
             outputvalue(k, tolines)
+
+    return changed, tolines
+
+
+def patch_recipe_file(fn, values, patch=False, relpath=''):
+    """Update or insert variable values into a recipe file (assuming you
+       have already identified the exact file you want to update.)
+       Note that some manual inspection/intervention may be required
+       since this cannot handle all situations.
+    """
+
+    with open(fn, 'r') as f:
+        fromlines = f.readlines()
+
+    _, tolines = patch_recipe_lines(fromlines, values)
 
     if patch:
         relfn = os.path.relpath(fn, relpath)
