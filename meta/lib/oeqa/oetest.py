@@ -13,6 +13,7 @@ import inspect
 import subprocess
 import signal
 import shutil
+import functools
 try:
     import bb
 except ImportError:
@@ -132,7 +133,7 @@ class oeSDKTest(oeTest):
         return False
 
     def _run(self, cmd):
-        return subprocess.check_output(". %s > /dev/null; %s;" % (self.tc.sdkenv, cmd), shell=True)
+        return subprocess.check_output(". %s > /dev/null; %s;" % (self.tc.sdkenv, cmd), shell=True).decode("utf-8")
 
 class oeSDKExtTest(oeSDKTest):
     def _run(self, cmd):
@@ -144,7 +145,7 @@ class oeSDKExtTest(oeSDKTest):
         env['PATH'] = avoid_paths_in_environ(paths_to_avoid)
 
         return subprocess.check_output(". %s > /dev/null;"\
-            " %s;" % (self.tc.sdkenv, cmd), shell=True, env=env)
+            " %s;" % (self.tc.sdkenv, cmd), shell=True, env=env).decode("utf-8")
 
 def getmodule(pos=2):
     # stack returns a list of tuples containg frame information
@@ -340,7 +341,14 @@ class TestContext(object):
         for index, suite in enumerate(suites):
             set_suite_depth(suite)
             suite.index = index
-        suites.sort(cmp=lambda a,b: cmp((a.depth, a.index), (b.depth, b.index)))
+
+        def cmp(a, b):
+            return (a > b) - (a < b)
+
+        def cmpfunc(a, b):
+            return cmp((a.depth, a.index), (b.depth, b.index))
+
+        suites.sort(key=functools.cmp_to_key(cmpfunc))
 
         self.suite = testloader.suiteClass(suites)
 

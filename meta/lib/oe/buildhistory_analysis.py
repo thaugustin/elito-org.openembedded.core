@@ -62,7 +62,7 @@ class ChangeRecord:
 
         def pkglist_combine(depver):
             pkglist = []
-            for k,v in depver.iteritems():
+            for k,v in depver.items():
                 if v:
                     pkglist.append("%s (%s)" % (k,v))
                 else:
@@ -190,7 +190,7 @@ class FileChange:
 
 
 def blob_to_dict(blob):
-    alines = blob.data_stream.read().splitlines()
+    alines = [line.decode() for line in blob.data_stream.read().splitlines()]
     adict = {}
     for line in alines:
         splitv = [i.strip() for i in line.split('=',1)]
@@ -220,7 +220,7 @@ def compare_file_lists(alines, blines):
     adict = file_list_to_dict(alines)
     bdict = file_list_to_dict(blines)
     filechanges = []
-    for path, splitv in adict.iteritems():
+    for path, splitv in adict.items():
         newsplitv = bdict.pop(path, None)
         if newsplitv:
             # Check type

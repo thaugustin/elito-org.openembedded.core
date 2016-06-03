@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 @contextmanager
 def create_socket(url, d):
-    import urllib
-    socket = urllib.urlopen(url, proxies=get_proxies(d))
+    import urllib.request, urllib.parse, urllib.error
+    socket = urllib.request.urlopen(url, proxies=get_proxies(d))
     try:
         yield socket
     finally:
@@ -104,8 +104,8 @@ def get_source_package_list_from_url(url, section, d):
 
     bb.note("Reading %s: %s" % (url, section))
     links = get_links_from_url(url, d)
-    srpms = filter(is_src_rpm, links)
-    names_list = map(package_name_from_srpm, srpms)
+    srpms = list(filter(is_src_rpm, links))
+    names_list = list(map(package_name_from_srpm, srpms))
 
     new_pkgs = []
     for pkgs in names_list:
@@ -357,8 +357,8 @@ def compare_in_distro_packages_list(distro_check_dir, d):
 
     
     if tmp != None:
-	list = tmp.split(' ')
-	for item in list:
+        list = tmp.split(' ')
+        for item in list:
             matching_distros.append(item)
     bb.note("Matching: %s" % matching_distros)
     return matching_distros

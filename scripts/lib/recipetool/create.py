@@ -24,7 +24,7 @@ import re
 import json
 import logging
 import scriptutils
-import urlparse
+from urllib.parse import urlparse, urldefrag, urlsplit
 import hashlib
 
 logger = logging.getLogger('recipetool')
@@ -61,8 +61,8 @@ class RecipeHandler(object):
         libpaths = list(set([base_libdir, libdir]))
         libname_re = re.compile('^lib(.+)\.so.*$')
         pkglibmap = {}
-        for lib, item in shlib_providers.iteritems():
-            for path, pkg in item.iteritems():
+        for lib, item in shlib_providers.items():
+            for path, pkg in item.items():
                 if path in libpaths:
                     res = libname_re.match(lib)
                     if res:
@@ -74,7 +74,7 @@ class RecipeHandler(object):
 
         # Now turn it into a library->recipe mapping
         pkgdata_dir = d.getVar('PKGDATA_DIR', True)
-        for libname, pkg in pkglibmap.iteritems():
+        for libname, pkg in pkglibmap.items():
             try:
                 with open(os.path.join(pkgdata_dir, 'runtime', pkg)) as f:
                     for line in f:
@@ -167,7 +167,7 @@ class RecipeHandler(object):
         unmappedpc = []
         pcdeps = list(set(pcdeps))
         for pcdep in pcdeps:
-            if isinstance(pcdep, basestring):
+            if isinstance(pcdep, str):
                 recipe = recipemap.get(pcdep, None)
                 if recipe:
                     deps.append(recipe)
@@ -283,7 +283,7 @@ def determine_from_url(srcuri):
     """Determine name and version from a URL"""
     pn = None
     pv = None
-    parseres = urlparse.urlparse(srcuri.lower().split(';', 1)[0])
+    parseres = urlparse(srcuri.lower().split(';', 1)[0])
     if parseres.path:
         if 'github.com' in parseres.netloc:
             res = re.search(r'.*/(.*?)/archive/(.*)-final\.(tar|zip)', parseres.path)
@@ -355,7 +355,7 @@ def create_recipe(args):
     srcrev = '${AUTOREV}'
     if '://' in args.source:
         # Fetch a URL
-        fetchuri = reformat_git_uri(urlparse.urldefrag(args.source)[0])
+        fetchuri = reformat_git_uri(urldefrag(args.source)[0])
         if args.binary:
             # Assume the archive contains the directory structure verbatim
             # so we need to extract to a subdirectory
@@ -663,7 +663,7 @@ def create_recipe(args):
         else:
             extraoutdir = os.path.join(os.path.dirname(outfile), pn)
         bb.utils.mkdirhier(extraoutdir)
-        for destfn, extrafile in extrafiles.iteritems():
+        for destfn, extrafile in extrafiles.items():
             shutil.move(extrafile, os.path.join(extraoutdir, destfn))
 
     lines = lines_before
@@ -851,14 +851,14 @@ def crunch_license(licfile):
                 continue
             # Squash spaces, and replace smart quotes, double quotes
             # and backticks with single quotes
-            line = oe.utils.squashspaces(line.strip()).decode("utf-8")
+            line = oe.utils.squashspaces(line.strip())
             line = line.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(u"\u201c","'").replace(u"\u201d", "'").replace('"', '\'').replace('`', '\'')
             if line:
                 lictext.append(line)
 
     m = hashlib.md5()
     try:
-        m.update(' '.join(lictext))
+        m.update(' '.join(lictext).encode('utf-8'))
         md5val = m.hexdigest()
     except UnicodeEncodeError:
         md5val = None
@@ -901,7 +901,7 @@ def split_pkg_licenses(licvalues, packages, outlines, fallback_licenses=None, pn
     """
     pkglicenses = {pn: []}
     for license, licpath, _ in licvalues:
-        for pkgname, pkgpath in packages.iteritems():
+        for pkgname, pkgpath in packages.items():
             if licpath.startswith(pkgpath + '/'):
                 if pkgname in pkglicenses:
                     pkglicenses[pkgname].append(license)
@@ -928,7 +928,7 @@ def read_pkgconfig_provides(d):
             for line in f:
                 pkgmap[os.path.basename(line.rstrip())] = os.path.splitext(os.path.basename(fn))[0]
     recipemap = {}
-    for pc, pkg in pkgmap.iteritems():
+    for pc, pkg in pkgmap.items():
         pkgdatafile = os.path.join(pkgdatadir, 'runtime', pkg)
         if os.path.exists(pkgdatafile):
             with open(pkgdatafile, 'r') as f:
