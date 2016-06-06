@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright (c) 2011, Intel Corporation.
 # All rights reserved.
@@ -28,8 +28,6 @@ import sys
 import getopt
 import os
 from subprocess import *
-from string import join
-
 
 def usage():
     prog = os.path.basename(sys.argv[0])
@@ -66,7 +64,7 @@ class Report:
 
         p = Popen("ls " + path + "/*.o | grep -v built-in.o",
                   shell=True, stdout=PIPE, stderr=PIPE)
-        glob = join(p.communicate()[0].splitlines())
+        glob = ' '.join(p.communicate()[0].splitlines())
         oreport = Report(glob, path + "/*.o")
         oreport.sizes.title = path + "/*.o"
         r.parts.append(oreport)
@@ -133,7 +131,7 @@ class Report:
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], "dh", ["help"])
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:
         print('%s' % str(err))
         usage()
         sys.exit(2)

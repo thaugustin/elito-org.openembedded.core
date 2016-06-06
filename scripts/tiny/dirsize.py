@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright (c) 2011, Intel Corporation.
 # All rights reserved.
@@ -52,20 +52,16 @@ class Record:
         self.size = 0
         self.records = []
 
-    def __cmp__(this, that):
+    def __lt__(this, that):
         if that is None:
-            return 1
+            return False
         if not isinstance(that, Record):
             raise TypeError
         if len(this.records) > 0 and len(that.records) == 0:
-            return -1
-        if len(this.records) == 0 and len(that.records) > 0:
-            return 1
-        if this.size < that.size:
-            return -1
+            return False
         if this.size > that.size:
-            return 1
-        return 0
+            return False
+        return True
 
     def show(self, minsize):
         total = 0
