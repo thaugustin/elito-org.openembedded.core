@@ -81,6 +81,9 @@ class oeRuntimeTest(oeTest):
         super(oeRuntimeTest, self).__init__(methodName)
 
     def setUp(self):
+        # Install packages in the DUT
+        self.tc.install_uninstall_packages(self.id())
+
         # Check if test needs to run
         if self.tc.sigterm:
             self.fail("Got SIGTERM")
@@ -94,6 +97,9 @@ class oeRuntimeTest(oeTest):
         pass
 
     def tearDown(self):
+        # Unistall packages in the DUT
+        self.tc.install_uninstall_packages(self.id(), False)
+
         res = getResults()
         # If a test fails or there is an exception dump
         # for QemuTarget only
@@ -203,8 +209,7 @@ class TestContext(object):
         self.testslist = self._get_tests_list(path, extrapath)
         self.testsrequired = self._get_test_suites_required()
 
-        self.filesdir = os.path.join(os.path.dirname(os.path.abspath(
-            oeqa.runtime.__file__)), "files")
+        self.filesdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runtime/files")
         self.imagefeatures = d.getVar("IMAGE_FEATURES", True).split()
         self.distrofeatures = d.getVar("DISTRO_FEATURES", True).split()
 
@@ -281,6 +286,19 @@ class TestContext(object):
             modules.append(module)
 
         return modules
+
+    def getModulefromID(self, test_id):
+        """
+        Returns the test module based on a test id.
+        """
+
+        module_name = ".".join(test_id.split(".")[:3])
+        modules = self.getTestModules()
+        for module in modules:
+            if module.name == module_name:
+                return module
+
+        return None
 
     def getTests(self, test):
         '''Return all individual tests executed when running the suite.'''
@@ -460,7 +478,7 @@ class RuntimeTestContext(TestContext):
         Returns the path of the JSON file for a module, empty if doesn't exitst.
         """
 
-        module_file = module.filename
+        module_file = module.path
         json_file = "%s.json" % module_file.rsplit(".", 1)[0]
         if os.path.isfile(module_file) and os.path.isfile(json_file):
             return json_file
@@ -522,6 +540,43 @@ class RuntimeTestContext(TestContext):
         shutil.copy2(file_path, dst_dir)
         shutil.rmtree(pkg_path)
 
+    def install_uninstall_packages(self, test_id, pkg_dir, install):
+        """
+        Check if the test requires a package and Install/Unistall it in the DUT
+        """
+
+        test = test_id.split(".")[4]
+        module = self.getModulefromID(test_id)
+        json = self._getJsonFile(module)
+        if json:
+            needed_packages = self._getNeededPackages(json, test)
+            if needed_packages:
+                self._install_uninstall_packages(needed_packages, pkg_dir, install)
+
+    def _install_uninstall_packages(self, needed_packages, pkg_dir, install=True):
+        """
+        Install/Unistall packages in the DUT without using a package manager
+        """
+
+        if isinstance(needed_packages, dict):
+            packages = [needed_packages]
+        elif isinstance(needed_packages, list):
+            packages = needed_packages
+
+        for package in packages:
+            pkg = package["pkg"]
+            rm = package.get("rm", False)
+            extract = package.get("extract", True)
+            src_dir = os.path.join(pkg_dir, pkg)
+
+            # Install package
+            if install and extract:
+                self.target.connection.copy_dir_to(src_dir, "/")
+
+            # Unistall package
+            elif not install and rm:
+                self.target.connection.delete_dir_structure(src_dir, "/")
+
 class ImageTestContext(RuntimeTestContext):
     def __init__(self, d, target, host_dumper):
         super(ImageTestContext, self).__init__(d, target)
@@ -537,10 +592,28 @@ class ImageTestContext(RuntimeTestContext):
         self.sigterm = True
         self.target.stop()
 
+    def install_uninstall_packages(self, test_id, install=True):
+        """
+        Check if the test requires a package and Install/Unistall it in the DUT
+        """
+
+        pkg_dir = self.d.getVar("TEST_EXTRACTED_DIR", True)
+        super(ImageTestContext, self).install_uninstall_packages(test_id, pkg_dir, install)
+
 class ExportTestContext(RuntimeTestContext):
     def __init__(self, d, target, exported=False):
         super(ExportTestContext, self).__init__(d, target, exported)
         self.sigterm = None
+
+    def install_uninstall_packages(self, test_id, install=True):
+        """
+        Check if the test requires a package and Install/Unistall it in the DUT
+        """
+
+        export_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        extracted_dir = self.d.getVar("TEST_EXPORT_EXTRACTED_DIR", True)
+        pkg_dir = os.path.join(export_dir, extracted_dir)
+        super(ExportTestContext, self).install_uninstall_packages(test_id, pkg_dir, install)
 
 class SDKTestContext(TestContext):
     def __init__(self, d, sdktestdir, sdkenv, tcname, *args):
