@@ -674,7 +674,7 @@ def package_qa_check_symlink_to_sysroot(path, name, d, elf, messages):
 QAPATHTEST[pkgconfig-nosysroot] = "package_qa_check_pkgconfig_nosysroot"
 def package_qa_check_pkgconfig_nosysroot(file, pkgname, d, elf, messages):
     if not file.endswith('.pc') or os.path.islink(file):
-	return
+        return
 
     sysroot = d.getVar("PKG_CONFIG_SYSROOT_DIR", True)
     if not sysroot:
