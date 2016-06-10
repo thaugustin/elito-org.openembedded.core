@@ -197,7 +197,7 @@ python split_kernel_module_packages () {
     # directory cannot be removed.
     dvar = d.getVar('PKGD', True)
     for dir in ["%s/etc/modprobe.d" % (dvar), "%s/etc/modules-load.d" % (dvar), "%s/etc" % (dvar)]:
-        if len(os.listdir(dir)) == 0:
+        if os.path.isdir(dir) and len(os.listdir(dir)) == 0:
             os.rmdir(dir)
 }
 
