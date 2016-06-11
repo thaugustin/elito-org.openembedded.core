@@ -41,7 +41,3 @@ do_configure_prepend () {
 do_configure_append () {
 	sed -i 's#}libtool#}${TARGET_SYS}-libtool#' ${B}/doltlibtool
 }
-
-do_compile_append () {
-    sed -i -e 's!${PKG_CONFIG_SYSROOT_DIR}${libdir}!${'libdir'}!g' libkmod/libkmod.pc
-}
