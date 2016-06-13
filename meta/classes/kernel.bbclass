@@ -283,9 +283,7 @@ kernel_do_compile() {
 do_compile_kernelmodules() {
 	unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS MACHINE
 	if (grep -q -i -e '^CONFIG_MODULES=y$' ${B}/.config); then
-		install -d ${D}/lib/firmware
 		oe_runmake -C ${B} ${PARALLEL_MAKE} modules CC="${KERNEL_CC}" LD="${KERNEL_LD}" ${KERNEL_EXTRA_ARGS}
-		rmdir ${D}/lib/firmware || :
 
 		# Module.symvers gets updated during the 
 		# building of the kernel modules. We need to
