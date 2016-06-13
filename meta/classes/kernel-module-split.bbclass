@@ -165,7 +165,6 @@ python split_kernel_module_packages () {
         files = d.getVar('FILES_%s' % pkg, True)
         files = "%s /etc/modules-load.d/%s.conf /etc/modprobe.d/%s.conf" % (files, basename, basename)
         d.setVar('FILES_%s' % pkg, files)
-        d.setVarFlag('RRECOMMENDS_%s' % pkg, 'nodevrrecs', True)
 
         if "description" in vals:
             old_desc = d.getVar('DESCRIPTION_' + pkg, True) or ""
