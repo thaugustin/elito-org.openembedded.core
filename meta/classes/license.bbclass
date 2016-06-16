@@ -342,6 +342,7 @@ def add_package_and_files(d):
 
 def copy_license_files(lic_files_paths, destdir):
     import shutil
+    import errno
 
     bb.utils.mkdirhier(destdir)
     for (basename, path) in lic_files_paths:
@@ -350,20 +351,21 @@ def copy_license_files(lic_files_paths, destdir):
             dst = os.path.join(destdir, basename)
             if os.path.exists(dst):
                 os.remove(dst)
-            if os.access(src, os.W_OK):
+            canlink = os.access(src, os.W_OK) and (os.stat(src).st_dev == os.stat(destdir).st_dev)
+            if canlink:
                 try:
                     os.link(src, dst)
-                except OSError as e:
-                    import errno
-                    if e.errno != errno.EXDEV:
-                        raise e
-
-                    shutil.copyfile(src, dst)
-
-                try:
-                    os.chown(dst,0,0)
                 except OSError as err:
-                    import errno
+                    if err.errno == errno.EXDEV:
+                        # Copy license files if hard-link is not possible even if st_dev is the
+                        # same on source and destination (docker container with device-mapper?)
+                        canlink = False
+                    else:
+                        raise
+                try:
+                    if canlink:
+                        os.chown(dst,0,0)
+                except OSError as err:
                     if err.errno in (errno.EPERM, errno.EINVAL):
                         # Suppress "Operation not permitted" error, as
                         # sometimes this function is not executed under pseudo.
@@ -372,7 +374,7 @@ def copy_license_files(lic_files_paths, destdir):
                         pass
                     else:
                         raise
-            else:
+            if not canlink:
                 shutil.copyfile(src, dst)
         except Exception as e:
             bb.warn("Could not copy license file %s to %s: %s" % (src, dst, e))

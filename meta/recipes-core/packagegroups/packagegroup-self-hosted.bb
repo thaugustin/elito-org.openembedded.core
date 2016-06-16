@@ -121,8 +121,6 @@ RDEPENDS_packagegroup-self-hosted-extended = "\
     groff \
     gzip \
     settings-daemon \
-    hicolor-icon-theme \
-    sato-icon-theme \
     libaio \
     libusb1 \
     libxml2 \
@@ -184,10 +182,10 @@ RDEPENDS_packagegroup-self-hosted-graphics = "\
     libsdl \
     libsdl-dev \
     libx11-dev \
-    gtk-theme-clearlooks \
+    adwaita-icon-theme \
     xdg-utils \
     epiphany \
-    leafpad \
+    l3afpad \
     pcmanfm \
     vte \
     "
