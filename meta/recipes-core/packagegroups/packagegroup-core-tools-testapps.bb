@@ -39,7 +39,7 @@ _pkgs_alsa = " \
 
 _pkgs_screen = "\
     fstests \
-    gst-player-bin \
+    gst-player \
     "
 
 _pkgs_touch = "\
