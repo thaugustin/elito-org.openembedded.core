@@ -687,7 +687,7 @@ def package_qa_check_pkgconfig_nosysroot(file, pkgname, d, elf, messages):
             package_qa_add_message(messages, "pkgconfig-nosysroot",
                                    "pkgconfig file %s contains absolute reference to sysroot" % package_qa_clean_path(file,d))
 
-def package_qa_check_license(workdir, d):
+def package_qa_check_license(d):
     """
     Check for changes in the license files 
     """
@@ -1226,7 +1226,7 @@ Missing inherit gettext?""" % (gt, config))
     # Check license variables
     ###########################################################################
 
-    package_qa_check_license(workdir, d)
+    package_qa_check_license(d)
 
     ###########################################################################
     # Check unrecognised configure options (with a white list)

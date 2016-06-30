@@ -32,6 +32,9 @@ EXTRA_OECONF = " \
     --with-rootprefix= \
 "
 
+PACKAGECONFIG ??= "hwdb"
+PACKAGECONFIG[hwdb] = "--enable-hwdb,--disable-hwdb"
+
 do_install_append() {
 	install -d ${D}${sysconfdir}/init.d
 	install -m 0755 ${WORKDIR}/init ${D}${sysconfdir}/init.d/udev
@@ -83,7 +86,7 @@ FILES_eudev-hwdb = "${sysconfdir}/udev/hwdb.d"
 
 RDEPENDS_eudev-hwdb += "eudev"
 
-RRECOMMENDS_${PN} += "udev-cache eudev-hwdb"
+RRECOMMENDS_${PN} += "udev-cache"
 
 RPROVIDES_${PN} = "hotplug udev"
 
@@ -104,4 +107,3 @@ pkg_postinst_eudev-hwdb () {
 pkg_prerm_eudev-hwdb () {
         rm -f $D${sysconfdir}/udev/hwdb.bin
 }
-
