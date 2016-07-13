@@ -65,6 +65,10 @@ def add(args, config, basepath, workspace):
         elif os.path.isdir(args.recipename):
             logger.warn('Ambiguous argument %s - assuming you mean it to be the recipe name')
 
+    if args.srctree and os.path.isfile(args.srctree):
+        args.fetchuri = 'file://' + os.path.abspath(args.srctree)
+        args.srctree = ''
+
     if args.fetch:
         if args.fetchuri:
             raise DevtoolError('URI specified as positional argument as well as -f/--fetch')
@@ -264,28 +268,30 @@ def _check_compatible_recipe(pn, d):
     """Check if the recipe is supported by devtool"""
     if pn == 'perf':
         raise DevtoolError("The perf recipe does not actually check out "
-                           "source and thus cannot be supported by this tool")
+                           "source and thus cannot be supported by this tool",
+                           4)
 
     if pn in ['kernel-devsrc', 'package-index'] or pn.startswith('gcc-source'):
-        raise DevtoolError("The %s recipe is not supported by this tool" % pn)
+        raise DevtoolError("The %s recipe is not supported by this tool" % pn, 4)
 
     if bb.data.inherits_class('image', d):
         raise DevtoolError("The %s recipe is an image, and therefore is not "
-                           "supported by this tool" % pn)
+                           "supported by this tool" % pn, 4)
 
     if bb.data.inherits_class('populate_sdk', d):
         raise DevtoolError("The %s recipe is an SDK, and therefore is not "
-                           "supported by this tool" % pn)
+                           "supported by this tool" % pn, 4)
 
     if bb.data.inherits_class('packagegroup', d):
         raise DevtoolError("The %s recipe is a packagegroup, and therefore is "
-                           "not supported by this tool" % pn)
+                           "not supported by this tool" % pn, 4)
 
     if bb.data.inherits_class('meta', d):
         raise DevtoolError("The %s recipe is a meta-recipe, and therefore is "
-                           "not supported by this tool" % pn)
+                           "not supported by this tool" % pn, 4)
 
     if bb.data.inherits_class('externalsrc', d) and d.getVar('EXTERNALSRC', True):
+        # Not an incompatibility error per se, so we don't pass the error code
         raise DevtoolError("externalsrc is currently enabled for the %s "
                            "recipe. This prevents the normal do_patch task "
                            "from working. You will need to disable this "
@@ -498,7 +504,7 @@ def _extract_source(srctree, keep_temp, devbranch, sync, d):
 
         if 'noexec' in (d.getVarFlags('do_unpack', False) or []):
             raise DevtoolError("The %s recipe has do_unpack disabled, unable to "
-                               "extract source" % pn)
+                               "extract source" % pn, 4)
 
     if not sync:
         # Prepare for shutil.move later on
@@ -811,22 +817,19 @@ def modify(args, config, basepath, workspace):
 
     return 0
 
-def _get_patchset_revs(args, srctree, recipe_path):
+def _get_patchset_revs(srctree, recipe_path, initial_rev=None):
     """Get initial and update rev of a recipe. These are the start point of the
     whole patchset and start point for the patches to be re-generated/updated.
     """
     import bb
 
-    if args.initial_rev:
-        return args.initial_rev, args.initial_rev
-
-    # Parse initial rev from recipe
+    # Parse initial rev from recipe if not specified
     commits = []
-    initial_rev = None
     with open(recipe_path, 'r') as f:
         for line in f:
             if line.startswith('# initial_rev:'):
-                initial_rev = line.split(':')[-1].strip()
+                if not initial_rev:
+                    initial_rev = line.split(':')[-1].strip()
             elif line.startswith('# commit:'):
                 commits.append(line.split(':')[-1].strip())
 
@@ -1125,7 +1128,7 @@ def _update_recipe_patch(args, config, workspace, srctree, rd, config_data):
         raise DevtoolError('unable to find workspace bbappend for recipe %s' %
                            args.recipename)
 
-    initial_rev, update_rev, changed_revs = _get_patchset_revs(args, srctree, append)
+    initial_rev, update_rev, changed_revs = _get_patchset_revs(srctree, append, args.initial_rev)
     if not initial_rev:
         raise DevtoolError('Unable to find initial revision - please specify '
                            'it with --initial-rev')
@@ -1326,7 +1329,7 @@ def reset(args, config, basepath, workspace):
         for recipe in recipes:
             targets.append(recipe)
             recipefile = workspace[recipe]['recipefile']
-            if recipefile:
+            if recipefile and os.path.exists(recipefile):
                 targets.extend(get_bbclassextend_targets(recipefile, recipe))
         try:
             exec_build_env_command(config.init_path, basepath, 'bitbake -c clean %s' % ' '.join(targets))

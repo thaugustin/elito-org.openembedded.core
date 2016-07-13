@@ -324,7 +324,7 @@ def supports_srcrev(uri):
 def reformat_git_uri(uri):
     '''Convert any http[s]://....git URI into git://...;protocol=http[s]'''
     checkuri = uri.split(';', 1)[0]
-    if checkuri.endswith('.git') or '/git/' in checkuri:
+    if checkuri.endswith('.git') or '/git/' in checkuri or re.match('https?://github.com/[^/]+/[^/]+/?', checkuri):
         res = re.match('(https?)://([^;]+(\.git)?)(;.*)?$', uri)
         if res:
             # Need to switch the URI around so that the git fetcher is used
@@ -351,11 +351,16 @@ def create_recipe(args):
     extravalues = {}
     checksums = (None, None)
     tempsrc = ''
+    source = args.source
     srcsubdir = ''
     srcrev = '${AUTOREV}'
-    if '://' in args.source:
+
+    if os.path.isfile(source):
+        source = 'file://%s' % os.path.abspath(source)
+
+    if '://' in source:
         # Fetch a URL
-        fetchuri = reformat_git_uri(urldefrag(args.source)[0])
+        fetchuri = reformat_git_uri(urldefrag(source)[0])
         if args.binary:
             # Assume the archive contains the directory structure verbatim
             # so we need to extract to a subdirectory
@@ -390,7 +395,7 @@ def create_recipe(args):
                 srcsubdir = dirlist[0]
                 srctree = os.path.join(srctree, srcsubdir)
             else:
-                with open(singleitem, 'r') as f:
+                with open(singleitem, 'r', errors='surrogateescape') as f:
                     if '<html' in f.read(100).lower():
                         logger.error('Fetching "%s" returned a single HTML page - check the URL is correct and functional' % fetchuri)
                         sys.exit(1)
@@ -426,10 +431,10 @@ def create_recipe(args):
         if args.extract_to:
             logger.error('--extract-to cannot be specified if source is a directory')
             sys.exit(1)
-        if not os.path.isdir(args.source):
-            logger.error('Invalid source directory %s' % args.source)
+        if not os.path.isdir(source):
+            logger.error('Invalid source directory %s' % source)
             sys.exit(1)
-        srctree = args.source
+        srctree = source
         srcuri = ''
         if os.path.exists(os.path.join(srctree, '.git')):
             # Try to get upstream repo location from origin remote
@@ -840,7 +845,7 @@ def crunch_license(licfile):
     # https://github.com/FFmpeg/FFmpeg/blob/master/COPYING.LGPLv3
     crunched_md5sums['2ebfb3bb49b9a48a075cc1425e7f4129'] = 'LGPLv3'
     lictext = []
-    with open(licfile, 'r') as f:
+    with open(licfile, 'r', errors='surrogateescape') as f:
         for line in f:
             # Drop opening statements
             if copyright_re.match(line):
@@ -937,35 +942,6 @@ def read_pkgconfig_provides(d):
                         recipemap[pc] = line.split(':', 1)[1].strip()
     return recipemap
 
-def convert_pkginfo(pkginfofile):
-    values = {}
-    with open(pkginfofile, 'r') as f:
-        indesc = False
-        for line in f:
-            if indesc:
-                if line.strip():
-                    values['DESCRIPTION'] += ' ' + line.strip()
-                else:
-                    indesc = False
-            else:
-                splitline = line.split(': ', 1)
-                key = line[0]
-                value = line[1]
-                if key == 'LICENSE':
-                    for dep in value.split(','):
-                        dep = dep.split()[0]
-                        mapped = depmap.get(dep, '')
-                        if mapped:
-                            depends.append(mapped)
-                elif key == 'License':
-                    values['LICENSE'] = value
-                elif key == 'Summary':
-                    values['SUMMARY'] = value
-                elif key == 'Description':
-                    values['DESCRIPTION'] = value
-                    indesc = True
-    return values
-
 def convert_debian(debpath):
     value_map = {'Package': 'PN',
                  'Version': 'PV',
@@ -978,7 +954,7 @@ def convert_debian(debpath):
 
     values = {}
     depends = []
-    with open(os.path.join(debpath, 'control')) as f:
+    with open(os.path.join(debpath, 'control'), 'r', errors='surrogateescape') as f:
         indesc = False
         for line in f:
             if indesc:
