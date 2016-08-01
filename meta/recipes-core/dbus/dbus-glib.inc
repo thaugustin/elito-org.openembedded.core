@@ -33,7 +33,7 @@ FILES_${PN}-bash-completion += "${libexecdir}/dbus-bash-completion-helper"
 FILES_${PN}-dev += "${libdir}/dbus-1.0/include ${bindir}/dbus-glib-tool"
 FILES_${PN}-dev += "${bindir}/dbus-binding-tool"
 
-RDEPENDS_${PN}-tests += "${@base_contains('DISTRO_FEATURES', 'x11', "dbus-x11", '', d)}"
+RDEPENDS_${PN}-tests += "${@bb.utils.contains('DISTRO_FEATURES', 'x11', "dbus-x11", '', d)}"
 FILES_${PN}-tests = "${datadir}/${BPN}/tests"
 
 BBCLASSEXTEND = "native"
