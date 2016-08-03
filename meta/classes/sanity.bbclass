@@ -790,8 +790,6 @@ def check_sanity_everybuild(status, d):
     if (LooseVersion(bb.__version__) < LooseVersion(minversion)):
         status.addresult('Bitbake version %s is required and version %s was found\n' % (minversion, bb.__version__))
 
-    sanity_check_locale(d)
-
     paths = d.getVar('PATH', True).split(":")
     if "." in paths or "./" in paths or "" in paths:
         status.addresult("PATH contains '.', './' or '' (empty element), which will break the build, please remove this.\nParsed PATH is " + str(paths) + "\n")
