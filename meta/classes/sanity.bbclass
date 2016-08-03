@@ -794,8 +794,6 @@ def check_sanity_everybuild(status, d):
     if (LooseVersion(bb.__version__) < LooseVersion(minversion)):
         status.addresult('Bitbake version %s is required and version %s was found\n' % (minversion, bb.__version__))
 
-    sanity_check_locale(d)
-
     sanity_check_conffiles(status, d)
 
     paths = d.getVar('PATH', True).split(":")
