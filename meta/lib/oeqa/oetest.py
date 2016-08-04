@@ -265,8 +265,6 @@ class TestContext(object):
 
         if "auto" in self.testsuites:
             def add_auto_list(path):
-                if not os.path.exists(os.path.join(path, '__init__.py')):
-                    bb.fatal('Tests directory %s exists but is missing __init__.py' % path)
                 files = sorted([f for f in os.listdir(path) if f.endswith('.py') and not f.startswith('_')])
                 for f in files:
                     module = 'oeqa.' + type + '.' + f[:-3]
@@ -397,8 +395,6 @@ class RuntimeTestContext(TestContext):
     def __init__(self, d, target, exported=False):
         super(RuntimeTestContext, self).__init__(d, exported)
 
-        self.tagexp =  d.getVar("TEST_SUITES_TAGS", True)
-
         self.target = target
 
         self.pkgmanifest = {}
@@ -447,6 +443,8 @@ class RuntimeTestContext(TestContext):
         modules = self.getTestModules()
         bbpaths = self.d.getVar("BBPATH", True).split(":")
 
+        shutil.rmtree(self.d.getVar("TEST_EXTRACTED_DIR", True))
+        shutil.rmtree(self.d.getVar("TEST_PACKAGED_DIR", True))
         for module in modules:
             json_file = self._getJsonFile(module)
             if json_file:
@@ -457,6 +455,8 @@ class RuntimeTestContext(TestContext):
         """
         Extract packages that will be needed during runtime.
         """
+
+        import oe.path
 
         extracted_path = self.d.getVar("TEST_EXTRACTED_DIR", True)
         packaged_path = self.d.getVar("TEST_PACKAGED_DIR", True)
@@ -481,13 +481,18 @@ class RuntimeTestContext(TestContext):
                     dst_dir = os.path.join(packaged_path)
 
                 # Extract package and copy it to TEST_EXTRACTED_DIR
-                if extract and not os.path.exists(dst_dir):
-                    pkg_dir = self._extract_in_tmpdir(pkg)
-                    shutil.copytree(pkg_dir, dst_dir)
+                pkg_dir = self._extract_in_tmpdir(pkg)
+                if extract:
+
+                    # Same package used for more than one test,
+                    # don't need to extract again.
+                    if os.path.exists(dst_dir):
+                        continue
+                    oe.path.copytree(pkg_dir, dst_dir)
                     shutil.rmtree(pkg_dir)
 
                 # Copy package to TEST_PACKAGED_DIR
-                elif not extract:
+                else:
                     self._copy_package(pkg)
 
     def _getJsonFile(self, module):
@@ -598,6 +603,8 @@ class ImageTestContext(RuntimeTestContext):
     def __init__(self, d, target, host_dumper):
         super(ImageTestContext, self).__init__(d, target)
 
+        self.tagexp = d.getVar("TEST_SUITES_TAGS", True)
+
         self.host_dumper = host_dumper
 
         self.sigterm = False
@@ -618,8 +625,18 @@ class ImageTestContext(RuntimeTestContext):
         super(ImageTestContext, self).install_uninstall_packages(test_id, pkg_dir, install)
 
 class ExportTestContext(RuntimeTestContext):
-    def __init__(self, d, target, exported=False):
+    def __init__(self, d, target, exported=False, parsedArgs={}):
+        """
+        This class is used when exporting tests and when are executed outside OE environment.
+
+        parsedArgs can contain the following:
+            - tag:      Filter test by tag.
+        """
         super(ExportTestContext, self).__init__(d, target, exported)
+
+        tag = parsedArgs.get("tag", None)
+        self.tagexp = tag if tag != None else d.getVar("TEST_SUITES_TAGS", True)
+
         self.sigterm = None
 
     def install_uninstall_packages(self, test_id, install=True):
