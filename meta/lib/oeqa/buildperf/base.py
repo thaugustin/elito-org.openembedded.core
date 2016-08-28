@@ -96,33 +96,34 @@ class BuildPerfTestResult(unittest.TextTestResult):
             self.repo = GitRepo('.')
         except GitError:
             self.repo = None
-        self.git_revision, self.git_branch = self.get_git_revision()
+        self.git_commit, self.git_commit_count, self.git_branch = \
+                self.get_git_revision()
         self.hostname = socket.gethostname()
         self.start_time = self.elapsed_time = None
         self.successes = []
-        log.info("Using Git branch:revision %s:%s", self.git_branch,
-                 self.git_revision)
+        log.info("Using Git branch:commit %s:%s (%s)", self.git_branch,
+                 self.git_commit, self.git_commit_count)
 
     def get_git_revision(self):
-        """Get git branch and revision under testing"""
-        rev = os.getenv('OE_BUILDPERFTEST_GIT_REVISION')
+        """Get git branch and commit under testing"""
+        commit = os.getenv('OE_BUILDPERFTEST_GIT_COMMIT')
+        commit_cnt = os.getenv('OE_BUILDPERFTEST_GIT_COMMIT_COUNT')
         branch = os.getenv('OE_BUILDPERFTEST_GIT_BRANCH')
-        if not self.repo and (not rev or not branch):
+        if not self.repo and (not commit or not commit_cnt or not branch):
             log.info("The current working directory doesn't seem to be a Git "
-                     "repository clone. You can specify branch and revision "
-                     "used in test results with OE_BUILDPERFTEST_GIT_REVISION "
-                     "and OE_BUILDPERFTEST_GIT_BRANCH environment variables")
+                     "repository clone. You can specify branch and commit "
+                     "displayed in test results with OE_BUILDPERFTEST_GIT_BRANCH, "
+                     "OE_BUILDPERFTEST_GIT_COMMIT and "
+                     "OE_BUILDPERFTEST_GIT_COMMIT_COUNT environment variables")
         else:
-            if not rev:
-                rev = self.repo.run_cmd(['rev-parse', 'HEAD'])
+            if not commit:
+                commit = self.repo.rev_parse('HEAD^0')
+                commit_cnt = self.repo.run_cmd(['rev-list', '--count', 'HEAD^0'])
             if not branch:
-                try:
-                    # Strip 11 chars, i.e. 'refs/heads' from the beginning
-                    branch = self.repo.run_cmd(['symbolic-ref', 'HEAD'])[11:]
-                except GitError:
+                branch = self.repo.get_current_branch()
+                if not branch:
                     log.debug('Currently on detached HEAD')
-                    branch = None
-        return str(rev), str(branch)
+        return str(commit), str(commit_cnt), str(branch)
 
     def addSuccess(self, test):
         """Record results from successful tests"""
@@ -168,9 +169,9 @@ class BuildPerfTestResult(unittest.TextTestResult):
                   'test4': ((7, 1), (10, 2))}
 
         if self.repo:
-            git_tag_rev = self.repo.run_cmd(['describe', self.git_revision])
+            git_tag_rev = self.repo.run_cmd(['describe', self.git_commit])
         else:
-            git_tag_rev = self.git_revision
+            git_tag_rev = self.git_commit
 
         values = ['0'] * 12
         for status, (test, msg) in self.all_results():
@@ -186,9 +187,70 @@ class BuildPerfTestResult(unittest.TextTestResult):
         with open(filename, 'a') as fobj:
             fobj.write('{},{}:{},{},'.format(self.hostname,
                                              self.git_branch,
-                                             self.git_revision,
+                                             self.git_commit,
                                              git_tag_rev))
             fobj.write(','.join(values) + '\n')
+
+
+    def git_commit_results(self, repo_path, branch=None, tag=None):
+        """Commit results into a Git repository"""
+        repo = GitRepo(repo_path, is_topdir=True)
+        if not branch:
+            branch = self.git_branch
+        else:
+            # Replace keywords
+            branch = branch.format(git_branch=self.git_branch,
+                                   tester_host=self.hostname)
+
+        log.info("Committing test results into %s %s", repo_path, branch)
+        tmp_index = os.path.join(repo_path, '.git', 'index.oe-build-perf')
+        try:
+            # Create new commit object from the new results
+            env_update = {'GIT_INDEX_FILE': tmp_index,
+                          'GIT_WORK_TREE': self.out_dir}
+            repo.run_cmd('add .', env_update)
+            tree = repo.run_cmd('write-tree', env_update)
+            parent = repo.rev_parse(branch)
+            msg = "Results of {}:{}\n".format(self.git_branch, self.git_commit)
+            git_cmd = ['commit-tree', tree, '-m', msg]
+            if parent:
+                git_cmd += ['-p', parent]
+            commit = repo.run_cmd(git_cmd, env_update)
+
+            # Update branch head
+            git_cmd = ['update-ref', 'refs/heads/' + branch, commit]
+            if parent:
+                git_cmd.append(parent)
+            repo.run_cmd(git_cmd)
+
+            # Update current HEAD, if we're on branch 'branch'
+            if repo.get_current_branch() == branch:
+                log.info("Updating %s HEAD to latest commit", repo_path)
+                repo.run_cmd('reset --hard')
+
+            # Create (annotated) tag
+            if tag:
+                # Find tags matching the pattern
+                tag_keywords = dict(git_branch=self.git_branch,
+                                    git_commit=self.git_commit,
+                                    git_commit_count=self.git_commit_count,
+                                    tester_host=self.hostname,
+                                    tag_num='[0-9]{1,5}')
+                tag_re = re.compile(tag.format(**tag_keywords) + '$')
+                tag_keywords['tag_num'] = 0
+                for existing_tag in repo.run_cmd('tag').splitlines():
+                    if tag_re.match(existing_tag):
+                        tag_keywords['tag_num'] += 1
+
+                tag = tag.format(**tag_keywords)
+                msg = "Test run #{} of {}:{}\n".format(tag_keywords['tag_num'],
+                                                       self.git_branch,
+                                                       self.git_commit)
+                repo.run_cmd(['tag', '-a', '-m', msg, tag, commit])
+
+        finally:
+            if os.path.exists(tmp_index):
+                os.unlink(tmp_index)
 
 
 class BuildPerfTestCase(unittest.TestCase):
