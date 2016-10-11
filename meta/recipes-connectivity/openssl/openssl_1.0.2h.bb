@@ -37,6 +37,18 @@ SRC_URI += "file://configure-targets.patch \
             file://crypto_use_bigint_in_x86-64_perl.patch \
             file://openssl-1.0.2a-x32-asm.patch \
             file://ptest_makefile_deps.patch  \
+            file://parallel.patch \
+            file://CVE-2016-2177.patch \
+            file://CVE-2016-2178.patch \
+            file://CVE-2016-2180.patch \
+            file://CVE-2016-2181_p1.patch \
+            file://CVE-2016-2181_p2.patch \
+            file://CVE-2016-2181_p3.patch \
+            file://CVE-2016-2182.patch \
+            file://CVE-2016-6302.patch \
+            file://CVE-2016-6303.patch \
+            file://CVE-2016-6304.patch \
+            file://CVE-2016-6306.patch \
            "
 
 SRC_URI[md5sum] = "9392e65072ce4b614c1392eefc1f23d0"

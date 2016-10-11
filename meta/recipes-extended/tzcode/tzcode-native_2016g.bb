@@ -3,16 +3,15 @@
 SUMMARY = "tzcode, timezone zoneinfo utils -- zic, zdump, tzselect"
 LICENSE = "PD & BSD & BSD-3-Clause"
 
-LIC_FILES_CHKSUM = "file://LICENSE;md5=76ae2becfcb9a685041c6f166b44c2c2"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=ef1a352b901ee7b75a75df8171d6aca7"
 
 SRC_URI =" http://www.iana.org/time-zones/repository/releases/tzcode${PV}.tar.gz;name=tzcode \
            http://www.iana.org/time-zones/repository/releases/tzdata${PV}.tar.gz;name=tzdata"
 
-SRC_URI[tzcode.md5sum] = "6e6d3f0046a9383aafba8c2e0708a3a3"
-SRC_URI[tzcode.sha256sum] = "57d8c4fcd5e8a90657d0e298eac5effb1a642119c92308db68d13a4612fa459e"
-
-SRC_URI[tzdata.md5sum] = "43f9f929a8baf0dd2f17efaea02c2d2a"
-SRC_URI[tzdata.sha256sum] = "ba00f899f18dc4048d7fa21f5e1fdef434496084eedc06f6caa15e5ecdb6bd81"
+SRC_URI[tzcode.md5sum] = "f89867013676e3cb9544be2df7d36a91"
+SRC_URI[tzcode.sha256sum] = "1ff90b47ad7986140a513b5287b1851c40f80fd44fd636db5cc5b46d06f9fa2b"
+SRC_URI[tzdata.md5sum] = "3c7e97ec8527211104d27cc1d97a23de"
+SRC_URI[tzdata.sha256sum] = "3c7137b2bc47323b0de47b77786bacf81ed503d4b2c693ff8ada2fbd1281ebd1"
 
 S = "${WORKDIR}"
 
