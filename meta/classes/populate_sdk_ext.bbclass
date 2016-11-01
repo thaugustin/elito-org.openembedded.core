@@ -43,7 +43,7 @@ SDK_TARGETS ?= "${PN}"
 
 def get_sdk_install_targets(d, images_only=False):
     sdk_install_targets = ''
-    if d.getVar('SDK_EXT_TYPE', True) != 'minimal':
+    if images_only or d.getVar('SDK_EXT_TYPE', True) != 'minimal':
         sdk_install_targets = d.getVar('SDK_TARGETS', True)
 
         depd = d.getVar('BB_TASKDEPDATA', False)
@@ -88,8 +88,7 @@ SDK_TITLE_task-populate-sdk-ext = "${@d.getVar('DISTRO_NAME', True) or d.getVar(
 def clean_esdk_builddir(d, sdkbasepath):
     """Clean up traces of the fake build for create_filtered_tasklist()"""
     import shutil
-    cleanpaths = 'cache conf/sanity_info conf/templateconf.cfg'.split()
-    cleanpaths.append(os.path.basename(d.getVar('TMPDIR', True)))
+    cleanpaths = 'cache conf/sanity_info conf/templateconf.cfg tmp'.split()
     for pth in cleanpaths:
         fullpth = os.path.join(sdkbasepath, pth)
         if os.path.isdir(fullpth):
@@ -109,10 +108,12 @@ def create_filtered_tasklist(d, sdkbasepath, tasklistfile, conf_initpath):
     # Create a temporary build directory that we can pass to the env setup script
     shutil.copyfile(sdkbasepath + '/conf/local.conf', sdkbasepath + '/conf/local.conf.bak')
     try:
-        # Force the use of sstate from the build system
         with open(sdkbasepath + '/conf/local.conf', 'a') as f:
+            # Force the use of sstate from the build system
             f.write('\nSSTATE_DIR_forcevariable = "%s"\n' % d.getVar('SSTATE_DIR', True))
             f.write('SSTATE_MIRRORS_forcevariable = ""\n')
+            # Ensure TMPDIR is the default so that clean_esdk_builddir() can delete it
+            f.write('TMPDIR_forcevariable = "${TOPDIR}/tmp"\n')
             # Drop uninative if the build isn't using it (or else NATIVELSBSTRING will
             # be different and we won't be able to find our native sstate)
             if not bb.data.inherits_class('uninative', d):
@@ -280,6 +281,8 @@ python copy_buildsystem () {
                     f.write(line)
             # Write a newline just in case there's none at the end of the original
             f.write('\n')
+
+            f.write('DL_DIR = "${TOPDIR}/downloads"\n')
 
             f.write('INHERIT += "%s"\n' % 'uninative')
             f.write('UNINATIVE_CHECKSUM[%s] = "%s"\n\n' % (d.getVar('BUILD_ARCH', True), uninative_checksum))
@@ -491,8 +494,18 @@ def get_sdk_required_utilities(buildtools_fn, d):
 
 install_tools() {
 	install -d ${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}
-	lnr ${SDK_OUTPUT}/${SDKPATH}/${scriptrelpath}/devtool ${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}/devtool
-	lnr ${SDK_OUTPUT}/${SDKPATH}/${scriptrelpath}/recipetool ${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}/recipetool
+	scripts="devtool recipetool oe-find-native-sysroot runqemu*"
+	for script in $scripts; do
+		for scriptfn in `find ${SDK_OUTPUT}/${SDKPATH}/${scriptrelpath} -maxdepth 1 -executable -name "$script"`; do
+			lnr ${scriptfn} ${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}/`basename $scriptfn`
+		done
+	done
+	# We can't use the same method as above because files in the sysroot won't exist at this point
+	# (they get populated from sstate on installation)
+	if [ "${SDK_INCLUDE_TOOLCHAIN}" == "1" ] ; then
+		binrelpath=${@os.path.relpath(d.getVar('STAGING_BINDIR_NATIVE',True), d.getVar('TOPDIR', True))}
+		lnr ${SDK_OUTPUT}/${SDKPATH}/$binrelpath/unfsd ${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}/unfsd
+	fi
 	touch ${SDK_OUTPUT}/${SDKPATH}/.devtoolbase
 
 	# find latest buildtools-tarball and install it

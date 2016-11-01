@@ -175,6 +175,8 @@ def sstate_install(ss, d):
     if os.access(manifest, os.R_OK):
         bb.fatal("Package already staged (%s)?!" % manifest)
 
+    d.setVar("SSTATE_INST_POSTRM", manifest + ".postrm")
+
     locks = []
     for lock in ss['lockfiles-shared']:
         locks.append(bb.utils.lockfile(lock, True))
@@ -205,6 +207,7 @@ def sstate_install(ss, d):
             f = os.path.normpath(f)
             realmatch = True
             for w in whitelist:
+                w = os.path.normpath(w)
                 if f.startswith(w):
                     realmatch = False
                     break
@@ -406,6 +409,13 @@ def sstate_clean_manifest(manifest, d):
                 oe.path.remove(entry)
         except OSError:
             pass
+
+    postrm = manifest + ".postrm"
+    if os.path.exists(manifest + ".postrm"):
+        import subprocess
+        os.chmod(postrm, 0o755)
+        subprocess.call(postrm, shell=True)
+        oe.path.remove(postrm)
 
     oe.path.remove(manifest)
 
@@ -648,7 +658,7 @@ def sstate_setscene(d):
     shared_state = sstate_state_fromvars(d)
     accelerate = sstate_installpkg(shared_state, d)
     if not accelerate:
-        raise bb.build.FuncFailed("No suitable staging package found")
+        bb.fatal("No suitable staging package found")
 
 python sstate_task_prefunc () {
     shared_state = sstate_state_fromvars(d)
@@ -841,15 +851,19 @@ def sstate_checkhashes(sq_fn, sq_task, sq_hash, sq_hashfn, d, siginfo=False):
 
         if tasklist:
             bb.event.fire(bb.event.ProcessStarted("Checking sstate mirror object availability", len(tasklist)), d)
+
             import multiprocessing
             nproc = min(multiprocessing.cpu_count(), len(tasklist))
 
+            bb.event.enable_threadlock()
             pool = oe.utils.ThreadedPool(nproc, len(tasklist),
                     worker_init=checkstatus_init, worker_end=checkstatus_end)
             for t in tasklist:
                 pool.add_task(checkstatus, t)
             pool.start()
             pool.wait_completion()
+            bb.event.disable_threadlock()
+
             bb.event.fire(bb.event.ProcessFinished("Checking sstate mirror object availability"), d)
             if whitelist and missing:
                 bb.fatal('Required artifacts were unavailable - exiting')
@@ -1011,6 +1025,8 @@ python sstate_eventhandler2() {
         for r in toremove:
             (stamp, manifest, workdir) = r.split()
             for m in glob.glob(manifest + ".*"):
+                if m.endswith(".postrm"):
+                    continue
                 sstate_clean_manifest(m, d)
             bb.utils.remove(stamp + "*")
             if removeworkdir:

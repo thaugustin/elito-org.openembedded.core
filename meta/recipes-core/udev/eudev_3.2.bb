@@ -23,11 +23,10 @@ UPSTREAM_CHECK_URI = "https://github.com/gentoo/eudev/releases"
 SRC_URI[md5sum] = "9eb477cc8718db272b5d24dff1126b04"
 SRC_URI[sha256sum] = "37829d37f4beb7e358ca33abc1ad0907d87f917ce157777aeaeebeacae24efdc"
 
-inherit autotools update-rc.d qemu
+inherit autotools update-rc.d qemu pkgconfig
 
 EXTRA_OECONF = " \
     --sbindir=${base_sbindir} \
-    --libexecdir=${nonarch_base_libdir} \
     --with-rootlibdir=${base_libdir} \
     --with-rootprefix= \
 "
@@ -53,13 +52,6 @@ do_install_append() {
 	# Use classic network interface naming scheme
 	touch ${D}${sysconfdir}/udev/rules.d/80-net-name-slot.rules
 
-	# Fix for multilib systems where libs along with confs are installed incorrectly
-	if ! [ -d ${D}${nonarch_base_libdir}/udev ]
-	then
-		install -d ${D}${nonarch_base_libdir}/udev
-		mv ${D}${base_libdir}/udev ${D}${nonarch_base_libdir}
-	fi
-
 	# hid2hci has moved to bluez4. removed in udev as of version 169
 	rm -f ${D}${base_libdir}/udev/hid2hci
 }
@@ -75,7 +67,7 @@ PACKAGES =+ "udev-cache"
 PACKAGES =+ "eudev-hwdb"
 
 
-FILES_${PN} += "${libexecdir} ${nonarch_base_libdir}/udev ${bindir}/udevadm"
+FILES_${PN} += "${libexecdir} ${base_libdir}/udev ${bindir}/udevadm"
 FILES_${PN}-dev = "${datadir}/pkgconfig/udev.pc \
                    ${includedir}/libudev.h ${libdir}/libudev.so \
                    ${includedir}/udev.h ${libdir}/libudev.la \

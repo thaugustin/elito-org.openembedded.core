@@ -43,6 +43,7 @@ class Image():
     def __init__(self, native_sysroot=None):
         self.disks = {}
         self.partitions = []
+        self.partimages = []
         # Size of a sector used in calculations
         self.sector_size = SECTOR_SIZE
         self._partitions_layed_out = False
@@ -67,15 +68,17 @@ class Image():
                  'offset': 0,      # Offset of next partition (in sectors)
                  # Minimum required disk size to fit all partitions (in bytes)
                  'min_size': 0,
-                 'ptable_format': "msdos"} # Partition table format
+                 'ptable_format': "msdos", # Partition table format
+                 'identifier': None} # Disk system identifier
 
-    def add_disk(self, disk_name, disk_obj):
+    def add_disk(self, disk_name, disk_obj, identifier):
         """ Add a disk object which have to be partitioned. More than one disk
         can be added. In case of multiple disks, disk partitions have to be
         added for each disk separately with 'add_partition()". """
 
         self.__add_disk(disk_name)
         self.disks[disk_name]['disk'] = disk_obj
+        self.disks[disk_name]['identifier'] = identifier
 
     def __add_partition(self, part):
         """ This is a helper function for 'add_partition()' which adds a
@@ -244,6 +247,12 @@ class Image():
                             (disk['disk'].device, disk['ptable_format']),
                             self.native_sysroot)
 
+            if disk['identifier']:
+                msger.debug("Set disk identifier %x" % disk['identifier'])
+                with open(disk['disk'].device, 'r+b') as img:
+                    img.seek(0x1B8)
+                    img.write(disk['identifier'].to_bytes(4, 'little'))
+
         msger.debug("Creating partitions")
 
         for part in self.partitions:
@@ -298,7 +307,7 @@ class Image():
                                          (part['num'], part['part_type'],
                                           disk['disk'].device), self.native_sysroot)
 
-            if part['uuid']:
+            if part['uuid'] and disk['ptable_format'] == "gpt":
                 msger.debug("partition %d: set UUID to %s" % \
                             (part['num'], part['uuid']))
                 exec_native_cmd("sgdisk --partition-guid=%d:%s %s" % \
@@ -336,6 +345,10 @@ class Image():
                     disk['disk'].cleanup()
                 except:
                     pass
+        # remove partition images
+        for image in self.partimages:
+            if os.path.isfile(image):
+                os.remove(image)
 
     def assemble(self, image_file):
         msger.debug("Installing partitions")
@@ -351,7 +364,9 @@ class Image():
                             (source, part['num'], part['start'],
                              part['start'] + part['size'] - 1, part['size']))
 
-                os.rename(source, image_file + '.p%d' % part['num'])
+                partimage = image_file + '.p%d' % part['num']
+                os.rename(source, partimage)
+                self.partimages.append(partimage)
 
     def create(self):
         for dev in self.disks:

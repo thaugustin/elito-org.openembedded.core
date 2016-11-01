@@ -408,9 +408,14 @@ class BuildPerfTestCase(unittest.TestCase):
                                                       int((e_sec % 3600) / 60),
                                                        e_sec % 60))
 
-    def measure_disk_usage(self, path, name, legend):
+    def measure_disk_usage(self, path, name, legend, apparent_size=False):
         """Estimate disk usage of a file or directory"""
-        ret = runCmd2(['du', '-s', path])
+        cmd = ['du', '-s', '--block-size', '1024']
+        if apparent_size:
+            cmd.append('--apparent-size')
+        cmd.append(path)
+
+        ret = runCmd2(cmd)
         size = int(ret.output.split()[0])
         log.debug("Size of %s path is %s", path, size)
         measurement = {'type': self.DISKUSAGE,
@@ -428,6 +433,11 @@ class BuildPerfTestCase(unittest.TestCase):
             n_e_v, revision = nevr.rsplit('-', 1)
             match = re.match(r'^(?P<name>\S+)-((?P<epoch>[0-9]{1,5})_)?(?P<version>[0-9]\S*)$',
                              n_e_v)
+            if not match:
+                # If we're not able to parse a version starting with a number, just
+                # take the part after last dash
+                match = re.match(r'^(?P<name>\S+)-((?P<epoch>[0-9]{1,5})_)?(?P<version>[^-]+)$',
+                                 n_e_v)
             name = match.group('name')
             version = match.group('version')
             epoch = match.group('epoch')

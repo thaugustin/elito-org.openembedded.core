@@ -58,6 +58,12 @@ DEFAULT_TEST_SUITES_pn-meta-toolchain = "auto"
 # aarch64 has no graphics
 DEFAULT_TEST_SUITES_remove_aarch64 = "xorg"
 
+# qemumips is quite slow and has reached the timeout limit several times on the YP build cluster,
+# mitigate this by removing build tests for qemumips machines.
+MIPSREMOVE ??= "buildcvs buildiptables buildgalculator"
+DEFAULT_TEST_SUITES_remove_qemumips = "${MIPSREMOVE}"
+DEFAULT_TEST_SUITES_remove_qemumips64 = "${MIPSREMOVE}"
+
 TEST_SUITES ?= "${DEFAULT_TEST_SUITES}"
 
 TEST_QEMUBOOT_TIMEOUT ?= "1000"
@@ -67,6 +73,11 @@ TESTIMAGEDEPENDS = ""
 TESTIMAGEDEPENDS_qemuall = "qemu-native:do_populate_sysroot qemu-helper-native:do_populate_sysroot"
 TESTIMAGEDEPENDS += "${@bb.utils.contains('IMAGE_PKGTYPE', 'rpm', 'cpio-native:do_populate_sysroot', '', d)}"
 TESTIMAGEDEPENDS_qemuall += "${@bb.utils.contains('IMAGE_PKGTYPE', 'rpm', 'cpio-native:do_populate_sysroot', '', d)}"
+TESTIMAGEDEPENDS_qemuall += "${@bb.utils.contains('IMAGE_PKGTYPE', 'rpm', 'createrepo-native:do_populate_sysroot', '', d)}"
+TESTIMAGEDEPENDS += "${@bb.utils.contains('IMAGE_PKGTYPE', 'rpm', 'python-smartpm-native:do_populate_sysroot', '', d)}"
+TESTIMAGEDEPENDS += "${@bb.utils.contains('IMAGE_PKGTYPE', 'ipk', 'opkg-utils-native:do_populate_sysroot', '', d)}"
+TESTIMAGEDEPENDS += "${@bb.utils.contains('IMAGE_PKGTYPE', 'deb', 'apt-native:do_populate_sysroot', '', d)}"
+
 
 TESTIMAGELOCK = "${TMPDIR}/testimage.lock"
 TESTIMAGELOCK_qemuall = ""
@@ -159,7 +170,7 @@ def testimage_main(d):
                 msg += " (skipped=%d)" % skipped
             bb.plain(msg)
         else:
-            raise bb.build.FuncFailed("%s - FAILED - check the task log and the ssh log" % pn )
+            bb.fatal("%s - FAILED - check the task log and the ssh log" % pn)
     finally:
         signal.signal(signal.SIGTERM, tc.origsigtermhandler)
         target.stop()

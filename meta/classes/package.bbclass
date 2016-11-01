@@ -1171,7 +1171,7 @@ python populate_packages () {
                 continue
             ret = bb.utils.copyfile(file, fpath)
             if ret is False or ret == 0:
-                raise bb.build.FuncFailed("File population failed")
+                bb.fatal("File population failed")
 
         # Check if symlink paths exist
         for file in symlink_paths:
@@ -1490,7 +1490,7 @@ python package_do_shlibs() {
     import re, pipes
     import subprocess as sub
 
-    exclude_shlibs = d.getVar('EXCLUDE_FROM_SHLIBS', 0)
+    exclude_shlibs = d.getVar('EXCLUDE_FROM_SHLIBS', False)
     if exclude_shlibs:
         bb.note("not generating shlibs")
         return
